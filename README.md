@@ -38,7 +38,7 @@ This is a spec-first bootstrap. Nothing in this repository is normative yet.
   that the framing can be parsed and produced with a very small implementation;
   it deliberately does not decide AES value semantics. It preserves an
   explicit stream profile, and its separate `checkTelexCompleteness` helper
-  reports missing structural prefixes without claiming full `aes.telex.v0`
+  reports missing structural prefixes without claiming full `aes.complete.v0`
   validation. `validateTelex` and `validateTelexRecords` apply the event-local
   Draft 0 rules and the selected profile's structural checks.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early

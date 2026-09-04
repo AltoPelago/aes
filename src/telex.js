@@ -46,8 +46,8 @@ const EXACT_VALUES = new Map([
 ]);
 
 export const TELEX_VERSION = '0';
-export const DEFAULT_TELEX_PROFILE = 'aes.telex.v0';
-export const RAW_TELEX_PROFILE = 'aes.raw.v0';
+export const COMPLETE_AES_PROFILE = 'aes.complete.v0';
+export const PARTIAL_AES_PROFILE = 'aes.partial.v0';
 
 export class TelexSyntaxError extends Error {
   constructor(message, line, code = 'TELEX_SYNTAX_ERROR') {
@@ -82,14 +82,14 @@ export function parseTelex(input) {
   if (lines.length === 1) {
     return {
       version: TELEX_VERSION,
-      profile: DEFAULT_TELEX_PROFILE,
+      profile: COMPLETE_AES_PROFILE,
       profileExplicit: false,
       records: [],
       canonical: canonicalLineEndings && hasFinalLf,
     };
   }
 
-  let profile = DEFAULT_TELEX_PROFILE;
+  let profile = COMPLETE_AES_PROFILE;
   let profileExplicit = false;
   let headerCanonical = true;
   let eventStart = 2;
@@ -258,7 +258,7 @@ export function validateTelex(input, options = {}) {
   }
   return validateTelexRecords(parsed.records, {
     ...options,
-    profile: parsed.profile ?? DEFAULT_TELEX_PROFILE,
+    profile: parsed.profile ?? COMPLETE_AES_PROFILE,
   });
 }
 
@@ -267,7 +267,7 @@ export function validateTelexRecords(records, options = {}) {
     throw new TypeError('Telex records must be an array');
   }
 
-  const profile = options.profile ?? DEFAULT_TELEX_PROFILE;
+  const profile = options.profile ?? COMPLETE_AES_PROFILE;
   if (typeof profile !== 'string' || profile.length === 0) {
     throw new TypeError('AES profile must be a non-empty string');
   }
@@ -280,7 +280,7 @@ export function validateTelexRecords(records, options = {}) {
 
   const diagnostics = [];
   const events = [];
-  if (profile !== DEFAULT_TELEX_PROFILE && profile !== RAW_TELEX_PROFILE) {
+  if (profile !== COMPLETE_AES_PROFILE && profile !== PARTIAL_AES_PROFILE) {
     diagnostics.push(diagnostic(
       'AES_UNSUPPORTED_PROFILE',
       `Unsupported AES profile: ${profile}`,
@@ -358,7 +358,7 @@ export function validateTelexRecords(records, options = {}) {
     events.push({ event, index, pathDetails, knownKind });
   }
 
-  if (profile === DEFAULT_TELEX_PROFILE) {
+  if (profile === COMPLETE_AES_PROFILE) {
     validateCompleteStream(events, diagnostics);
   }
 

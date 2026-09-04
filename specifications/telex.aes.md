@@ -102,16 +102,16 @@ telex.aes=0
 The preamble may be followed by one profile declaration:
 
 ```text
-profile=aes.raw.v0
+profile=aes.partial.v0
 ```
 
 The stream header is followed by a blank line when at least one event follows.
 Future format versions use a different preamble value, not an inferred feature
 set. The profile selects semantic constraints within that format version.
 
-An omitted profile declaration means `aes.telex.v0`. This default is normative,
-not a request for profile negotiation. A producer that requires unconstrained
-event transport must declare `aes.raw.v0` explicitly.
+An omitted profile declaration means `aes.complete.v0`. This default is
+normative, not a request for profile negotiation. A producer that requires
+cross-event constraints to be relaxed must declare `aes.partial.v0` explicitly.
 
 The profile payload uses Telex payload escaping. Draft 0 permits one profile
 declaration and rejects an empty identifier. Syntax readers preserve unknown
@@ -493,13 +493,13 @@ does not infer one signing mode from the event content.
 
 ### 5.10 Completeness and profiles
 
-`aes.telex.v0` is the default AES profile. It requires a complete,
+`aes.complete.v0` is the default AES profile. It requires a complete,
 self-contained stream that a consumer can navigate without external state. A
 profile declaration is optional only because omission selects
-`aes.telex.v0`; omission does not select an unconstrained mode.
+`aes.complete.v0`; omission does not select a partial mode.
 
-Under `aes.telex.v0`, every non-root structural prefix has a material event and
-each parent kind is compatible with its child segment. Parents are never
+Under `aes.complete.v0`, every non-root structural prefix has a material event
+and each parent kind is compatible with its child segment. Parents are never
 inferred or synthesized. An attribute event requires its owning event, but
 `.@` does not require a synthetic attribute-space container event. Node content
 requires both its `node` and `node-head` ancestry. Event shape, path uniqueness,
@@ -508,18 +508,18 @@ The document root `$` is not itself an event, so only a member event may occur
 directly beneath it; an indexed or attribute-space event requires a represented
 owner below the root.
 
-`aes.raw.v0` retains event-local validity but relaxes cross-event constraints.
-Its events still require canonical paths, known value kinds, correct
-kind-dependent value presence, valid core fields, and any other rule that can
+`aes.partial.v0` retains event-local validity but relaxes cross-event
+constraints. Its events still require canonical paths, known value kinds,
+correct kind-dependent value presence, valid core fields, and any other rule that can
 be decided from that event alone. The stream may omit ancestors, repeat paths
 or structural identities, and carry events in delivery or ledger order. Parent
 compatibility is not asserted even when a parent happens to be present.
 
-For example, a raw stream may contain an event at `$.a.b` without carrying
+For example, a partial stream may contain an event at `$.a.b` without carrying
 `$.a`; it can represent an incremental event, filtered stream, transaction
 fragment, subscription, or ledger entry without claiming to be independently
-navigable AES state. Arbitrary `field=value` stanzas are not thereby valid raw
-AES events.
+navigable AES state. Arbitrary `field=value` stanzas are not thereby valid
+partial AES events.
 
 Transaction and ledger profiles may establish completeness against prior state
 plus the supplied segment rather than against the segment alone. They must be
@@ -536,7 +536,7 @@ container-kind compatibility, uniqueness, references, or any other claim of a
 complete AES profile.
 
 The normative completeness rule belongs to AES. `aeon.gp.profile.v1` explicitly
-declares that its AES projection satisfies `aes.telex.v0`, even though the same
+declares that its AES projection satisfies `aes.complete.v0`, even though the same
 profile would be selected by omission in a Telex stream. The GP profile
 references this AES-owned rule rather than redefining it.
 
@@ -582,9 +582,9 @@ A tiny Telex parser may implement only layer 1. It must not claim AES
 conformance merely because it can split fields.
 
 The reference `validateTelex` helper implements the event-local checks whose
-grammars are defined in this draft. For `aes.telex.v0`, it additionally checks
+grammars are defined in this draft. For `aes.complete.v0`, it additionally checks
 path and structural-identity uniqueness, required ancestry, parent/child
-container compatibility, and node-head placement. For `aes.raw.v0`, it omits
+container compatibility, and node-head placement. For `aes.partial.v0`, it omits
 those cross-event checks.
 
 Canonical payload grammars owned elsewhere remain separate validation points.

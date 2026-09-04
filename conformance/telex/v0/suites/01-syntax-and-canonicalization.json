@@ -22,7 +22,7 @@
       "expected": {
         "ok": true,
         "version": "0",
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "profile_explicit": false,
         "canonical": true,
         "records": []
@@ -39,7 +39,7 @@
       "expected": {
         "ok": true,
         "version": "0",
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "profile_explicit": false,
         "canonical": true,
         "records": [
@@ -53,21 +53,21 @@
       "tags": ["syntax", "scalar", "canonical"]
     },
     {
-      "id": "telex-syntax-003-explicit-raw",
-      "description": "An explicit raw profile is stream metadata rather than an event",
+      "id": "telex-syntax-003-explicit-partial",
+      "description": "An explicit partial profile is stream metadata rather than an event",
       "operation": "parse",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n"
       },
       "expected": {
         "ok": true,
         "version": "0",
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "profile_explicit": true,
         "canonical": true,
         "records": []
       },
-      "tags": ["syntax", "profile-raw", "header"]
+      "tags": ["syntax", "profile-partial", "header"]
     },
     {
       "id": "telex-syntax-004-payload-escapes",
@@ -79,7 +79,7 @@
       "expected": {
         "ok": true,
         "version": "0",
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "profile_explicit": false,
         "canonical": true,
         "records": [
@@ -102,7 +102,7 @@
       "expected": {
         "ok": true,
         "version": "0",
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "profile_explicit": false,
         "canonical": false,
         "records": [
@@ -181,7 +181,7 @@
       "description": "Events require a blank separator after stream metadata",
       "operation": "parse",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\npath=$.a\nkind=number\nvalue=1\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\npath=$.a\nkind=number\nvalue=1\n"
       },
       "expected": {
         "ok": false,
@@ -213,26 +213,26 @@
       "description": "Canonicalization retains an explicitly declared profile",
       "operation": "canonicalize",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\nkind=number\npath=$.a.b\nvalue=1\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\nkind=number\npath=$.a.b\nvalue=1\n"
       },
       "expected": {
         "ok": true,
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a.b\nkind=number\nvalue=1\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.b\nkind=number\nvalue=1\n"
       },
-      "tags": ["canonicalization", "profile", "raw"]
+      "tags": ["canonicalization", "profile", "partial"]
     },
     {
       "id": "telex-syntax-013-canonicalization-preserves-event-order",
       "description": "Canonicalization orders fields but never sorts events by path",
       "operation": "canonicalize",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\nkind=number\npath=$.z\nvalue=1\n\nkind=number\npath=$.a\nvalue=2\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\nkind=number\npath=$.z\nvalue=1\n\nkind=number\npath=$.a\nvalue=2\n"
       },
       "expected": {
         "ok": true,
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.z\nkind=number\nvalue=1\n\npath=$.a\nkind=number\nvalue=2\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.z\nkind=number\nvalue=1\n\npath=$.a\nkind=number\nvalue=2\n"
       },
-      "tags": ["canonicalization", "event-order", "raw"]
+      "tags": ["canonicalization", "event-order", "partial"]
     }
   ]
 }

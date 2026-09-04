@@ -13,7 +13,7 @@ The manifest separates:
 
 - syntax and canonicalization;
 - event-local AES validation; and
-- complete versus raw stream validation.
+- complete versus partial stream validation.
 
 Portable tests assert stable error or diagnostic codes rather than matching
 implementation-specific prose. Semantic `diagnostic_codes` are compared as a

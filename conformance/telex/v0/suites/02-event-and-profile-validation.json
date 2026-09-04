@@ -21,7 +21,7 @@
       },
       "expected": {
         "valid": true,
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "diagnostic_codes": []
       },
       "tags": ["validation", "complete", "attributes", "node"]
@@ -35,38 +35,38 @@
       },
       "expected": {
         "valid": false,
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "diagnostic_codes": ["AES_MISSING_PARENT"]
       },
       "tags": ["validation", "complete", "ancestry", "failure"]
     },
     {
-      "id": "telex-profile-003-raw-missing-parent",
-      "description": "The explicit raw profile permits a valid event without its parent context",
+      "id": "telex-profile-003-partial-missing-parent",
+      "description": "The explicit partial profile permits a valid event without its parent context",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a.b\nkind=number\nvalue=1\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.b\nkind=number\nvalue=1\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": []
       },
-      "tags": ["validation", "raw", "ancestry"]
+      "tags": ["validation", "partial", "ancestry"]
     },
     {
-      "id": "telex-profile-004-raw-retains-event-validity",
-      "description": "Raw changes stream constraints but does not permit an invalid event value",
+      "id": "telex-profile-004-partial-retains-event-validity",
+      "description": "Partial changes stream constraints but does not permit an invalid event value",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=boolean\nvalue=True\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=boolean\nvalue=True\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": ["AES_INVALID_VALUE"]
       },
-      "tags": ["validation", "raw", "event-shape", "failure"]
+      "tags": ["validation", "partial", "event-shape", "failure"]
     },
     {
       "id": "telex-profile-005-default-duplicates",
@@ -77,24 +77,24 @@
       },
       "expected": {
         "valid": false,
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "diagnostic_codes": ["AES_DUPLICATE_PATH", "AES_DUPLICATE_IDENTITY"]
       },
       "tags": ["validation", "complete", "uniqueness", "failure"]
     },
     {
-      "id": "telex-profile-006-raw-duplicates",
-      "description": "Raw history may repeat paths and structural identities across events",
+      "id": "telex-profile-006-partial-duplicates",
+      "description": "Partial history may repeat paths and structural identities across events",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=number\nidentity=same\nvalue=1\n\npath=$.a\nkind=number\nidentity=same\nvalue=2\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=number\nidentity=same\nvalue=1\n\npath=$.a\nkind=number\nidentity=same\nvalue=2\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": []
       },
-      "tags": ["validation", "raw", "history", "duplicates"]
+      "tags": ["validation", "partial", "history", "duplicates"]
     },
     {
       "id": "telex-profile-007-incompatible-member-parent",
@@ -105,7 +105,7 @@
       },
       "expected": {
         "valid": false,
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "diagnostic_codes": ["AES_INCOMPATIBLE_PARENT"]
       },
       "tags": ["validation", "complete", "container", "failure"]
@@ -119,7 +119,7 @@
       },
       "expected": {
         "valid": false,
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "diagnostic_codes": ["AES_INVALID_NODE_HEAD"]
       },
       "tags": ["validation", "complete", "node-head", "failure"]
@@ -133,7 +133,7 @@
       },
       "expected": {
         "valid": false,
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "diagnostic_codes": ["AES_INCOMPATIBLE_PARENT"]
       },
       "tags": ["validation", "complete", "node", "failure"]
@@ -147,7 +147,7 @@
       },
       "expected": {
         "valid": false,
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "diagnostic_codes": ["AES_MISSING_PARENT", "AES_MISSING_PARENT"]
       },
       "tags": ["validation", "complete", "root", "failure"]
@@ -157,11 +157,11 @@
       "description": "Containers omit value while non-container kinds require it",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=object\nvalue=nested\n\npath=$.b\nkind=number\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=object\nvalue=nested\n\npath=$.b\nkind=number\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": ["AES_UNEXPECTED_VALUE", "AES_MISSING_VALUE"]
       },
       "tags": ["validation", "event-shape", "value", "failure"]
@@ -171,11 +171,11 @@
       "description": "Kinds with locally specified vocabularies use their exact canonical payloads",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.hex\nkind=hex\nvalue=CAFE\n\npath=$.toggle\nkind=toggle\nvalue=enabled\n\npath=$.nan\nkind=nan\nvalue=nan\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.hex\nkind=hex\nvalue=CAFE\n\npath=$.toggle\nkind=toggle\nvalue=enabled\n\npath=$.nan\nkind=nan\nvalue=nan\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": ["AES_INVALID_VALUE", "AES_INVALID_VALUE", "AES_INVALID_VALUE"]
       },
       "tags": ["validation", "event-shape", "canonical-value", "failure"]
@@ -185,11 +185,11 @@
       "description": "Clone and pointer payloads contain canonical absolute target paths",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.copy\nkind=clone-reference\nvalue=relative.path\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.copy\nkind=clone-reference\nvalue=relative.path\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": ["AES_INVALID_REFERENCE"]
       },
       "tags": ["validation", "event-shape", "reference", "failure"]
@@ -199,11 +199,11 @@
       "description": "A source span is an ordered pair of canonical byte offsets",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=number\nvalue=1\nspan=4:2\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=number\nvalue=1\nspan=4:2\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": ["AES_INVALID_SPAN"]
       },
       "tags": ["validation", "event-shape", "span", "failure"]
@@ -213,11 +213,11 @@
       "description": "An extension field is rejected unless the selected validation context registers it exactly",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=number\nvalue=1\nx.example.claim=yes\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=number\nvalue=1\nx.example.claim=yes\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": ["AES_UNKNOWN_FIELD"]
       },
       "tags": ["validation", "extension", "failure"]
@@ -227,12 +227,12 @@
       "description": "Exact extension registration enables only the named field",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=number\nvalue=1\nx.example.claim=yes\n",
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=number\nvalue=1\nx.example.claim=yes\n",
         "registered_fields": ["x.example.claim"]
       },
       "expected": {
         "valid": true,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": []
       },
       "tags": ["validation", "extension"]
@@ -253,14 +253,14 @@
     },
     {
       "id": "telex-profile-018-unknown-kind",
-      "description": "Raw streams still require a known portable AES value kind",
+      "description": "Partial streams still require a known portable AES value kind",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=future-kind\nvalue=1\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=future-kind\nvalue=1\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": ["AES_UNKNOWN_KIND"]
       },
       "tags": ["validation", "event-shape", "kind", "failure"]
@@ -274,7 +274,7 @@
       },
       "expected": {
         "valid": true,
-        "profile": "aes.telex.v0",
+        "profile": "aes.complete.v0",
         "diagnostic_codes": []
       },
       "tags": ["validation", "complete", "attributes", "quoted-member"]
@@ -284,11 +284,11 @@
       "description": "A member that is legal in bare form must use that canonical form",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.[\"a\"]\nkind=number\nvalue=1\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.[\"a\"]\nkind=number\nvalue=1\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.raw.v0",
+        "profile": "aes.partial.v0",
         "diagnostic_codes": ["AES_INVALID_PATH"]
       },
       "tags": ["validation", "path", "quoted-member", "failure"]

@@ -32,8 +32,8 @@ const VALUE_KINDS: [&str; 23] = [
 ];
 
 pub const TELEX_VERSION: &str = "0";
-pub const DEFAULT_TELEX_PROFILE: &str = "aes.telex.v0";
-pub const RAW_TELEX_PROFILE: &str = "aes.raw.v0";
+pub const COMPLETE_AES_PROFILE: &str = "aes.complete.v0";
+pub const PARTIAL_AES_PROFILE: &str = "aes.partial.v0";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TelexRecord {
@@ -208,14 +208,14 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
     if lines.len() == 1 {
         return Ok(ParsedTelex {
             version: TELEX_VERSION.to_owned(),
-            profile: DEFAULT_TELEX_PROFILE.to_owned(),
+            profile: COMPLETE_AES_PROFILE.to_owned(),
             profile_explicit: false,
             records: Vec::new(),
             canonical: canonical_line_endings && has_final_lf,
         });
     }
 
-    let mut profile = DEFAULT_TELEX_PROFILE.to_owned();
+    let mut profile = COMPLETE_AES_PROFILE.to_owned();
     let mut profile_explicit = false;
     let mut header_canonical = true;
     let mut event_start = 2;
@@ -403,7 +403,7 @@ pub fn validate_telex_records(
     let mut diagnostics = Vec::new();
     let mut events = Vec::with_capacity(records.len());
 
-    if profile != DEFAULT_TELEX_PROFILE && profile != RAW_TELEX_PROFILE {
+    if profile != COMPLETE_AES_PROFILE && profile != PARTIAL_AES_PROFILE {
         diagnostics.push(Diagnostic::new(
             "AES_UNSUPPORTED_PROFILE",
             format!("Unsupported AES profile: {profile}"),
@@ -481,7 +481,7 @@ pub fn validate_telex_records(
         });
     }
 
-    if profile == DEFAULT_TELEX_PROFILE {
+    if profile == COMPLETE_AES_PROFILE {
         validate_complete_stream(&events, &mut diagnostics);
     }
 

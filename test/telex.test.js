@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
-  DEFAULT_TELEX_PROFILE,
-  RAW_TELEX_PROFILE,
+  COMPLETE_AES_PROFILE,
+  PARTIAL_AES_PROFILE,
   TelexSyntaxError,
   checkPrefixCompleteness,
   checkTelexCompleteness,
@@ -35,7 +35,7 @@ test('round-trips records and canonicalizes core field order', () => {
   ].join('\n'));
   assert.deepEqual(parseTelex(encoded), {
     version: '0',
-    profile: DEFAULT_TELEX_PROFILE,
+    profile: COMPLETE_AES_PROFILE,
     profileExplicit: false,
     records: [{
       path: '$.message',
@@ -91,8 +91,8 @@ test('reports missing structural prefixes without requiring parent-first order',
   ];
   assert.deepEqual(checkPrefixCompleteness(complete), { complete: true, missing: [] });
 
-  const raw = encodeTelex([{ path: '$.a.b.c', kind: 'number', value: '1' }]);
-  assert.deepEqual(checkTelexCompleteness(raw), {
+  const incomplete = encodeTelex([{ path: '$.a.b.c', kind: 'number', value: '1' }]);
+  assert.deepEqual(checkTelexCompleteness(incomplete), {
     complete: false,
     missing: [
       { path: '$.a', requiredBy: '$.a.b.c' },
@@ -131,16 +131,16 @@ test('preserves unknown extension fields without interpreting them', () => {
 
 test('defaults to the complete Telex profile when no profile is declared', () => {
   const parsed = parseTelex(encodeTelex([{ path: '$.a', kind: 'object' }]));
-  assert.equal(parsed.profile, DEFAULT_TELEX_PROFILE);
+  assert.equal(parsed.profile, COMPLETE_AES_PROFILE);
   assert.equal(parsed.profileExplicit, false);
 });
 
-test('round-trips an explicit raw profile without treating it as an event', () => {
+test('round-trips an explicit partial profile without treating it as an event', () => {
   const records = [{ path: '$.a.b', kind: 'number', value: '1' }];
-  const encoded = encodeTelex(records, { profile: RAW_TELEX_PROFILE });
+  const encoded = encodeTelex(records, { profile: PARTIAL_AES_PROFILE });
   assert.equal(encoded, [
     'telex.aes=0',
-    'profile=aes.raw.v0',
+    'profile=aes.partial.v0',
     '',
     'path=$.a.b',
     'kind=number',
@@ -149,7 +149,7 @@ test('round-trips an explicit raw profile without treating it as an event', () =
   ].join('\n'));
   assert.deepEqual(parseTelex(encoded), {
     version: '0',
-    profile: RAW_TELEX_PROFILE,
+    profile: PARTIAL_AES_PROFILE,
     profileExplicit: true,
     records,
     canonical: true,
@@ -190,20 +190,20 @@ test('validates a complete flat stream under the default profile', () => {
   ];
   assert.deepEqual(validateTelexRecords(records), {
     valid: true,
-    profile: DEFAULT_TELEX_PROFILE,
+    profile: COMPLETE_AES_PROFILE,
     diagnostics: [],
   });
 });
 
-test('requires ancestry in the default profile but not the raw profile', () => {
+test('requires ancestry in the default profile but not the partial profile', () => {
   const records = [{ path: '$.a.b', kind: 'number', value: '1' }];
   const complete = validateTelexRecords(records);
   assert.equal(complete.valid, false);
   assert.equal(complete.diagnostics[0].code, 'AES_MISSING_PARENT');
 
-  assert.deepEqual(validateTelexRecords(records, { profile: RAW_TELEX_PROFILE }), {
+  assert.deepEqual(validateTelexRecords(records, { profile: PARTIAL_AES_PROFILE }), {
     valid: true,
-    profile: RAW_TELEX_PROFILE,
+    profile: PARTIAL_AES_PROFILE,
     diagnostics: [],
   });
 });
@@ -219,23 +219,23 @@ test('does not treat the unrepresented root as an indexed container or attribute
   ]);
 });
 
-test('allows repeated paths and identities only in the raw profile', () => {
+test('allows repeated paths and identities only in the partial profile', () => {
   const records = [
     { path: '$.a', kind: 'number', identity: 'same', value: '1' },
     { path: '$.a', kind: 'number', identity: 'same', value: '2' },
   ];
   const completeCodes = validateTelexRecords(records).diagnostics.map(({ code }) => code);
   assert.deepEqual(completeCodes, ['AES_DUPLICATE_PATH', 'AES_DUPLICATE_IDENTITY']);
-  assert.equal(validateTelexRecords(records, { profile: RAW_TELEX_PROFILE }).valid, true);
+  assert.equal(validateTelexRecords(records, { profile: PARTIAL_AES_PROFILE }).valid, true);
 });
 
-test('retains event-local validation in the raw profile', () => {
+test('retains event-local validation in the partial profile', () => {
   const result = validateTelexRecords([
     { path: '$.a', kind: 'object', value: 'nested' },
     { path: '$.b', kind: 'boolean', value: 'True' },
     { path: '$.c', kind: 'future-kind' },
     { path: '$.d', kind: 'string', 'x.example.claim': 'yes' },
-  ], { profile: RAW_TELEX_PROFILE });
+  ], { profile: PARTIAL_AES_PROFILE });
   assert.equal(result.valid, false);
   assert.deepEqual(result.diagnostics.map(({ code }) => code), [
     'AES_UNEXPECTED_VALUE',
@@ -268,7 +268,7 @@ test('checks locally specified payload and span grammars', () => {
     { path: '$.ref', kind: 'clone-reference', value: 'relative.path' },
     { path: '$.span', kind: 'nan', value: 'nan', span: '4:2' },
     { path: '$.empty', kind: 'number' },
-  ], { profile: RAW_TELEX_PROFILE });
+  ], { profile: PARTIAL_AES_PROFILE });
   assert.deepEqual(result.diagnostics.map(({ code }) => code), [
     'AES_INVALID_VALUE',
     'AES_INVALID_REFERENCE',
@@ -285,19 +285,19 @@ test('allows only explicitly registered extension fields', () => {
     value: '1',
     'x.example.claim': 'yes',
   }];
-  assert.equal(validateTelexRecords(records, { profile: RAW_TELEX_PROFILE }).valid, false);
+  assert.equal(validateTelexRecords(records, { profile: PARTIAL_AES_PROFILE }).valid, false);
   assert.equal(validateTelexRecords(records, {
-    profile: RAW_TELEX_PROFILE,
+    profile: PARTIAL_AES_PROFILE,
     registeredFields: ['x.example.claim'],
   }).valid, true);
 });
 
 test('validates the profile selected by a Telex stream', () => {
-  const raw = encodeTelex(
+  const partial = encodeTelex(
     [{ path: '$.a.b', kind: 'number', value: '1' }],
-    { profile: RAW_TELEX_PROFILE },
+    { profile: PARTIAL_AES_PROFILE },
   );
-  assert.equal(validateTelex(raw).valid, true);
+  assert.equal(validateTelex(partial).valid, true);
   assert.equal(validateTelex(encodeTelex([{ path: '$.a.b', kind: 'number', value: '1' }])).valid, false);
 });
 
@@ -331,7 +331,7 @@ test('supports an empty stream', () => {
   assert.equal(encodeTelex([]), 'telex.aes=0\n');
   assert.deepEqual(parseTelex('telex.aes=0\n'), {
     version: '0',
-    profile: DEFAULT_TELEX_PROFILE,
+    profile: COMPLETE_AES_PROFILE,
     profileExplicit: false,
     records: [],
     canonical: true,

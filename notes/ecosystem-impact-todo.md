@@ -37,9 +37,9 @@ surfaces until these gates are complete.
   is carried in a separate control-plane envelope, or is excluded.
 - [ ] Define the source/origin identity required to make byte spans durable and
   portable.
-- [ ] Define an ecosystem-visible version or profile discriminator so legacy
-  and revised AES records cannot be confused. Its name must not depend on a
-  particular wire encoding.
+- [x] Use encoding-neutral `aes.complete.v0` and `aes.partial.v0` profile
+  discriminators so legacy and revised AES records cannot be confused; keep
+  `telex.aes=0` as the independent wire-format version.
 - [ ] Land shared CTS coverage for the agreed contract before implementations
   claim support.
 - [ ] Define reader-first compatibility rules before any producer emits the
@@ -337,7 +337,7 @@ not this ecosystem sweep:
 - Wire grammar, separators, escaping, BOM handling, and exact serialization.
 - Telex-specific stream headers, extension-field negotiation, and codec
   versioning.
-- Telex raw/complete validation modes and their names.
+- Telex partial/complete validation modes and their names.
 - JavaScript/Rust Telex codec parity and Draft 0 implementation milestones.
 - Telex fixture promotion except where a fixture becomes a transport-neutral
   AES or shared CTS case.
