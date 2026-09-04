@@ -37,7 +37,7 @@ fn passes_draft_0_telex_vectors() {
         }
     }
 
-    assert_eq!(count, 33, "unexpected Draft 0 vector count");
+    assert_eq!(count, 41, "unexpected Draft 0 vector count");
 }
 
 fn run_vector(id: &str, vector: &Value) {
@@ -63,6 +63,8 @@ fn run_parse_vector(id: &str, vector: &Value) {
                 "version": parsed.version,
                 "profile": parsed.profile,
                 "profile_explicit": parsed.profile_explicit,
+                "projection": parsed.projection,
+                "projection_explicit": parsed.projection_explicit,
                 "canonical": parsed.canonical,
                 "records": records,
             });

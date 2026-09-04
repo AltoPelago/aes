@@ -24,6 +24,8 @@
         "version": "0",
         "profile": "aes.complete.v0",
         "profile_explicit": false,
+        "projection": null,
+        "projection_explicit": false,
         "canonical": true,
         "records": []
       },
@@ -41,6 +43,8 @@
         "version": "0",
         "profile": "aes.complete.v0",
         "profile_explicit": false,
+        "projection": null,
+        "projection_explicit": false,
         "canonical": true,
         "records": [
           {
@@ -64,6 +68,8 @@
         "version": "0",
         "profile": "aes.partial.v0",
         "profile_explicit": true,
+        "projection": null,
+        "projection_explicit": false,
         "canonical": true,
         "records": []
       },
@@ -81,6 +87,8 @@
         "version": "0",
         "profile": "aes.complete.v0",
         "profile_explicit": false,
+        "projection": null,
+        "projection_explicit": false,
         "canonical": true,
         "records": [
           {
@@ -104,6 +112,8 @@
         "version": "0",
         "profile": "aes.complete.v0",
         "profile_explicit": false,
+        "projection": null,
+        "projection_explicit": false,
         "canonical": false,
         "records": [
           {
@@ -233,6 +243,65 @@
         "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.z\nkind=number\nvalue=1\n\npath=$.a\nkind=number\nvalue=2\n"
       },
       "tags": ["canonicalization", "event-order", "partial"]
+    },
+    {
+      "id": "telex-syntax-014-explicit-document-projection",
+      "description": "An explicit AEON document projection enables flat header records without making them body events",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:mode\"]\nkind=string\nvalue=strict\n\npath=$.a\nkind=number\nvalue=1\n"
+      },
+      "expected": {
+        "ok": true,
+        "version": "0",
+        "profile": "aes.complete.v0",
+        "profile_explicit": false,
+        "projection": "aeon.document.v0",
+        "projection_explicit": true,
+        "canonical": true,
+        "records": [
+          {
+            "header": "$.[\"aeon:mode\"]",
+            "kind": "string",
+            "value": "strict"
+          },
+          {
+            "path": "$.a",
+            "kind": "number",
+            "value": "1"
+          }
+        ]
+      },
+      "tags": ["syntax", "projection", "header"]
+    },
+    {
+      "id": "telex-syntax-015-canonicalize-projection-order",
+      "description": "Canonicalization orders profile before projection and header before other record fields",
+      "operation": "canonicalize",
+      "input": {
+        "telex": "telex.aes=0\nprojection=aeon.document.v0\nprofile=aes.complete.v0\n\nkind=string\nheader=$.[\"aeon:mode\"]\nvalue=strict\n"
+      },
+      "expected": {
+        "ok": true,
+        "telex": "telex.aes=0\nprofile=aes.complete.v0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:mode\"]\nkind=string\nvalue=strict\n"
+      },
+      "tags": ["canonicalization", "projection", "field-order"]
+    },
+    {
+      "id": "telex-syntax-016-empty-projection",
+      "description": "An explicit projection identifier cannot be empty",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\nprojection=\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_EMPTY_PROJECTION",
+          "line": 2
+        }
+      },
+      "tags": ["syntax", "projection", "failure"]
     }
   ]
 }

@@ -13,7 +13,8 @@ The manifest separates:
 
 - syntax and canonicalization;
 - event-local AES validation; and
-- complete versus partial stream validation.
+- complete versus partial stream validation; and
+- explicit AEON document projection and header-plane validation.
 
 Portable tests assert stable error or diagnostic codes rather than matching
 implementation-specific prose. Semantic `diagnostic_codes` are compared as a
@@ -25,7 +26,7 @@ An implementation adopting these vectors must support the operation named by
 each test:
 
 - `parse`: return version, effective profile, whether it was explicit,
-  canonicality, and decoded records;
+  optional projection and its explicitness, canonicality, and decoded records;
 - `canonicalize`: return canonical Telex text without reordering events; or
 - `validate`: return the effective profile and semantic diagnostic codes.
 

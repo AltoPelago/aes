@@ -107,6 +107,19 @@ The partial profile still requires individually valid AES events; it relaxes
 cross-event ancestry, uniqueness, compatibility, and ordering claims rather
 than turning arbitrary Telex stanzas into AES events.
 
+AEON headers use an independent projection axis. The default AEON-to-AES
+projection emits body events only. `projection=aeon.document.v0` explicitly
+adds a complete, flat control plane whose records use
+`header=$.["aeon:..."]` instead of `path`. Structured and shorthand AEON
+headers normalize to the same records; those records precede body events and
+never share the body address space. `profile` still selects AES completeness,
+while `projection` selects what source document surface is represented.
+
+TypeScript and PHP currently synthesize `aeon:*` AES events. Rust and Python
+already retain header metadata separately while excluding it from public body
+events. All four adapters need to converge on body-only output by default and
+explicit `header` records only for the document projection.
+
 ## Recommended boundary
 
 The working recommendation is:
@@ -126,12 +139,18 @@ portable AES event profile
 The adapter is important. It makes implementation-only data loss or derivation
 visible and testable instead of burying it inside a serializer.
 
-The Draft 0 direction deliberately makes the portable side flat:
+The Draft 0 direction deliberately makes each portable plane flat:
 
 ```text
 path + kind + optional datatype/value/identity/provenance
 path + kind + optional datatype/value/identity/provenance
 path + kind + optional datatype/value/identity/provenance
+```
+
+An explicit AEON document projection prepends records of the parallel form:
+
+```text
+header + kind + optional datatype/value/identity/provenance
 ```
 
 Path structure may identify an object member, indexed item, node child, or

@@ -29,7 +29,7 @@ compatibility promise.
 Telex should be:
 
 - UTF-8 text;
-- streamable one event at a time;
+- streamable one record at a time;
 - expressible as flat `field=value` lines;
 - deterministic in canonical form;
 - independent of JSON and host-language data models;
@@ -105,7 +105,19 @@ The preamble may be followed by one profile declaration:
 profile=aes.partial.v0
 ```
 
-The stream header is followed by a blank line when at least one event follows.
+It may also carry one optional projection declaration:
+
+```text
+projection=aeon.document.v0
+```
+
+`profile` selects AES validation constraints. `projection` selects an explicit
+source-to-AES projection contract and is a separate axis. A canonical stream
+places `profile` before `projection` when both are present. Omitting
+`projection` selects the ordinary body-only AES stream; there is no implicit
+source-language projection.
+
+The stream header is followed by a blank line when at least one record follows.
 Future format versions use a different preamble value, not an inferred feature
 set. The profile selects semantic constraints within that format version.
 
@@ -113,23 +125,24 @@ An omitted profile declaration means `aes.complete.v0`. This default is
 normative, not a request for profile negotiation. A producer that requires
 cross-event constraints to be relaxed must declare `aes.partial.v0` explicitly.
 
-The profile payload uses Telex payload escaping. Draft 0 permits one profile
-declaration and rejects an empty identifier. Syntax readers preserve unknown
-non-empty profile identifiers; semantic consumers reject identifiers they do
-not support.
+Profile and projection payloads use Telex payload escaping. Draft 0 permits at
+most one declaration of each and rejects an empty identifier. Syntax readers
+preserve unknown non-empty identifiers; semantic consumers reject profile or
+projection identifiers they do not support.
 
-### 4.3 Event framing
+### 4.3 Record framing
 
-An event is a non-empty stanza of `field=value` lines. One or more blank lines
+A record is a non-empty stanza of `field=value` lines. One or more blank lines
 separate stanzas. A canonical encoder emits exactly one blank line between
-events.
+records. A body record is an AES event. An explicitly selected projection may
+also define control records, such as the AEON header records in section 5.11.
 
 The first `=` on a line separates the field name from its payload. Later `=`
 characters belong to the payload and do not need escaping.
 
 Field names use lowercase ASCII letters, digits, `-`, and `.`. A field and each
 dotted field segment begin with a letter. Empty payloads are valid. Empty field
-names, duplicate fields in one event, and lines without `=` are invalid.
+names, duplicate fields in one record, and lines without `=` are invalid.
 
 There are no comments. Comments would create a second information channel and
 would complicate byte-for-byte canonicalization.
@@ -168,10 +181,12 @@ prose is diagnostic presentation and is not compared for conformance.
 | `TELEX_BARE_CR` | carriage return not followed by line feed |
 | `TELEX_INVALID_PREAMBLE` | missing, malformed, or unsupported preamble |
 | `TELEX_EMPTY_PROFILE` | empty explicit profile identifier |
-| `TELEX_MISSING_HEADER_SEPARATOR` | missing blank line before events |
-| `TELEX_INVALID_FIELD_LINE` | event line is not `field=value` |
+| `TELEX_EMPTY_PROJECTION` | empty explicit projection identifier |
+| `TELEX_DUPLICATE_STREAM_FIELD` | profile or projection declared more than once |
+| `TELEX_MISSING_HEADER_SEPARATOR` | missing blank line before records |
+| `TELEX_INVALID_FIELD_LINE` | record line is not `field=value` |
 | `TELEX_INVALID_FIELD_NAME` | field name violates the Telex grammar |
-| `TELEX_DUPLICATE_FIELD` | field occurs more than once in one event |
+| `TELEX_DUPLICATE_FIELD` | field occurs more than once in one record |
 | `TELEX_UNESCAPED_CONTROL` | payload contains an unescaped control scalar |
 | `TELEX_INCOMPLETE_ESCAPE` | payload ends during an escape |
 | `TELEX_UNKNOWN_ESCAPE` | escape is not in the Telex vocabulary |
@@ -188,22 +203,25 @@ with the AES specification and the implementations before promotion.
 
 | Field | Presence | Meaning |
 | --- | --- | --- |
-| `path` | required | canonical SANSA data address of the binding |
+| `header` | address-dependent | canonical address in an explicitly selected header plane |
+| `path` | address-dependent | canonical SANSA data address of a body binding |
 | `kind` | required | portable value-kind token |
 | `datatype` | optional | declared datatype, without inference |
 | `identity` | optional | structural identity carried by the binding |
 | `value` | kind-dependent | decoded textual payload |
 | `span` | profile-dependent | original source byte range |
 
-Every stanza after the preamble is an AES event. Draft 0 therefore has no
-`event=assignment` discriminator. Adding the same constant to every stanza
-would not carry information.
+Every stanza has exactly one address field: `path` for a body event or
+`header` for a control-plane record defined by an explicit projection. A stanza
+with neither or both is invalid. The address field provides the distinction, so
+Draft 0 has no additional `event=assignment` or record-type discriminator.
 
-`key` is not transported because it is derivable from the final segment of
-`path`. A normalized selector path is also derived data and is not transported.
+`key` is not transported because it is derivable from the final segment of the
+selected address. A normalized selector path is also derived data and is not
+transported.
 
-The stream order is the AES event order. An encoder MUST NOT sort events by
-path.
+The order of `path` records is the AES event order. An encoder MUST NOT sort
+records by either address.
 
 ### 5.2 Datatypes
 
@@ -533,12 +551,83 @@ The reference codec exposes `checkTelexCompleteness(input)` and
 `checkPrefixCompleteness(records)` as lightweight diagnostics. They report
 missing structural prefixes without reordering events. They do not check
 container-kind compatibility, uniqueness, references, or any other claim of a
-complete AES profile.
+complete AES profile. Callers checking an explicit header plane also provide
+its projection context.
 
 The normative completeness rule belongs to AES. `aeon.gp.profile.v1` explicitly
 declares that its AES projection satisfies `aes.complete.v0`, even though the same
 profile would be selected by omission in a Telex stream. The GP profile
 references this AES-owned rule rather than redefining it.
+
+### 5.11 Optional AEON document projection
+
+AEON-to-AES projection is body-only by default. Recognized `aeon:header` or
+shorthand `aeon:*` declarations are consumed while parsing and validating the
+AEON source but are not silently injected into the portable body event stream.
+
+A producer that needs semantic header preservation selects the encoding-neutral
+`aeon.document.v0` projection explicitly:
+
+```text
+telex.aes=0
+projection=aeon.document.v0
+
+header=$.["aeon:mode"]
+kind=string
+value=strict
+
+path=$.a
+kind=number
+value=1
+```
+
+The projection normalizes structured and shorthand AEON headers into the same
+flat records. Each header record uses `header` instead of `path`, followed by
+the ordinary `kind`, `datatype`, `identity`, `value`, and provenance fields.
+Its canonical address begins with one non-empty quoted `aeon:` member. Nested
+header values are flattened beneath that member:
+
+```text
+header=$.["aeon:conventions"]
+kind=list
+
+header=$.["aeon:conventions"][0]
+kind=string
+value=aeon.gp.security.v1
+```
+
+Header and body address spaces are disjoint, so a body binding cannot collide
+with control metadata at the same textual address. Header records precede all
+body events and preserve AEON header declaration order, using depth-first
+preorder for descendants. Telex never reorders either plane.
+
+`aes.complete.v0` and `aes.partial.v0` continue to govern the body. Whenever
+`aeon.document.v0` is selected, the included header plane is complete:
+addresses are unique, every structural ancestor is present, and parent kinds
+are compatible. This remains true when the body profile is partial. A document
+projection may contain no header records when the source had no AEON header.
+
+A `header` record without this projection is invalid rather than ignored.
+Unknown projections remain syntax-preservable but fail semantic validation.
+The AEON `aeon:profile` declaration is an advisory source/application claim;
+it does not select or replace the stream's AES `profile` declaration.
+
+Body semantic hashes and body signatures exclude `header` records. A document
+signature includes the ordered header plane followed by the ordered body plane
+and must declare that broader scope. Exact structured-versus-shorthand syntax,
+original header lexemes, and other source-authoring choices are not preserved
+by this semantic projection.
+
+The reference validators use these stable semantic diagnostic codes:
+
+| Code | Condition |
+| --- | --- |
+| `AES_UNSUPPORTED_PROJECTION` | selected projection is not supported |
+| `AES_MISSING_ADDRESS` | record has neither `path` nor `header` |
+| `AES_MULTIPLE_ADDRESSES` | record has both `path` and `header` |
+| `AES_HEADER_REQUIRES_PROJECTION` | `header` occurs without `aeon.document.v0` |
+| `AES_INVALID_HEADER_PATH` | header address is malformed or lacks its leading quoted `aeon:` member |
+| `AES_HEADER_ORDER` | header record occurs after a body event |
 
 ## 6. Canonical form
 
@@ -546,17 +635,19 @@ A canonical Telex encoder emits:
 
 1. the exact version preamble;
 2. the profile declaration when one was explicitly supplied;
-3. one blank line before the first event;
-4. events in their semantic stream order;
-5. fields in the order below;
-6. extension fields in Unicode-code-point order after core fields;
-7. the shortest canonical escape for each payload scalar;
-8. one blank line between events; and
-9. exactly one final LF.
+3. the projection declaration when one was explicitly supplied;
+4. one blank line before the first record;
+5. header records followed by body events in their semantic stream order;
+6. fields in the order below;
+7. extension fields in Unicode-code-point order after core fields;
+8. the shortest canonical escape for each payload scalar;
+9. one blank line between records; and
+10. exactly one final LF.
 
 Core field order:
 
 ```text
+header
 path
 kind
 datatype
@@ -574,9 +665,11 @@ that the input was non-canonical when canonical bytes matter.
 Telex deliberately separates three checks:
 
 1. **Syntax:** UTF-8, framing, field grammar, duplicates, and escapes.
-2. **Event shape:** required and allowed fields for each event and value kind.
-3. **Stream semantics:** canonical paths, uniqueness, ordering, structural
-   consistency, datatypes, references, and profile rules.
+2. **Record shape:** exactly one address, required and allowed fields, and
+   value-kind rules.
+3. **Stream semantics:** projection selection, canonical addresses,
+   plane-specific uniqueness, ordering, structural consistency, datatypes,
+   references, and profile rules.
 
 A tiny Telex parser may implement only layer 1. It must not claim AES
 conformance merely because it can split fields.
@@ -585,7 +678,8 @@ The reference `validateTelex` helper implements the event-local checks whose
 grammars are defined in this draft. For `aes.complete.v0`, it additionally checks
 path and structural-identity uniqueness, required ancestry, parent/child
 container compatibility, and node-head placement. For `aes.partial.v0`, it omits
-those cross-event checks.
+those body cross-event checks. For `aeon.document.v0`, it independently checks
+header ordering and complete header ancestry and compatibility.
 
 Canonical payload grammars owned elsewhere remain separate validation points.
 In particular, the helper does not substitute implementation-specific rules
@@ -615,10 +709,10 @@ after silently dropping unknown fields.
 Silently discarding unknown data would make round trips lossy. Treating an
 unknown field as harmless without profile knowledge could change meaning.
 
-Version negotiation belongs to an enclosing protocol such as `poem.aes`.
-Opening a standalone file with an unsupported version fails explicitly. A new
-required core field requires a new Telex version; it is not introduced as an
-extension to `telex.aes=0`.
+Profile and projection negotiation belong to an enclosing protocol such as
+`poem.aes`. Opening a standalone file with an unsupported version fails
+explicitly. A new required core field requires a new Telex version; it is not
+introduced as an extension to `telex.aes=0`.
 
 ## 9. Security and resource bounds
 
@@ -626,8 +720,8 @@ Decoders must accept caller-supplied limits for at least:
 
 - input bytes;
 - line bytes;
-- fields per event;
-- event count;
+- fields per record;
+- record count;
 - decoded payload bytes; and
 - canonical path depth.
 

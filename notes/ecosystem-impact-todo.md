@@ -25,16 +25,16 @@ component already conforms.
 Do not enable producers to write the revised event shape to durable or shared
 surfaces until these gates are complete.
 
-- [ ] Resolve the structural-identity contradiction between the AEON grammar
-  and shared CTS. The grammar permits identity on attribute-entry and node
-  heads, while current negative CTS cases require implementations to reject
-  those locations.
+- [x] Resolve the structural-identity contradiction between the AEON grammar
+  and shared CTS. The grammar now permits identity on attribute-entry and node
+  heads, and the former negative CTS cases have been replaced.
 - [ ] Publish one transport-neutral portable AES event contract covering path,
   kind, value, datatype, identity, attributes, ordering, and provenance.
 - [ ] Define the bidirectional mapping between AEON source paths and portable
   AES event paths, including reference target payloads.
-- [ ] Decide whether `aeon:header` participates in the portable event stream,
-  is carried in a separate control-plane envelope, or is excluded.
+- [x] Exclude AEON headers from the default body event stream and carry them
+  only through the explicit, encoding-neutral `aeon.document.v0` projection,
+  using flat `header` records in a disjoint control-plane address space.
 - [ ] Define the source/origin identity required to make byte spans durable and
   portable.
 - [x] Use encoding-neutral `aes.complete.v0` and `aes.partial.v0` profile
@@ -64,34 +64,42 @@ surfaces until these gates are complete.
 
 #### Specification and CTS
 
-- [ ] Replace the shared CTS cases that reject identity on attribute-entry and
+- [x] Replace the shared CTS cases that reject identity on attribute-entry and
   node heads with positive preservation cases matching the AEON grammar.
-- [ ] Define one portable identity grammar and one document-wide uniqueness
+- [x] Define one portable identity grammar and one document-wide uniqueness
   rule across ordinary bindings, attribute entries, anonymous child heads, and
   node heads.
-- [ ] Add duplicate-identity tests spanning all four head locations rather
+- [x] Add duplicate-identity tests spanning all four head locations rather
   than testing each location in isolation.
 - [ ] Add projection cases proving the identities at `$.a`, `$.a.@.x`,
   `$.a[0]`, and `$.a[0][0]` are preserved independently.
 
 #### Implementation work
 
-- [ ] TypeScript: add `structuralId` to `NodeLiteral` and consume identity
+- [x] TypeScript: add `structuralId` to `NodeLiteral` and consume identity
   after the node tag.
-- [ ] TypeScript: add `structuralId` to `AttributeValue` and consume identity
+- [x] TypeScript: add `structuralId` to `AttributeValue` and consume identity
   after the attribute-entry key.
-- [ ] TypeScript: preserve attribute-entry identity through AES projection.
+- [x] TypeScript: preserve attribute-entry identity through AES projection.
 - [ ] TypeScript: audit canonical rendering, finalization, cloning, mode
   conversion, JSON projection, and mutation helpers for manufactured
   `structuralId: null` values or dropped identities.
-- [ ] Rust: retain the existing ordinary-binding and anonymous-head support;
+- [x] Rust: retain the existing ordinary-binding and anonymous-head support;
   add and verify attribute-entry and node-head identity support.
-- [ ] Python: retain the existing ordinary-binding and anonymous-head support;
+- [x] Python: retain the existing ordinary-binding and anonymous-head support;
   add and verify attribute-entry and node-head identity support.
-- [ ] PHP: inventory and implement all four identity locations in its AST,
+- [x] PHP: inventory and implement all four identity locations in its AST,
   event projection, serialization, and validation surfaces.
 - [ ] Verify SANSA projections, SO plans, ASP operations, and AES-DB records
   preserve identity without treating it as path identity.
+
+Progress on the remaining TypeScript audit: canonical rendering, minizing,
+prettifying, mode conversion, and Titonic AST/AES conversion now preserve all
+four identity locations. The Tonics compatibility baseline also passes its full
+typecheck and test suite after aligning annotation placement, datatype
+clarifiers, and SANSA literal handling with the current TypeScript APIs.
+Portable finalization, flat-event JSON projection, and the wider consumer audit
+remain open.
 
 ### 1.2 Node projection and paths
 
@@ -211,14 +219,34 @@ surfaces until these gates are complete.
 
 ### 1.6 AEON headers and control-plane metadata
 
-- [ ] Inventory how TypeScript, Rust, Python, and PHP currently expose
-  `aeon:header` and shorthand `aeon:*` fields through AES.
-- [ ] Decide whether headers are document events, a separate control-plane
-  envelope, or excluded from portable AES.
-- [ ] Define how the decision affects document completeness, ordering,
-  round-trip behavior, semantic hashes, signatures, and profile selection.
+- [x] Inventory how TypeScript, Rust, Python, and PHP currently expose
+  `aeon:header` and shorthand `aeon:*` fields through AES. TypeScript and PHP
+  synthesize public `aeon:*` events; Rust and Python keep parsed header metadata
+  separately and omit it from their public body-event results.
+- [x] Use body-only AEON-to-AES projection by default. The explicit
+  `aeon.document.v0` projection adds flat records addressed with
+  `header=$.["aeon:..."]`; a record has exactly one of `header` and `path`.
+- [x] Keep `profile` and `projection` independent. Header records precede body
+  events, have independent address uniqueness and completeness, and remain
+  complete even when the body profile is partial. Body hashes/signatures omit
+  them; explicitly scoped document hashes/signatures include both ordered
+  planes. This is semantic header preservation, not exact AEON source
+  round-tripping.
+- [x] Add shared Telex vectors for explicit projection, body-only rejection,
+  header ordering, mutually exclusive address fields, and independent nested
+  header completeness.
 - [ ] Add shared fixtures for structured headers, shorthand headers, header
   conflicts, and body-only streams.
+- [ ] TypeScript and PHP: stop exposing synthetic header events in the default
+  public AES body stream; retain the parsed header side channel and add an
+  explicit adapter for `aeon.document.v0`.
+- [ ] Rust and Python: retain body-only public events and add the same explicit
+  document-projection adapter.
+- [ ] Update finalizers and SDKs so existing payload/header/full views consume
+  the two planes deliberately rather than filtering records by key prefix.
+- [ ] Correct the AEON integrity appendix statement that convention headers are
+  body state; it must distinguish body semantic coverage from explicit document
+  coverage.
 
 ## 2. Repository and component work
 

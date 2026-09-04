@@ -60,6 +60,8 @@ function runParseVector(vector) {
       version: parsed.version,
       profile: parsed.profile,
       profile_explicit: parsed.profileExplicit,
+      projection: parsed.projection,
+      projection_explicit: parsed.projectionExplicit,
       canonical: parsed.canonical,
       records: parsed.records,
     }, vector.expected);

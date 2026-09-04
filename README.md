@@ -40,11 +40,14 @@ This is a spec-first bootstrap. Nothing in this repository is normative yet.
   explicit stream profile, and its separate `checkTelexCompleteness` helper
   reports missing structural prefixes without claiming full `aes.complete.v0`
   validation. `validateTelex` and `validateTelexRecords` apply the event-local
-  Draft 0 rules and the selected profile's structural checks.
+  Draft 0 rules and the selected profile's structural checks. AEON headers are
+  absent by default; `projection=aeon.document.v0` explicitly enables flat
+  `header=` control records in a separate address plane.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early
   illustrative stream, not a frozen conformance vector.
 - [`conformance/`](conformance/README.md) contains language-neutral Draft 0
-  vectors for syntax, canonicalization, and AES profile validation.
+  vectors for syntax, canonicalization, AES profile validation, and the optional
+  AEON document projection.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent,
   dependency-free Rust implementation of the same Draft 0 contract.
 

@@ -292,6 +292,76 @@
         "diagnostic_codes": ["AES_INVALID_PATH"]
       },
       "tags": ["validation", "path", "quoted-member", "failure"]
+    },
+    {
+      "id": "telex-profile-021-explicit-header-plane",
+      "description": "The AEON document projection carries a complete flat header plane before a complete body",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:conventions\"]\nkind=list\n\nheader=$.[\"aeon:conventions\"][0]\nkind=string\nvalue=aeon.gp.security.v1\n\npath=$.a\nkind=number\nvalue=1\n"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "projection", "header", "complete"]
+    },
+    {
+      "id": "telex-profile-022-header-requires-projection",
+      "description": "Header records are not part of the default body projection",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\nheader=$.[\"aeon:mode\"]\nkind=string\nvalue=strict\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v0",
+        "diagnostic_codes": ["AES_HEADER_REQUIRES_PROJECTION"]
+      },
+      "tags": ["validation", "projection", "header", "failure"]
+    },
+    {
+      "id": "telex-profile-023-header-precedes-body",
+      "description": "An included header record cannot appear after a body event",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprojection=aeon.document.v0\n\npath=$.a\nkind=number\nvalue=1\n\nheader=$.[\"aeon:mode\"]\nkind=string\nvalue=strict\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v0",
+        "diagnostic_codes": ["AES_HEADER_ORDER"]
+      },
+      "tags": ["validation", "projection", "header", "ordering", "failure"]
+    },
+    {
+      "id": "telex-profile-024-mutually-exclusive-addresses",
+      "description": "A record cannot be both a header record and a body event",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:mode\"]\npath=$.a\nkind=string\nvalue=strict\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v0",
+        "diagnostic_codes": ["AES_MULTIPLE_ADDRESSES"]
+      },
+      "tags": ["validation", "projection", "address", "failure"]
+    },
+    {
+      "id": "telex-profile-025-header-completeness-independent",
+      "description": "The document projection requires complete header ancestry even when body ancestry is partial",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:conventions\"][0]\nkind=string\nvalue=aeon.gp.security.v1\n\npath=$.a.b\nkind=number\nvalue=1\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v0",
+        "diagnostic_codes": ["AES_MISSING_PARENT"]
+      },
+      "tags": ["validation", "projection", "header", "partial", "failure"]
     }
   ]
 }

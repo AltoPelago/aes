@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  AEON_DOCUMENT_PROJECTION,
   COMPLETE_AES_PROFILE,
   PARTIAL_AES_PROFILE,
   TelexSyntaxError,
@@ -37,6 +38,8 @@ test('round-trips records and canonicalizes core field order', () => {
     version: '0',
     profile: COMPLETE_AES_PROFILE,
     profileExplicit: false,
+    projection: null,
+    projectionExplicit: false,
     records: [{
       path: '$.message',
       kind: 'string',
@@ -151,6 +154,8 @@ test('round-trips an explicit partial profile without treating it as an event', 
     version: '0',
     profile: PARTIAL_AES_PROFILE,
     profileExplicit: true,
+    projection: null,
+    projectionExplicit: false,
     records,
     canonical: true,
   });
@@ -163,6 +168,8 @@ test('accepts unknown non-empty profiles at the syntax layer', () => {
     version: '0',
     profile: 'x.example.future.v1',
     profileExplicit: true,
+    projection: null,
+    projectionExplicit: false,
     records: [],
     canonical: true,
   });
@@ -177,6 +184,62 @@ test('rejects an empty profile declaration', () => {
     () => encodeTelex([], { profile: '' }),
     /must be a non-empty string/u,
   );
+});
+
+test('round-trips an explicit AEON document projection with flat header records', () => {
+  const records = [
+    { header: '$.["aeon:mode"]', kind: 'string', value: 'strict' },
+    { path: '$.a', kind: 'number', value: '1' },
+  ];
+  const encoded = encodeTelex(records, { projection: AEON_DOCUMENT_PROJECTION });
+  assert.equal(encoded, [
+    'telex.aes=0',
+    'projection=aeon.document.v0',
+    '',
+    'header=$.["aeon:mode"]',
+    'kind=string',
+    'value=strict',
+    '',
+    'path=$.a',
+    'kind=number',
+    'value=1',
+    '',
+  ].join('\n'));
+  const parsed = parseTelex(encoded);
+  assert.equal(parsed.projection, AEON_DOCUMENT_PROJECTION);
+  assert.equal(parsed.projectionExplicit, true);
+  assert.deepEqual(parsed.records, records);
+  assert.equal(validateTelex(encoded).valid, true);
+});
+
+test('keeps nested header completeness separate from body completeness', () => {
+  const valid = validateTelexRecords([
+    { header: '$.["aeon:conventions"]', kind: 'list' },
+    { header: '$.["aeon:conventions"][0]', kind: 'string', value: 'aeon.gp.security.v1' },
+    { path: '$.a.b', kind: 'number', value: '1' },
+  ], { profile: PARTIAL_AES_PROFILE, projection: AEON_DOCUMENT_PROJECTION });
+  assert.equal(valid.valid, true);
+
+  const incomplete = validateTelexRecords([
+    { header: '$.["aeon:conventions"][0]', kind: 'string', value: 'aeon.gp.security.v1' },
+  ], { profile: PARTIAL_AES_PROFILE, projection: AEON_DOCUMENT_PROJECTION });
+  assert.deepEqual(incomplete.diagnostics.map(({ code }) => code), ['AES_MISSING_PARENT']);
+});
+
+test('rejects implicit, ambiguous, and late header records', () => {
+  assert.deepEqual(validateTelexRecords([
+    { header: '$.["aeon:mode"]', kind: 'string', value: 'strict' },
+  ]).diagnostics.map(({ code }) => code), ['AES_HEADER_REQUIRES_PROJECTION']);
+
+  const invalid = validateTelexRecords([
+    { path: '$.a', kind: 'number', value: '1' },
+    { header: '$.["aeon:mode"]', kind: 'string', value: 'strict' },
+    { path: '$.b', header: '$.["aeon:profile"]', kind: 'string', value: 'x' },
+  ], { projection: AEON_DOCUMENT_PROJECTION });
+  assert.deepEqual(invalid.diagnostics.map(({ code }) => code), [
+    'AES_HEADER_ORDER',
+    'AES_MULTIPLE_ADDRESSES',
+  ]);
 });
 
 test('validates a complete flat stream under the default profile', () => {
@@ -333,6 +396,8 @@ test('supports an empty stream', () => {
     version: '0',
     profile: COMPLETE_AES_PROFILE,
     profileExplicit: false,
+    projection: null,
+    projectionExplicit: false,
     records: [],
     canonical: true,
   });

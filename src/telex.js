@@ -1,8 +1,10 @@
 const VERSION_LINE = 'telex.aes=0';
 const PROFILE_FIELD = 'profile';
+const PROJECTION_FIELD = 'projection';
 const FIELD_NAME = /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/;
 const BARE_PATH_MEMBER = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const CORE_FIELD_ORDER = new Map([
+  'header',
   'path',
   'kind',
   'datatype',
@@ -48,6 +50,7 @@ const EXACT_VALUES = new Map([
 export const TELEX_VERSION = '0';
 export const COMPLETE_AES_PROFILE = 'aes.complete.v0';
 export const PARTIAL_AES_PROFILE = 'aes.partial.v0';
+export const AEON_DOCUMENT_PROJECTION = 'aeon.document.v0';
 
 export class TelexSyntaxError extends Error {
   constructor(message, line, code = 'TELEX_SYNTAX_ERROR') {
@@ -84,6 +87,8 @@ export function parseTelex(input) {
       version: TELEX_VERSION,
       profile: COMPLETE_AES_PROFILE,
       profileExplicit: false,
+      projection: null,
+      projectionExplicit: false,
       records: [],
       canonical: canonicalLineEndings && hasFinalLf,
     };
@@ -91,35 +96,62 @@ export function parseTelex(input) {
 
   let profile = COMPLETE_AES_PROFILE;
   let profileExplicit = false;
+  let projection = null;
+  let projectionExplicit = false;
   let headerCanonical = true;
-  let eventStart = 2;
-  if (lines[1].startsWith(`${PROFILE_FIELD}=`)) {
-    const decoded = decodePayload(lines[1].slice(PROFILE_FIELD.length + 1), 2);
+  let eventStart = 1;
+  let lastHeaderRank = -1;
+  while (eventStart < lines.length && lines[eventStart] !== '') {
+    const lineNumber = eventStart + 1;
+    const delimiter = lines[eventStart].indexOf('=');
+    const field = delimiter < 0 ? '' : lines[eventStart].slice(0, delimiter);
+    if (field !== PROFILE_FIELD && field !== PROJECTION_FIELD) break;
+    const rank = field === PROFILE_FIELD ? 0 : 1;
+    if (rank < lastHeaderRank) headerCanonical = false;
+    lastHeaderRank = rank;
+    const decoded = decodePayload(lines[eventStart].slice(delimiter + 1), lineNumber);
+    headerCanonical &&= decoded.canonical;
     if (decoded.value.length === 0) {
-      throw new TelexSyntaxError('Profile identifier must not be empty', 2, 'TELEX_EMPTY_PROFILE');
+      const label = field === PROFILE_FIELD ? 'Profile' : 'Projection';
+      const code = field === PROFILE_FIELD ? 'TELEX_EMPTY_PROFILE' : 'TELEX_EMPTY_PROJECTION';
+      throw new TelexSyntaxError(`${label} identifier must not be empty`, lineNumber, code);
     }
-    profile = decoded.value;
-    profileExplicit = true;
-    headerCanonical = decoded.canonical;
-    eventStart = 3;
-    if (lines.length === 2) {
-      return {
-        version: TELEX_VERSION,
-        profile,
-        profileExplicit,
-        records: [],
-        canonical: canonicalLineEndings && hasFinalLf && headerCanonical,
-      };
+    if (field === PROFILE_FIELD) {
+      if (profileExplicit) {
+        throw new TelexSyntaxError('Duplicate stream field: profile', lineNumber, 'TELEX_DUPLICATE_STREAM_FIELD');
+      }
+      profile = decoded.value;
+      profileExplicit = true;
+    } else {
+      if (projectionExplicit) {
+        throw new TelexSyntaxError('Duplicate stream field: projection', lineNumber, 'TELEX_DUPLICATE_STREAM_FIELD');
+      }
+      projection = decoded.value;
+      projectionExplicit = true;
     }
+    eventStart += 1;
   }
 
-  if (lines[eventStart - 1] !== '') {
+  if (eventStart === lines.length) {
+    return {
+      version: TELEX_VERSION,
+      profile,
+      profileExplicit,
+      projection,
+      projectionExplicit,
+      records: [],
+      canonical: canonicalLineEndings && hasFinalLf && headerCanonical,
+    };
+  }
+
+  if (lines[eventStart] !== '') {
     throw new TelexSyntaxError(
       'Expected a blank line after the stream header',
-      eventStart,
+      eventStart + 1,
       'TELEX_MISSING_HEADER_SEPARATOR',
     );
   }
+  eventStart += 1;
 
   const records = [];
   let record = null;
@@ -168,6 +200,8 @@ export function parseTelex(input) {
     version: TELEX_VERSION,
     profile,
     profileExplicit,
+    projection,
+    projectionExplicit,
     records,
     canonical,
   };
@@ -177,13 +211,16 @@ export function encodeTelex(records, options = {}) {
   if (!Array.isArray(records)) {
     throw new TypeError('Telex records must be an array');
   }
-  const { profile } = options;
+  const { profile, projection } = options;
   if (profile !== undefined && (typeof profile !== 'string' || profile.length === 0)) {
     throw new TypeError('Telex profile must be a non-empty string');
   }
-  const header = profile === undefined
-    ? VERSION_LINE
-    : `${VERSION_LINE}\n${PROFILE_FIELD}=${encodePayload(profile)}`;
+  if (projection !== undefined && (typeof projection !== 'string' || projection.length === 0)) {
+    throw new TypeError('Telex projection must be a non-empty string');
+  }
+  let header = VERSION_LINE;
+  if (profile !== undefined) header += `\n${PROFILE_FIELD}=${encodePayload(profile)}`;
+  if (projection !== undefined) header += `\n${PROJECTION_FIELD}=${encodePayload(projection)}`;
   if (records.length === 0) return `${header}\n`;
 
   const stanzas = records.map((record, recordIndex) => {
@@ -208,7 +245,10 @@ export function encodeTelex(records, options = {}) {
 
 export function canonicalizeTelex(input) {
   const parsed = parseTelex(input);
-  const options = parsed.profileExplicit ? { profile: parsed.profile } : {};
+  const options = {
+    ...(parsed.profileExplicit ? { profile: parsed.profile } : {}),
+    ...(parsed.projectionExplicit ? { projection: parsed.projection } : {}),
+  };
   return encodeTelex(parsed.records, options);
 }
 
@@ -217,30 +257,42 @@ export function canonicalizeTelex(input) {
  * This is a structural convenience check, not full AES profile validation.
  */
 export function checkTelexCompleteness(input) {
-  return checkPrefixCompleteness(parseTelex(input).records);
+  const parsed = parseTelex(input);
+  return checkPrefixCompleteness(parsed.records, { projection: parsed.projection });
 }
 
-export function checkPrefixCompleteness(records) {
+export function checkPrefixCompleteness(records, options = {}) {
   if (!Array.isArray(records)) {
     throw new TypeError('Telex records must be an array');
   }
 
-  const paths = new Set();
+  const paths = new Map([['path', new Set()], ['header', new Set()]]);
   for (const [index, record] of records.entries()) {
-    if (record === null || typeof record !== 'object' || typeof record.path !== 'string') {
-      throw new TypeError(`Telex record ${index + 1} must have a string path`);
+    const addressField = recordAddressField(record);
+    if (addressField === null) {
+      throw new TypeError(`Telex record ${index + 1} must have exactly one string address field`);
     }
-    paths.add(record.path);
+    if (addressField === 'header' && options.projection !== AEON_DOCUMENT_PROJECTION) {
+      throw new TypeError(`Telex record ${index + 1} requires projection '${AEON_DOCUMENT_PROJECTION}'`);
+    }
+    paths.get(addressField).add(record[addressField]);
   }
 
   const missing = [];
   const reported = new Set();
   for (const record of records) {
-    const prefixes = canonicalPathPrefixes(record.path);
+    const addressField = recordAddressField(record);
+    const address = record[addressField];
+    const prefixes = canonicalPathPrefixes(address);
     for (const prefix of prefixes.slice(0, -1)) {
-      if (paths.has(prefix) || reported.has(prefix)) continue;
-      reported.add(prefix);
-      missing.push({ path: prefix, requiredBy: record.path });
+      const reportKey = `${addressField}\0${prefix}`;
+      if (paths.get(addressField).has(prefix) || reported.has(reportKey)) continue;
+      reported.add(reportKey);
+      missing.push({
+        ...(addressField === 'header' ? { field: 'header' } : {}),
+        path: prefix,
+        requiredBy: address,
+      });
     }
   }
 
@@ -259,6 +311,7 @@ export function validateTelex(input, options = {}) {
   return validateTelexRecords(parsed.records, {
     ...options,
     profile: parsed.profile ?? COMPLETE_AES_PROFILE,
+    projection: parsed.projection ?? null,
   });
 }
 
@@ -268,8 +321,12 @@ export function validateTelexRecords(records, options = {}) {
   }
 
   const profile = options.profile ?? COMPLETE_AES_PROFILE;
+  const projection = options.projection ?? null;
   if (typeof profile !== 'string' || profile.length === 0) {
     throw new TypeError('AES profile must be a non-empty string');
+  }
+  if (projection !== null && (typeof projection !== 'string' || projection.length === 0)) {
+    throw new TypeError('AES projection must be null or a non-empty string');
   }
   const registeredFields = new Set(options.registeredFields ?? []);
   for (const field of registeredFields) {
@@ -286,7 +343,14 @@ export function validateTelexRecords(records, options = {}) {
       `Unsupported AES profile: ${profile}`,
     ));
   }
+  if (projection !== null && projection !== AEON_DOCUMENT_PROJECTION) {
+    diagnostics.push(diagnostic(
+      'AES_UNSUPPORTED_PROJECTION',
+      `Unsupported AES projection: ${projection}`,
+    ));
+  }
 
+  let bodySeen = false;
   for (let index = 0; index < records.length; index += 1) {
     const source = records[index];
     if (source === null || typeof source !== 'object') {
@@ -298,7 +362,9 @@ export function validateTelexRecords(records, options = {}) {
       continue;
     }
     const event = source instanceof Map ? Object.fromEntries(source) : source;
-    const context = { record: index, ...(typeof event.path === 'string' ? { path: event.path } : {}) };
+    const addressField = recordAddressField(event);
+    const address = addressField === null ? undefined : event[addressField];
+    const context = { record: index, ...(typeof address === 'string' ? { path: address } : {}) };
 
     for (const [field, payload] of Object.entries(event)) {
       if (typeof payload !== 'string') {
@@ -317,30 +383,57 @@ export function validateTelexRecords(records, options = {}) {
       }
     }
 
-    for (const field of ['path', 'kind']) {
-      if (!Object.hasOwn(event, field)) {
-        diagnostics.push(diagnostic(
-          'AES_MISSING_FIELD',
-          `AES events require '${field}'`,
-          { ...context, field },
-        ));
-      }
+    const hasPath = Object.hasOwn(event, 'path');
+    const hasHeader = Object.hasOwn(event, 'header');
+    if (!hasPath && !hasHeader) {
+      diagnostics.push(diagnostic('AES_MISSING_ADDRESS', "AES records require exactly one of 'path' or 'header'", context));
+    } else if (hasPath && hasHeader) {
+      diagnostics.push(diagnostic('AES_MULTIPLE_ADDRESSES', "AES records cannot carry both 'path' and 'header'", context));
+    }
+    if (!Object.hasOwn(event, 'kind')) {
+      diagnostics.push(diagnostic('AES_MISSING_FIELD', "AES records require 'kind'", { ...context, field: 'kind' }));
     }
 
     let pathDetails;
-    if (typeof event.path === 'string') {
+    if (typeof address === 'string') {
       try {
-        pathDetails = parseCanonicalDataPath(event.path);
-        if (event.path === '$') {
+        pathDetails = parseCanonicalDataPath(address);
+        if (address === '$') {
           throw new TypeError('The root is not an event path');
         }
       } catch (error) {
         diagnostics.push(diagnostic(
-          'AES_INVALID_PATH',
+          addressField === 'header' ? 'AES_INVALID_HEADER_PATH' : 'AES_INVALID_PATH',
           error.message,
-          { ...context, field: 'path' },
+          { ...context, field: addressField ?? 'path' },
         ));
       }
+    }
+    if (addressField === 'header') {
+      if (projection !== AEON_DOCUMENT_PROJECTION) {
+        diagnostics.push(diagnostic(
+          'AES_HEADER_REQUIRES_PROJECTION',
+          `Header records require projection '${AEON_DOCUMENT_PROJECTION}'`,
+          { ...context, field: 'header' },
+        ));
+      }
+      if (bodySeen) {
+        diagnostics.push(diagnostic(
+          'AES_HEADER_ORDER',
+          'Header records must precede body events',
+          { ...context, field: 'header' },
+        ));
+      }
+      if (pathDetails !== undefined && !isAeonHeaderPath(address, pathDetails)) {
+        diagnostics.push(diagnostic(
+          'AES_INVALID_HEADER_PATH',
+          "Header paths must begin with a quoted 'aeon:' member",
+          { ...context, field: 'header' },
+        ));
+        pathDetails = undefined;
+      }
+    } else if (addressField === 'path') {
+      bodySeen = true;
     }
 
     const knownKind = typeof event.kind === 'string' && VALUE_KINDS.has(event.kind);
@@ -355,18 +448,31 @@ export function validateTelexRecords(records, options = {}) {
     if (knownKind) validateEventValue(event, index, diagnostics);
     validateOptionalCoreFields(event, index, diagnostics);
 
-    events.push({ event, index, pathDetails, knownKind });
+    events.push({ event, index, addressField, address, pathDetails, knownKind });
   }
 
+  const bodyEvents = events.filter(({ addressField }) => addressField === 'path');
+  const headerEvents = events.filter(({ addressField }) => addressField === 'header');
   if (profile === COMPLETE_AES_PROFILE) {
-    validateCompleteStream(events, diagnostics);
+    validateCompleteStream(bodyEvents, diagnostics);
   }
+  if (projection === AEON_DOCUMENT_PROJECTION) {
+    validateCompleteStream(headerEvents, diagnostics);
+  }
+  validateIdentityUniqueness(
+    profile === COMPLETE_AES_PROFILE
+      ? [...bodyEvents, ...(projection === AEON_DOCUMENT_PROJECTION ? headerEvents : [])]
+      : projection === AEON_DOCUMENT_PROJECTION ? headerEvents : [],
+    diagnostics,
+  );
 
   return { valid: diagnostics.length === 0, profile, diagnostics };
 }
 
 function validateEventValue(event, index, diagnostics) {
-  const context = { record: index, ...(typeof event.path === 'string' ? { path: event.path } : {}) };
+  const addressField = recordAddressField(event);
+  const address = addressField === null ? undefined : event[addressField];
+  const context = { record: index, ...(typeof address === 'string' ? { path: address } : {}) };
   const hasValue = Object.hasOwn(event, 'value');
   if (VALUELESS_KINDS.has(event.kind)) {
     if (hasValue) {
@@ -424,7 +530,9 @@ function validateEventValue(event, index, diagnostics) {
 }
 
 function validateOptionalCoreFields(event, index, diagnostics) {
-  const context = { record: index, ...(typeof event.path === 'string' ? { path: event.path } : {}) };
+  const addressField = recordAddressField(event);
+  const address = addressField === null ? undefined : event[addressField];
+  const context = { record: index, ...(typeof address === 'string' ? { path: address } : {}) };
   for (const field of ['datatype', 'identity']) {
     if (Object.hasOwn(event, field) && event[field] === '') {
       diagnostics.push(diagnostic(
@@ -448,44 +556,32 @@ function validateOptionalCoreFields(event, index, diagnostics) {
 
 function validateCompleteStream(events, diagnostics) {
   const byPath = new Map();
-  const identities = new Map();
 
   for (const candidate of events) {
-    const { event, index, pathDetails } = candidate;
+    const { index, address, pathDetails } = candidate;
     if (pathDetails !== undefined) {
-      if (byPath.has(event.path)) {
+      if (byPath.has(address)) {
         diagnostics.push(diagnostic(
           'AES_DUPLICATE_PATH',
-          `Duplicate event path '${event.path}'`,
-          { record: index, path: event.path, firstRecord: byPath.get(event.path).index },
+          `Duplicate record address '${address}'`,
+          { record: index, path: address, firstRecord: byPath.get(address).index },
         ));
       } else {
-        byPath.set(event.path, candidate);
+        byPath.set(address, candidate);
       }
     }
 
-    if (typeof event.identity === 'string' && event.identity.length > 0) {
-      if (identities.has(event.identity)) {
-        diagnostics.push(diagnostic(
-          'AES_DUPLICATE_IDENTITY',
-          `Duplicate structural identity '${event.identity}'`,
-          { record: index, path: event.path, field: 'identity', firstRecord: identities.get(event.identity) },
-        ));
-      } else {
-        identities.set(event.identity, index);
-      }
-    }
   }
 
   for (const candidate of events) {
-    const { event, index, pathDetails } = candidate;
+    const { event, index, address, pathDetails } = candidate;
     if (pathDetails === undefined) continue;
     if (pathDetails.segments.length === 1) {
       if (pathDetails.segments[0].type !== 'member') {
         diagnostics.push(diagnostic(
           'AES_MISSING_PARENT',
           "Only a member event can be a direct child of the unrepresented '$' root",
-          { record: index, path: event.path, requiredPath: '$' },
+          { record: index, path: address, requiredPath: '$' },
         ));
       }
       if (event.kind === 'node-head') {
@@ -501,7 +597,7 @@ function validateCompleteStream(events, diagnostics) {
       diagnostics.push(diagnostic(
         'AES_MISSING_PARENT',
         `Missing parent event '${parentPath}'`,
-        { record: index, path: event.path, requiredPath: parentPath },
+        { record: index, path: address, requiredPath: parentPath },
       ));
       continue;
     }
@@ -531,20 +627,59 @@ function validateCompleteStream(events, diagnostics) {
   }
 }
 
+function validateIdentityUniqueness(events, diagnostics) {
+  const identities = new Map();
+  for (const { event, index, address } of events) {
+    if (typeof event.identity !== 'string' || event.identity.length === 0) continue;
+    if (identities.has(event.identity)) {
+      diagnostics.push(diagnostic(
+        'AES_DUPLICATE_IDENTITY',
+        `Duplicate structural identity '${event.identity}'`,
+        { record: index, path: address, field: 'identity', firstRecord: identities.get(event.identity) },
+      ));
+    } else {
+      identities.set(event.identity, index);
+    }
+  }
+}
+
 function incompatibleParent(event, index, parentPath, actual, expected) {
+  const addressField = recordAddressField(event);
+  const address = addressField === null ? undefined : event[addressField];
   return diagnostic(
     'AES_INCOMPATIBLE_PARENT',
     `Parent '${parentPath}' has kind '${actual}'; expected ${expected}`,
-    { record: index, path: event.path, requiredPath: parentPath },
+    { record: index, path: address, requiredPath: parentPath },
   );
 }
 
 function invalidNodeHeadPlacement(event, index) {
+  const addressField = recordAddressField(event);
+  const address = addressField === null ? undefined : event[addressField];
   return diagnostic(
     'AES_INVALID_NODE_HEAD',
     "A 'node-head' must be an indexed direct child of a 'node'",
-    { record: index, ...(typeof event.path === 'string' ? { path: event.path } : {}) },
+    { record: index, ...(typeof address === 'string' ? { path: address } : {}) },
   );
+}
+
+function recordAddressField(record) {
+  if (record === null || typeof record !== 'object') return null;
+  const hasPath = typeof record.path === 'string';
+  const hasHeader = typeof record.header === 'string';
+  return hasPath === hasHeader ? null : hasHeader ? 'header' : 'path';
+}
+
+function isAeonHeaderPath(path, details) {
+  if (details.segments[0]?.type !== 'member') return false;
+  const first = details.prefixes[0];
+  if (!first?.startsWith('$.[')) return false;
+  try {
+    const member = JSON.parse(first.slice(3, -1));
+    return typeof member === 'string' && member.startsWith('aeon:') && member.length > 5;
+  } catch {
+    return false;
+  }
 }
 
 function diagnostic(code, message, context = {}) {

@@ -4,7 +4,9 @@ use std::error::Error;
 use std::fmt;
 
 const VERSION_LINE: &str = "telex.aes=0";
-const CORE_FIELDS: [&str; 6] = ["path", "kind", "datatype", "identity", "value", "span"];
+const CORE_FIELDS: [&str; 7] = [
+    "header", "path", "kind", "datatype", "identity", "value", "span",
+];
 const VALUE_KINDS: [&str; 23] = [
     "string",
     "number",
@@ -34,6 +36,7 @@ const VALUE_KINDS: [&str; 23] = [
 pub const TELEX_VERSION: &str = "0";
 pub const COMPLETE_AES_PROFILE: &str = "aes.complete.v0";
 pub const PARTIAL_AES_PROFILE: &str = "aes.partial.v0";
+pub const AEON_DOCUMENT_PROJECTION: &str = "aeon.document.v0";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TelexRecord {
@@ -70,6 +73,8 @@ pub struct ParsedTelex {
     pub version: String,
     pub profile: String,
     pub profile_explicit: bool,
+    pub projection: Option<String>,
+    pub projection_explicit: bool,
     pub records: Vec<TelexRecord>,
     pub canonical: bool,
 }
@@ -210,6 +215,8 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
             version: TELEX_VERSION.to_owned(),
             profile: COMPLETE_AES_PROFILE.to_owned(),
             profile_explicit: false,
+            projection: None,
+            projection_explicit: false,
             records: Vec::new(),
             canonical: canonical_line_endings && has_final_lf,
         });
@@ -217,39 +224,83 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
 
     let mut profile = COMPLETE_AES_PROFILE.to_owned();
     let mut profile_explicit = false;
+    let mut projection = None;
+    let mut projection_explicit = false;
     let mut header_canonical = true;
-    let mut event_start = 2;
-    if let Some(payload) = lines[1].strip_prefix("profile=") {
-        let decoded = decode_payload(payload, 2)?;
+    let mut event_start = 1_usize;
+    let mut last_header_rank = None;
+    while let Some(line) = lines.get(event_start).filter(|line| !line.is_empty()) {
+        let Some((field, payload)) = line.split_once('=') else {
+            break;
+        };
+        let rank = match field {
+            "profile" => 0_usize,
+            "projection" => 1_usize,
+            _ => break,
+        };
+        if last_header_rank.is_some_and(|previous| rank < previous) {
+            header_canonical = false;
+        }
+        last_header_rank = Some(rank);
+        let line_number = event_start + 1;
+        let decoded = decode_payload(payload, line_number)?;
+        header_canonical &= decoded.canonical;
         if decoded.value.is_empty() {
+            let (code, label) = if field == "profile" {
+                ("TELEX_EMPTY_PROFILE", "Profile")
+            } else {
+                ("TELEX_EMPTY_PROJECTION", "Projection")
+            };
             return Err(TelexSyntaxError::new(
-                "TELEX_EMPTY_PROFILE",
-                "Profile identifier must not be empty",
-                Some(2),
+                code,
+                format!("{label} identifier must not be empty"),
+                Some(line_number),
             ));
         }
-        profile = decoded.value;
-        profile_explicit = true;
-        header_canonical = decoded.canonical;
-        event_start = 3;
-        if lines.len() == 2 {
-            return Ok(ParsedTelex {
-                version: TELEX_VERSION.to_owned(),
-                profile,
-                profile_explicit,
-                records: Vec::new(),
-                canonical: canonical_line_endings && has_final_lf && header_canonical,
-            });
+        if field == "profile" {
+            if profile_explicit {
+                return Err(TelexSyntaxError::new(
+                    "TELEX_DUPLICATE_STREAM_FIELD",
+                    "Duplicate stream field: profile",
+                    Some(line_number),
+                ));
+            }
+            profile = decoded.value;
+            profile_explicit = true;
+        } else {
+            if projection_explicit {
+                return Err(TelexSyntaxError::new(
+                    "TELEX_DUPLICATE_STREAM_FIELD",
+                    "Duplicate stream field: projection",
+                    Some(line_number),
+                ));
+            }
+            projection = Some(decoded.value);
+            projection_explicit = true;
         }
+        event_start += 1;
     }
 
-    if lines.get(event_start - 1).copied() != Some("") {
+    if event_start == lines.len() {
+        return Ok(ParsedTelex {
+            version: TELEX_VERSION.to_owned(),
+            profile,
+            profile_explicit,
+            projection,
+            projection_explicit,
+            records: Vec::new(),
+            canonical: canonical_line_endings && has_final_lf && header_canonical,
+        });
+    }
+
+    if lines.get(event_start).copied() != Some("") {
         return Err(TelexSyntaxError::new(
             "TELEX_MISSING_HEADER_SEPARATOR",
             "Expected a blank line after the stream header",
-            Some(event_start),
+            Some(event_start + 1),
         ));
     }
+    event_start += 1;
 
     let mut records = Vec::new();
     let mut record: Option<Vec<(String, String)>> = None;
@@ -317,6 +368,8 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
         version: TELEX_VERSION.to_owned(),
         profile,
         profile_explicit,
+        projection,
+        projection_explicit,
         records,
         canonical,
     })
@@ -326,9 +379,22 @@ pub fn encode_telex(
     records: &[TelexRecord],
     profile: Option<&str>,
 ) -> Result<String, TelexEncodeError> {
+    encode_telex_with_projection(records, profile, None)
+}
+
+pub fn encode_telex_with_projection(
+    records: &[TelexRecord],
+    profile: Option<&str>,
+    projection: Option<&str>,
+) -> Result<String, TelexEncodeError> {
     if profile == Some("") {
         return Err(TelexEncodeError {
             detail: "Telex profile must be a non-empty string".to_owned(),
+        });
+    }
+    if projection == Some("") {
+        return Err(TelexEncodeError {
+            detail: "Telex projection must be a non-empty string".to_owned(),
         });
     }
 
@@ -336,6 +402,10 @@ pub fn encode_telex(
     if let Some(profile) = profile {
         header.push_str("\nprofile=");
         header.push_str(&encode_payload(profile));
+    }
+    if let Some(projection) = projection {
+        header.push_str("\nprojection=");
+        header.push_str(&encode_payload(projection));
     }
     if records.is_empty() {
         header.push('\n');
@@ -378,7 +448,11 @@ pub fn encode_telex(
 pub fn canonicalize_telex(input: &str) -> Result<String, TelexSyntaxError> {
     let parsed = parse_telex(input)?;
     let profile = parsed.profile_explicit.then_some(parsed.profile.as_str());
-    encode_telex(&parsed.records, profile)
+    let projection = parsed
+        .projection_explicit
+        .then_some(parsed.projection.as_deref())
+        .flatten();
+    encode_telex_with_projection(&parsed.records, profile, projection)
         .map_err(|error| TelexSyntaxError::new("TELEX_SYNTAX_ERROR", error.detail, None))
 }
 
@@ -387,9 +461,10 @@ pub fn validate_telex(
     registered_fields: &[&str],
 ) -> Result<ValidationResult, TelexSyntaxError> {
     let parsed = parse_telex(input)?;
-    Ok(validate_telex_records(
+    Ok(validate_telex_records_with_projection(
         &parsed.records,
         &parsed.profile,
+        parsed.projection.as_deref(),
         registered_fields,
     ))
 }
@@ -397,6 +472,15 @@ pub fn validate_telex(
 pub fn validate_telex_records(
     records: &[TelexRecord],
     profile: &str,
+    registered_fields: &[&str],
+) -> ValidationResult {
+    validate_telex_records_with_projection(records, profile, None, registered_fields)
+}
+
+pub fn validate_telex_records_with_projection(
+    records: &[TelexRecord],
+    profile: &str,
+    projection: Option<&str>,
     registered_fields: &[&str],
 ) -> ValidationResult {
     let registered: HashSet<&str> = registered_fields.iter().copied().collect();
@@ -409,9 +493,17 @@ pub fn validate_telex_records(
             format!("Unsupported AES profile: {profile}"),
         ));
     }
+    if projection.is_some_and(|value| value != AEON_DOCUMENT_PROJECTION) {
+        diagnostics.push(Diagnostic::new(
+            "AES_UNSUPPORTED_PROJECTION",
+            format!("Unsupported AES projection: {}", projection.unwrap_or_default()),
+        ));
+    }
 
+    let mut body_seen = false;
     for (index, event) in records.iter().enumerate() {
-        let path = event.get("path");
+        let address_field = record_address_field(event);
+        let address = address_field.and_then(|field| event.get(field.name()));
         for (field, _) in event.fields() {
             if !CORE_FIELDS.contains(&field.as_str()) && !registered.contains(field.as_str()) {
                 diagnostics.push(
@@ -419,44 +511,105 @@ pub fn validate_telex_records(
                         "AES_UNKNOWN_FIELD",
                         format!("Field '{field}' is not registered by profile '{profile}'"),
                     )
-                    .at_record(index, path)
+                    .at_record(index, address)
                     .with_field(field),
                 );
             }
         }
 
-        for field in ["path", "kind"] {
-            if !event.contains(field) {
-                diagnostics.push(
-                    Diagnostic::new("AES_MISSING_FIELD", format!("AES events require '{field}'"))
-                        .at_record(index, path)
-                        .with_field(field),
-                );
-            }
+        let has_path = event.contains("path");
+        let has_header = event.contains("header");
+        if !has_path && !has_header {
+            diagnostics.push(
+                Diagnostic::new(
+                    "AES_MISSING_ADDRESS",
+                    "AES records require exactly one of 'path' or 'header'",
+                )
+                .at_record(index, address),
+            );
+        } else if has_path && has_header {
+            diagnostics.push(
+                Diagnostic::new(
+                    "AES_MULTIPLE_ADDRESSES",
+                    "AES records cannot carry both 'path' and 'header'",
+                )
+                .at_record(index, address),
+            );
+        }
+        if !event.contains("kind") {
+            diagnostics.push(
+                Diagnostic::new("AES_MISSING_FIELD", "AES records require 'kind'")
+                    .at_record(index, address)
+                    .with_field("kind"),
+            );
         }
 
-        let path_details = match path {
+        let mut path_details = match address {
             Some("$") => {
                 diagnostics.push(
                     Diagnostic::new("AES_INVALID_PATH", "The root is not an event path")
-                        .at_record(index, path)
-                        .with_field("path"),
+                        .at_record(index, address)
+                        .with_field(address_field.map_or("path", AddressField::name)),
                 );
                 None
             }
             Some(path) => match parse_canonical_data_path(path) {
                 Ok(details) => Some(details),
                 Err(message) => {
+                    let field = address_field.map_or("path", AddressField::name);
+                    let code = if address_field == Some(AddressField::Header) {
+                        "AES_INVALID_HEADER_PATH"
+                    } else {
+                        "AES_INVALID_PATH"
+                    };
                     diagnostics.push(
-                        Diagnostic::new("AES_INVALID_PATH", message)
+                        Diagnostic::new(code, message)
                             .at_record(index, Some(path))
-                            .with_field("path"),
+                            .with_field(field),
                     );
                     None
                 }
             },
             None => None,
         };
+        match address_field {
+            Some(AddressField::Header) => {
+                if projection != Some(AEON_DOCUMENT_PROJECTION) {
+                    diagnostics.push(
+                        Diagnostic::new(
+                            "AES_HEADER_REQUIRES_PROJECTION",
+                            format!(
+                                "Header records require projection '{AEON_DOCUMENT_PROJECTION}'"
+                            ),
+                        )
+                        .at_record(index, address)
+                        .with_field("header"),
+                    );
+                }
+                if body_seen {
+                    diagnostics.push(
+                        Diagnostic::new("AES_HEADER_ORDER", "Header records must precede body events")
+                            .at_record(index, address)
+                            .with_field("header"),
+                    );
+                }
+                if let (Some(path), Some(details)) = (address, &path_details)
+                    && !is_aeon_header_path(path, details)
+                {
+                    diagnostics.push(
+                        Diagnostic::new(
+                            "AES_INVALID_HEADER_PATH",
+                            "Header paths must begin with a quoted 'aeon:' member",
+                        )
+                        .at_record(index, address)
+                        .with_field("header"),
+                    );
+                    path_details = None;
+                }
+            }
+            Some(AddressField::Path) => body_seen = true,
+            None => {}
+        }
 
         let kind = event.get("kind");
         let known_kind = kind.is_some_and(|kind| VALUE_KINDS.contains(&kind));
@@ -466,7 +619,7 @@ pub fn validate_telex_records(
                     "AES_UNKNOWN_KIND",
                     format!("Unknown AES value kind: {kind}"),
                 )
-                .at_record(index, path)
+                .at_record(index, address)
                 .with_field("kind"),
             );
         }
@@ -477,12 +630,40 @@ pub fn validate_telex_records(
         events.push(EventCandidate {
             event,
             index,
+            address_field,
+            address,
             path_details,
         });
     }
 
+    let body_events = events
+        .iter()
+        .filter(|candidate| candidate.address_field == Some(AddressField::Path))
+        .collect::<Vec<_>>();
+    let header_events = events
+        .iter()
+        .filter(|candidate| candidate.address_field == Some(AddressField::Header))
+        .collect::<Vec<_>>();
     if profile == COMPLETE_AES_PROFILE {
-        validate_complete_stream(&events, &mut diagnostics);
+        validate_complete_stream(&body_events, &mut diagnostics);
+    }
+    if projection == Some(AEON_DOCUMENT_PROJECTION) {
+        validate_complete_stream(&header_events, &mut diagnostics);
+    }
+    if profile == COMPLETE_AES_PROFILE {
+        let identity_events = body_events
+            .iter()
+            .chain(
+                (projection == Some(AEON_DOCUMENT_PROJECTION))
+                    .then_some(header_events.iter())
+                    .into_iter()
+                    .flatten(),
+            )
+            .copied()
+            .collect::<Vec<_>>();
+        validate_identity_uniqueness(&identity_events, &mut diagnostics);
+    } else if projection == Some(AEON_DOCUMENT_PROJECTION) {
+        validate_identity_uniqueness(&header_events, &mut diagnostics);
     }
 
     ValidationResult {
@@ -496,7 +677,7 @@ fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec
     let Some(kind) = event.get("kind") else {
         return;
     };
-    let path = event.get("path");
+    let path = record_address(event);
     let value = event.get("value");
     if ["object", "list", "tuple", "node"].contains(&kind) {
         if value.is_some() {
@@ -574,7 +755,7 @@ fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec
 }
 
 fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut Vec<Diagnostic>) {
-    let path = event.get("path");
+    let path = record_address(event);
     for field in ["datatype", "identity"] {
         if event.get(field) == Some("") {
             diagnostics.push(
@@ -604,16 +785,17 @@ fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut
 struct EventCandidate<'a> {
     event: &'a TelexRecord,
     index: usize,
+    address_field: Option<AddressField>,
+    address: Option<&'a str>,
     path_details: Option<PathDetails>,
 }
 
-fn validate_complete_stream(events: &[EventCandidate<'_>], diagnostics: &mut Vec<Diagnostic>) {
+fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Vec<Diagnostic>) {
     let mut by_path: HashMap<&str, &EventCandidate<'_>> = HashMap::new();
-    let mut identities: HashMap<&str, usize> = HashMap::new();
 
     for candidate in events {
         if candidate.path_details.is_some()
-            && let Some(path) = candidate.event.get("path")
+            && let Some(path) = candidate.address
         {
             if let Some(first) = by_path.get(path) {
                 diagnostics.push(
@@ -628,32 +810,13 @@ fn validate_complete_stream(events: &[EventCandidate<'_>], diagnostics: &mut Vec
                 by_path.insert(path, candidate);
             }
         }
-        if let Some(identity) = candidate
-            .event
-            .get("identity")
-            .filter(|value| !value.is_empty())
-        {
-            if let Some(first) = identities.get(identity) {
-                diagnostics.push(
-                    Diagnostic::new(
-                        "AES_DUPLICATE_IDENTITY",
-                        format!("Duplicate structural identity '{identity}'"),
-                    )
-                    .at_record(candidate.index, candidate.event.get("path"))
-                    .with_field("identity")
-                    .with_first_record(*first),
-                );
-            } else {
-                identities.insert(identity, candidate.index);
-            }
-        }
     }
 
     for candidate in events {
         let Some(details) = &candidate.path_details else {
             continue;
         };
-        let path = candidate.event.get("path");
+        let path = candidate.address;
         let kind = candidate.event.get("kind");
         if details.segments.len() == 1 {
             if details.segments[0] != Segment::Member {
@@ -720,6 +883,35 @@ fn validate_complete_stream(events: &[EventCandidate<'_>], diagnostics: &mut Vec
     }
 }
 
+fn validate_identity_uniqueness(
+    events: &[&EventCandidate<'_>],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let mut identities: HashMap<&str, usize> = HashMap::new();
+    for candidate in events {
+        let Some(identity) = candidate
+            .event
+            .get("identity")
+            .filter(|value| !value.is_empty())
+        else {
+            continue;
+        };
+        if let Some(first) = identities.get(identity) {
+            diagnostics.push(
+                Diagnostic::new(
+                    "AES_DUPLICATE_IDENTITY",
+                    format!("Duplicate structural identity '{identity}'"),
+                )
+                .at_record(candidate.index, candidate.address)
+                .with_field("identity")
+                .with_first_record(*first),
+            );
+        } else {
+            identities.insert(identity, candidate.index);
+        }
+    }
+}
+
 fn incompatible_parent(
     candidate: &EventCandidate<'_>,
     parent_path: &str,
@@ -733,7 +925,7 @@ fn incompatible_parent(
             actual.unwrap_or("")
         ),
     )
-    .at_record(candidate.index, candidate.event.get("path"))
+    .at_record(candidate.index, candidate.address)
     .with_required_path(parent_path)
 }
 
@@ -742,7 +934,46 @@ fn invalid_node_head(candidate: &EventCandidate<'_>) -> Diagnostic {
         "AES_INVALID_NODE_HEAD",
         "A 'node-head' must be an indexed direct child of a 'node'",
     )
-    .at_record(candidate.index, candidate.event.get("path"))
+    .at_record(candidate.index, candidate.address)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AddressField {
+    Path,
+    Header,
+}
+
+impl AddressField {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Path => "path",
+            Self::Header => "header",
+        }
+    }
+}
+
+fn record_address_field(record: &TelexRecord) -> Option<AddressField> {
+    match (record.contains("path"), record.contains("header")) {
+        (true, false) => Some(AddressField::Path),
+        (false, true) => Some(AddressField::Header),
+        _ => None,
+    }
+}
+
+fn record_address(record: &TelexRecord) -> Option<&str> {
+    record_address_field(record).and_then(|field| record.get(field.name()))
+}
+
+fn is_aeon_header_path(path: &str, details: &PathDetails) -> bool {
+    if details.segments.first() != Some(&Segment::Member) {
+        return false;
+    }
+    let Some(first) = details.prefixes.first().filter(|prefix| prefix.starts_with("$.[")) else {
+        return false;
+    };
+    decode_json_string(first, 3)
+        .is_ok_and(|(member, _)| member.starts_with("aeon:") && member.len() > 5)
+        && path.starts_with(first)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
