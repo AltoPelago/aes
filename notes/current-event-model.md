@@ -80,6 +80,18 @@ event is a value-less ordered container and each `node-head` descendant carries
 its tag. Current AEON produces one head at index zero, while the AES shape does
 not preclude future empty or multi-headed node profiles.
 
+Portable spans use only an inclusive start and exclusive end measured as
+zero-based UTF-8 byte offsets. Line and column coordinates are derived rather
+than transported. Source-less events omit the span instead of manufacturing a
+zero location; identifying the immutable source resource remains part of the
+provenance decision.
+
+Event order remains producer-profile dependent and is always preserved by
+Telex. Canonical AEON document projection uses depth-first preorder, while a
+ledger retains its original sequence. Signature profiles must explicitly state
+whether they cover a canonical semantic projection or the exact supplied event
+order.
+
 ## Recommended boundary
 
 The working recommendation is:

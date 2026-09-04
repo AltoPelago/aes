@@ -208,6 +208,15 @@ component already conforms.
 
 ## 7. Specifications, CTS, and rollout
 
+- [ ] Add an AES projection requirement to `aeon.gp.profile.v1` by referencing
+  the AES-owned materialized/prefix-complete profile; do not duplicate its
+  normative structural rules in the AEON GP contract.
+- [ ] Define separate signature profiles for canonical semantic projections
+  and exact-order ledger streams; do not make Telex canonicalization reorder
+  events implicitly.
+- [ ] Ensure hashing and signature implementations bind the selected AES
+  profile and order policy so signatures from different projections cannot be
+  confused.
 - [ ] Update the canonical AES specification, which currently describes an
   implementation-shaped `ASTValue`, required source span, and embedded
   attributes.
@@ -220,4 +229,3 @@ component already conforms.
 - [ ] Add shared Telex fixtures and require at least two independent
   implementations before Draft 1.
 - [ ] Review every completed decision gate for additions to this checklist.
-

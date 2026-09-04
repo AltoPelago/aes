@@ -127,6 +127,41 @@ export function canonicalizeTelex(input) {
   return encodeTelex(parseTelex(input).records);
 }
 
+/**
+ * Parse Telex and report whether every non-root path prefix is present.
+ * This is a structural convenience check, not full AES profile validation.
+ */
+export function checkTelexCompleteness(input) {
+  return checkPrefixCompleteness(parseTelex(input).records);
+}
+
+export function checkPrefixCompleteness(records) {
+  if (!Array.isArray(records)) {
+    throw new TypeError('Telex records must be an array');
+  }
+
+  const paths = new Set();
+  for (const [index, record] of records.entries()) {
+    if (record === null || typeof record !== 'object' || typeof record.path !== 'string') {
+      throw new TypeError(`Telex record ${index + 1} must have a string path`);
+    }
+    paths.add(record.path);
+  }
+
+  const missing = [];
+  const reported = new Set();
+  for (const record of records) {
+    const prefixes = canonicalPathPrefixes(record.path);
+    for (const prefix of prefixes.slice(0, -1)) {
+      if (paths.has(prefix) || reported.has(prefix)) continue;
+      reported.add(prefix);
+      missing.push({ path: prefix, requiredBy: record.path });
+    }
+  }
+
+  return { complete: missing.length === 0, missing };
+}
+
 function compareFields([left], [right]) {
   const leftRank = CORE_FIELD_ORDER.get(left);
   const rightRank = CORE_FIELD_ORDER.get(right);
@@ -142,6 +177,72 @@ function hasCanonicalFieldOrder(record) {
   const entries = Object.entries(record);
   const sorted = [...entries].sort(compareFields);
   return entries.every(([field], index) => field === sorted[index][0]);
+}
+
+function canonicalPathPrefixes(path) {
+  if (!path.startsWith('$')) {
+    throw new TypeError(`Expected an absolute canonical path: ${path}`);
+  }
+  if (path === '$') return [];
+
+  const prefixes = [];
+  let cursor = 1;
+  while (cursor < path.length) {
+    const start = cursor;
+    if (path.startsWith('.@.', cursor)) {
+      cursor += 3;
+      cursor = readMemberEnd(path, cursor);
+    } else if (path[cursor] === '.') {
+      cursor += 1;
+      cursor = readMemberEnd(path, cursor);
+    } else if (path[cursor] === '[') {
+      const index = path.slice(cursor).match(/^\[(?:0|[1-9][0-9]*)\]/u);
+      if (!index) throw new TypeError(`Invalid canonical index in path: ${path}`);
+      cursor += index[0].length;
+    } else {
+      throw new TypeError(`Invalid canonical path segment in: ${path}`);
+    }
+    prefixes.push(`${prefixes.at(-1) ?? '$'}${path.slice(start, cursor)}`);
+  }
+  return prefixes;
+}
+
+function readMemberEnd(path, cursor) {
+  if (path[cursor] === '[') {
+    if (path[cursor + 1] !== '"') {
+      throw new TypeError(`Expected a quoted canonical member in path: ${path}`);
+    }
+    let quoteEnd = cursor + 2;
+    let escaped = false;
+    for (; quoteEnd < path.length; quoteEnd += 1) {
+      const character = path[quoteEnd];
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === '"') {
+        break;
+      }
+    }
+    if (path[quoteEnd] !== '"' || path[quoteEnd + 1] !== ']') {
+      throw new TypeError(`Unterminated quoted canonical member in path: ${path}`);
+    }
+    const encoded = path.slice(cursor + 1, quoteEnd + 1);
+    let decoded;
+    try {
+      decoded = JSON.parse(encoded);
+    } catch {
+      throw new TypeError(`Invalid quoted canonical member in path: ${path}`);
+    }
+    if (typeof decoded !== 'string' || decoded.length === 0 || JSON.stringify(decoded) !== encoded) {
+      throw new TypeError(`Non-canonical quoted member in path: ${path}`);
+    }
+    return quoteEnd + 2;
+  }
+
+  const member = path.slice(cursor).match(/^[A-Za-z_][A-Za-z0-9_]*/u);
+  if (!member) throw new TypeError(`Invalid canonical member in path: ${path}`);
+  return cursor + member[0].length;
 }
 
 function decodePayload(payload, lineNumber) {

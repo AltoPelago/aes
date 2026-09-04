@@ -36,7 +36,9 @@ This is a spec-first bootstrap. Nothing in this repository is normative yet.
   portable event-model decisions.
 - [`src/telex.js`](src/telex.js) is a dependency-free syntax codec. It proves
   that the framing can be parsed and produced with a very small implementation;
-  it deliberately does not decide AES value semantics.
+  it deliberately does not decide AES value semantics. Its separate
+  `checkTelexCompleteness` helper reports missing structural prefixes without
+  claiming full materialized-profile validation.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early
   illustrative stream, not a frozen conformance vector.
 

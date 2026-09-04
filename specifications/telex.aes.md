@@ -59,19 +59,19 @@ telex.aes=0
 path=$.customer
 kind=object
 datatype=object
-span=1:1:0-4:2:73
+span=0:73
 
 path=$.customer.name
 kind=string
 datatype=string
 value=Alice
-span=2:3:22-2:24:43
+span=22:43
 
 path=$.customer.balance
 kind=radix
 datatype=decimal
 value=010.00
-span=3:3:46-3:28:71
+span=46:71
 ```
 
 The object event carries its own representation kind. Its children are ordinary
@@ -155,7 +155,7 @@ with the AES specification and the implementations before promotion.
 | `datatype` | optional | declared datatype, without inference |
 | `identity` | optional | structural identity carried by the binding |
 | `value` | kind-dependent | decoded textual payload |
-| `span` | required for source events | original source range |
+| `span` | profile-dependent | original source byte range |
 
 Every stanza after the preamble is an AES event. Draft 0 therefore has no
 `event=assignment` discriminator. Adding the same constant to every stanza
@@ -195,23 +195,27 @@ grammar.
 
 ### 5.3 Spans
 
-The candidate span form is:
+The portable span form is:
 
 ```text
-start-line:start-column:start-byte-end-line:end-column:end-byte
+start-byte:end-byte
 ```
 
-Lines and columns are one-based. Columns count Unicode scalar values. Byte
-offsets are zero-based UTF-8 offsets. The end position is exclusive.
+Both positions are zero-based UTF-8 byte offsets into the exact source resource
+identified by provenance. The start is inclusive and the end is exclusive. A
+valid span has `start-byte <= end-byte`, and both endpoints fall on UTF-8 scalar
+boundaries.
 
-This deliberately specifies both human-facing positions and stable byte
-offsets. Existing implementations currently use host-specific position shapes;
-the exact portable span contract is a decision gate for Draft 0.
+Line and column coordinates are not transported. They are derived diagnostic
+views and different host languages otherwise tend to count bytes, Unicode
+scalars, or UTF-16 code units inconsistently.
 
-Events created without source text need an explicit provenance rule. They must
-not invent a zero span and imply source evidence that does not exist. The likely
-direction is an optional `origin` field plus omission of `span`, but that is not
-fixed in this draft.
+A source-backed AES profile requires a span for each event with corresponding
+source evidence. An event created without source text omits `span`; it must not
+invent `0:0` and imply evidence that does not exist. The portable source/origin
+identity contract remains a separate decision. Telex syntax treats `span` as an
+ordinary payload, while an AES event-shape validator enforces this grammar and
+the selected profile.
 
 ### 5.4 Value kinds
 
@@ -419,6 +423,63 @@ through provenance and spans.
 This boundary prevents canonical Telex bytes from changing merely because two
 sources use different spellings for the same portable AES value.
 
+### 5.9 Event order
+
+Event order is significant and Telex preserves it exactly. AES core does not
+impose one universal structural sorting algorithm: a source projection, a
+materialized snapshot, an incremental transaction, and an append-only ledger
+may each have a different authoritative order.
+
+A canonical AEON document projection uses depth-first preorder. For each
+binding it emits:
+
+1. the binding event;
+2. the binding's attribute subtrees in declaration order;
+3. structural descendant subtrees in declaration or ascending index order; and
+4. the next sibling binding.
+
+Each parent therefore precedes its descendants and each projected subtree is
+contiguous. Object members and attribute entries preserve declaration order.
+List and tuple items, node heads, and node-head content preserve ascending
+index order. Paths, datatypes, values, and structural identities are never used
+as implicit sort keys.
+
+Other producer profiles may define another order. Telex canonicalization only
+canonicalizes the encoding of the supplied sequence; it never changes that
+sequence.
+
+Signature profiles must state which sequence they cover. A semantic document
+signature may first project events into the canonical order defined by its
+profile. A ledger signature covers the original event order exactly. Telex
+does not infer one signing mode from the event content.
+
+### 5.10 Prefix completeness
+
+Prefix completeness is an AES profile constraint, not Telex syntax. A raw
+stream may contain an event at `$.a.b` without carrying `$.a`; it can represent
+an incremental event, filtered stream, transaction fragment, subscription, or
+ledger entry without claiming to be an independently navigable state.
+
+A materialized snapshot profile requires every non-root structural prefix to
+have a material event and requires each parent kind to be compatible with its
+child segment. Parents are never inferred or synthesized. An attribute event
+requires its owning event, but `.@` does not require a synthetic attribute-space
+container event. Node content requires both its `node` and `node-head` ancestry.
+
+Transaction and ledger profiles may establish completeness against prior state
+plus the supplied segment rather than against the segment alone. A canonical
+AEON document projection is prefix-complete.
+
+The reference codec exposes `checkTelexCompleteness(input)` and
+`checkPrefixCompleteness(records)` as lightweight diagnostics. They report
+missing structural prefixes without reordering events. They do not check
+container-kind compatibility, uniqueness, references, or any other claim of a
+materialized AES profile.
+
+The normative materialized-profile rule belongs to AES. An AEON profile such as
+`aeon.gp.profile.v1` may declare that its AES projection satisfies that profile;
+it should reference the AES-owned rule rather than redefine it.
+
 ## 6. Canonical form
 
 A canonical Telex encoder emits:
@@ -489,14 +550,9 @@ access, datatype execution, or source-language evaluation.
 
 The following must be settled with fixtures and at least two implementations:
 
-1. What is the portable source-span coordinate system?
-2. Which producer-side ordering constraints apply beyond Telex's requirement to
-   preserve the supplied event order exactly?
-3. Does a transport stream require prefix completeness, or may a declared raw
-   event profile carry orphaned paths?
-4. Which unknown-field behavior is safe for standalone files and negotiated
+1. Which unknown-field behavior is safe for standalone files and negotiated
    protocols?
-5. What media type and profile identifiers are registered for Telex?
+2. What media type and profile identifiers are registered for Telex?
 
 Draft 1 should not be declared until the answers exist as conformance vectors,
 not only prose.

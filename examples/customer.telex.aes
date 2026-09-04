@@ -3,16 +3,16 @@ telex.aes=0
 path=$.customer
 kind=object
 datatype=object
-span=1:1:0-4:2:73
+span=0:73
 
 path=$.customer.name
 kind=string
 datatype=string
 value=Alice
-span=2:3:22-2:24:43
+span=22:43
 
 path=$.customer.balance
 kind=radix
 datatype=decimal
 value=010.00
-span=3:3:46-3:28:71
+span=46:71
