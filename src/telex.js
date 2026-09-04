@@ -7,7 +7,6 @@ const CORE_FIELD_ORDER = new Map([
   'identity',
   'value',
   'representation',
-  'lexeme',
   'span',
 ].map((field, index) => [field, index]));
 

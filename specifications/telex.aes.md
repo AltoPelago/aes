@@ -158,7 +158,6 @@ with the AES specification and the implementations before promotion.
 | `identity` | optional | structural identity carried by the binding |
 | `value` | kind-dependent | decoded textual payload |
 | `representation` | kind-dependent | representation detail not captured by `kind` |
-| `lexeme` | optional | opaque original source spelling for source-fidelity profiles |
 
 Every stanza after the preamble is an AES event. Draft 0 therefore has no
 `event=assignment` discriminator. Adding the same constant to every stanza
@@ -253,7 +252,7 @@ $.a.@.a.b.@.a
 ```
 
 Each event uses the same `path`, `kind`, datatype, identity, value,
-representation, lexeme, and provenance fields as any other event.
+representation, and provenance fields as any other event.
 
 The `.@` segment is part of the canonical path. Telex preserves it but does not
 interpret attribute ownership or scope. SANSA and downstream consumers own
@@ -262,6 +261,18 @@ indexed elements, and node children.
 
 Telex preserves event order exactly. It does not derive a new order from path
 structure and it never groups, sorts, or nests attribute-space events.
+
+### 5.5 Source lexemes
+
+AES does not carry the exact original source token or a `lexeme` field.
+
+`kind`, `value`, and any required representation field preserve the recognized
+value distinctions. Quote choice, escape spelling, numeric separators, and
+other source-authoring details remain in the original source. Source-aware
+tooling may recover them through provenance and spans.
+
+This boundary prevents canonical Telex bytes from changing merely because two
+sources use different spellings for the same portable AES value.
 
 ## 6. Canonical form
 
@@ -285,7 +296,6 @@ datatype
 identity
 value
 representation
-lexeme
 span
 ```
 
@@ -335,18 +345,17 @@ access, datatype execution, or source-language evaluation.
 
 The following must be settled with fixtures and at least two implementations:
 
-1. Is `lexeme` part of core AES, an optional source-fidelity profile, or omitted?
-2. What are the exact fields and canonical payloads for every value kind?
-3. What is the portable source-span coordinate system?
-4. How are anonymous typed values and structural identities represented on
+1. What are the exact fields and canonical payloads for every value kind?
+2. What is the portable source-span coordinate system?
+3. How are anonymous typed values and structural identities represented on
    their flat events?
-5. Which producer-side ordering constraints apply beyond Telex's requirement to
+4. Which producer-side ordering constraints apply beyond Telex's requirement to
    preserve the supplied event order exactly?
-6. Does a transport stream require prefix completeness, or may a declared raw
+5. Does a transport stream require prefix completeness, or may a declared raw
    event profile carry orphaned paths?
-7. Which unknown-field behavior is safe for standalone files and negotiated
+6. Which unknown-field behavior is safe for standalone files and negotiated
    protocols?
-8. What media type and profile identifiers are registered for Telex?
+7. What media type and profile identifiers are registered for Telex?
 
 Draft 1 should not be declared until the answers exist as conformance vectors,
 not only prose.

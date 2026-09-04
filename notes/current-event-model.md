@@ -60,6 +60,10 @@ The portable profile needs explicit decisions for:
 8. **Ordering:** reconcile lexical binding order with synthetic indexed child
    events and future database-originated events.
 
+Draft 0 does not transport source lexemes. Exact token spelling remains in the
+source and may be recovered through provenance; portable AES retains only the
+recognized value and representation distinctions.
+
 ## Recommended boundary
 
 The working recommendation is:
