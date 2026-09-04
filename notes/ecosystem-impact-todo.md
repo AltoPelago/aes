@@ -91,8 +91,20 @@ surfaces until these gates are complete.
   add and verify attribute-entry and node-head identity support.
 - [x] PHP: inventory and implement all four identity locations in its AST,
   event projection, serialization, and validation surfaces.
-- [ ] Verify SANSA projections, SO plans, ASP operations, and AES-DB records
-  preserve identity without treating it as path identity.
+- [x] Verify SANSA projections preserve occurrence identity independently of
+  canonical address. JavaScript and Python resolution retain the original host binding,
+  Rust carries `identity` on resolved bindings, and AEON Matter exposes all four
+  source identity locations without changing selectors or canonical addresses.
+- [x] Verify SO plans preserve identity independently of source and target
+  addresses.
+  Compatibility values now carry portable `identity` metadata independently
+  of source and target paths. Exact-alias relocation preserves a single
+  identity and fails closed on conflicting identities; derived identity policy
+  remains explicit in the transform/projector.
+- [ ] Verify ASP operations preserve identity independently of operation target
+  addresses.
+- [ ] Verify AES-DB records preserve identity independently of persisted record
+  paths and physical storage layout.
 
 The TypeScript local AST/AES audit is complete. Canonical rendering, minizing,
 prettifying, mode conversion, map/node finalization, inspect/map JSON output,
