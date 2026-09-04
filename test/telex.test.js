@@ -22,7 +22,7 @@ test('round-trips records and canonicalizes core field order', () => {
     path: '$.message',
     span: '0:19',
     origin: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-    kind: 'string',
+    kind: 'StringLiteral',
   }];
 
   const encoded = encodeTelex(records);
@@ -30,7 +30,7 @@ test('round-trips records and canonicalizes core field order', () => {
     'telex.aes=0',
     '',
     'path=$.message',
-    'kind=string',
+    'kind=StringLiteral',
     'value=hello\\nworld\\\\again=still-value',
     'origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     'span=0:19',
@@ -44,7 +44,7 @@ test('round-trips records and canonicalizes core field order', () => {
     projectionExplicit: false,
     records: [{
       path: '$.message',
-      kind: 'string',
+      kind: 'StringLiteral',
       value: 'hello\nworld\\again=still-value',
       origin: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       span: '0:19',
@@ -54,35 +54,35 @@ test('round-trips records and canonicalizes core field order', () => {
 });
 
 test('preserves Unicode and escapes control scalars', () => {
-  const encoded = encodeTelex([{ path: '$.波', kind: 'string', value: '🌊\u0001' }]);
+  const encoded = encodeTelex([{ path: '$.波', kind: 'StringLiteral', value: '🌊\u0001' }]);
   assert.match(encoded, /value=🌊\\u\{1\}/u);
   assert.equal(parseTelex(encoded).records[0].value, '🌊\u0001');
 });
 
 test('keeps clone and pointer references distinct through kind', () => {
   const records = [
-    { path: '$.copy', kind: 'clone-reference', value: '$.source' },
-    { path: '$.alias', kind: 'pointer-reference', value: '$.source' },
+    { path: '$.copy', kind: 'CloneReference', value: '$.source' },
+    { path: '$.alias', kind: 'PointerReference', value: '$.source' },
   ];
   assert.deepEqual(parseTelex(encodeTelex(records)).records, records);
 });
 
 test('keeps node containers, heads, and content as separate flat events', () => {
   const records = [
-    { path: '$.a', kind: 'node', datatype: 'node', identity: 'A' },
-    { path: '$.a.@.x', kind: 'number', value: '1' },
-    { path: '$.a[0]', kind: 'node-head', datatype: 'node<string>', identity: 'T', value: 'tag' },
-    { path: '$.a[0].@.x', kind: 'number', value: '2' },
-    { path: '$.a[0][0]', kind: 'string', value: 'hello' },
+    { path: '$.a', kind: 'NodeLiteral', datatype: 'node', identity: 'A' },
+    { path: '$.a.@.x', kind: 'NumberLiteral', value: '1' },
+    { path: '$.a[0]', kind: 'NodeHead', datatype: 'node<string>', identity: 'T', value: 'tag' },
+    { path: '$.a[0].@.x', kind: 'NumberLiteral', value: '2' },
+    { path: '$.a[0][0]', kind: 'StringLiteral', value: 'hello' },
   ];
   assert.deepEqual(parseTelex(encodeTelex(records)).records, records);
 });
 
 test('preserves supplied event order instead of sorting by path', () => {
   const records = [
-    { path: '$.z', kind: 'number', value: '1' },
-    { path: '$.a', kind: 'number', value: '2' },
-    { path: '$.z.@.x', kind: 'string', value: 'third' },
+    { path: '$.z', kind: 'NumberLiteral', value: '1' },
+    { path: '$.a', kind: 'NumberLiteral', value: '2' },
+    { path: '$.z.@.x', kind: 'StringLiteral', value: 'third' },
   ];
   const decoded = parseTelex(encodeTelex(records)).records;
   assert.deepEqual(decoded.map(({ path }) => path), ['$.z', '$.a', '$.z.@.x']);
@@ -90,14 +90,14 @@ test('preserves supplied event order instead of sorting by path', () => {
 
 test('reports missing structural prefixes without requiring parent-first order', () => {
   const complete = [
-    { path: '$.a[0][0]', kind: 'string', value: 'child' },
-    { path: '$.a[0]', kind: 'node-head', value: 'tag' },
-    { path: '$.a', kind: 'node' },
-    { path: '$.a[0].@.["x.y"]', kind: 'number', value: '1' },
+    { path: '$.a[0][0]', kind: 'StringLiteral', value: 'child' },
+    { path: '$.a[0]', kind: 'NodeHead', value: 'tag' },
+    { path: '$.a', kind: 'NodeLiteral' },
+    { path: '$.a[0].@.["x.y"]', kind: 'NumberLiteral', value: '1' },
   ];
   assert.deepEqual(checkPrefixCompleteness(complete), { complete: true, missing: [] });
 
-  const incomplete = encodeTelex([{ path: '$.a.b.c', kind: 'number', value: '1' }]);
+  const incomplete = encodeTelex([{ path: '$.a.b.c', kind: 'NumberLiteral', value: '1' }]);
   assert.deepEqual(checkTelexCompleteness(incomplete), {
     complete: false,
     missing: [
@@ -109,9 +109,9 @@ test('reports missing structural prefixes without requiring parent-first order',
 
 test('treats an attribute selector and its key as one structural path step', () => {
   const records = [
-    { path: '$.a', kind: 'number', value: '0' },
-    { path: '$.a.@.meta', kind: 'object' },
-    { path: '$.a.@.meta.deep', kind: 'number', value: '1' },
+    { path: '$.a', kind: 'NumberLiteral', value: '0' },
+    { path: '$.a.@.meta', kind: 'ObjectNode' },
+    { path: '$.a.@.meta.deep', kind: 'NumberLiteral', value: '1' },
   ];
   assert.equal(checkPrefixCompleteness(records).complete, true);
   assert.deepEqual(checkPrefixCompleteness(records.slice(1)), {
@@ -125,7 +125,7 @@ test('preserves unknown extension fields without interpreting them', () => {
     'telex.aes=0',
     '',
     'path=$.a',
-    'kind=number',
+    'kind=NumberLiteral',
     'value=1',
     'x.aesdb.revision=42',
     '',
@@ -136,20 +136,20 @@ test('preserves unknown extension fields without interpreting them', () => {
 });
 
 test('defaults to the complete Telex profile when no profile is declared', () => {
-  const parsed = parseTelex(encodeTelex([{ path: '$.a', kind: 'object' }]));
+  const parsed = parseTelex(encodeTelex([{ path: '$.a', kind: 'ObjectNode' }]));
   assert.equal(parsed.profile, COMPLETE_AES_PROFILE);
   assert.equal(parsed.profileExplicit, false);
 });
 
 test('round-trips an explicit partial profile without treating it as an event', () => {
-  const records = [{ path: '$.a.b', kind: 'number', value: '1' }];
+  const records = [{ path: '$.a.b', kind: 'NumberLiteral', value: '1' }];
   const encoded = encodeTelex(records, { profile: PARTIAL_AES_PROFILE });
   assert.equal(encoded, [
     'telex.aes=0',
     'profile=aes.partial.v0',
     '',
     'path=$.a.b',
-    'kind=number',
+    'kind=NumberLiteral',
     'value=1',
     '',
   ].join('\n'));
@@ -191,8 +191,8 @@ test('rejects an empty profile declaration', () => {
 
 test('round-trips an explicit AEON document projection with flat header records', () => {
   const records = [
-    { header: '$.["aeon:mode"]', kind: 'string', value: 'strict' },
-    { path: '$.a', kind: 'number', value: '1' },
+    { header: '$.["aeon:mode"]', kind: 'StringLiteral', value: 'strict' },
+    { path: '$.a', kind: 'NumberLiteral', value: '1' },
   ];
   const encoded = encodeTelex(records, { projection: AEON_DOCUMENT_PROJECTION });
   assert.equal(encoded, [
@@ -200,11 +200,11 @@ test('round-trips an explicit AEON document projection with flat header records'
     'projection=aeon.document.v0',
     '',
     'header=$.["aeon:mode"]',
-    'kind=string',
+    'kind=StringLiteral',
     'value=strict',
     '',
     'path=$.a',
-    'kind=number',
+    'kind=NumberLiteral',
     'value=1',
     '',
   ].join('\n'));
@@ -217,27 +217,27 @@ test('round-trips an explicit AEON document projection with flat header records'
 
 test('keeps nested header completeness separate from body completeness', () => {
   const valid = validateTelexRecords([
-    { header: '$.["aeon:conventions"]', kind: 'list' },
-    { header: '$.["aeon:conventions"][0]', kind: 'string', value: 'aeon.gp.security.v1' },
-    { path: '$.a.b', kind: 'number', value: '1' },
+    { header: '$.["aeon:conventions"]', kind: 'ListNode' },
+    { header: '$.["aeon:conventions"][0]', kind: 'StringLiteral', value: 'aeon.gp.security.v1' },
+    { path: '$.a.b', kind: 'NumberLiteral', value: '1' },
   ], { profile: PARTIAL_AES_PROFILE, projection: AEON_DOCUMENT_PROJECTION });
   assert.equal(valid.valid, true);
 
   const incomplete = validateTelexRecords([
-    { header: '$.["aeon:conventions"][0]', kind: 'string', value: 'aeon.gp.security.v1' },
+    { header: '$.["aeon:conventions"][0]', kind: 'StringLiteral', value: 'aeon.gp.security.v1' },
   ], { profile: PARTIAL_AES_PROFILE, projection: AEON_DOCUMENT_PROJECTION });
   assert.deepEqual(incomplete.diagnostics.map(({ code }) => code), ['AES_MISSING_PARENT']);
 });
 
 test('rejects implicit, ambiguous, and late header records', () => {
   assert.deepEqual(validateTelexRecords([
-    { header: '$.["aeon:mode"]', kind: 'string', value: 'strict' },
+    { header: '$.["aeon:mode"]', kind: 'StringLiteral', value: 'strict' },
   ]).diagnostics.map(({ code }) => code), ['AES_HEADER_REQUIRES_PROJECTION']);
 
   const invalid = validateTelexRecords([
-    { path: '$.a', kind: 'number', value: '1' },
-    { header: '$.["aeon:mode"]', kind: 'string', value: 'strict' },
-    { path: '$.b', header: '$.["aeon:profile"]', kind: 'string', value: 'x' },
+    { path: '$.a', kind: 'NumberLiteral', value: '1' },
+    { header: '$.["aeon:mode"]', kind: 'StringLiteral', value: 'strict' },
+    { path: '$.b', header: '$.["aeon:profile"]', kind: 'StringLiteral', value: 'x' },
   ], { projection: AEON_DOCUMENT_PROJECTION });
   assert.deepEqual(invalid.diagnostics.map(({ code }) => code), [
     'AES_HEADER_ORDER',
@@ -247,14 +247,14 @@ test('rejects implicit, ambiguous, and late header records', () => {
 
 test('validates a complete flat stream under the default profile', () => {
   const records = [
-    { path: '$.a', kind: 'object', identity: 'root-a' },
-    { path: '$.a.@.source', kind: 'string', value: 'fixture' },
-    { path: '$.a.items', kind: 'list' },
-    { path: '$.a.items[0]', kind: 'node' },
-    { path: '$.a.items[0][0]', kind: 'node-head', value: 'tag' },
+    { path: '$.a', kind: 'ObjectNode', identity: 'root-a' },
+    { path: '$.a.@.source', kind: 'StringLiteral', value: 'fixture' },
+    { path: '$.a.items', kind: 'ListNode' },
+    { path: '$.a.items[0]', kind: 'NodeLiteral' },
+    { path: '$.a.items[0][0]', kind: 'NodeHead', value: 'tag' },
     {
       path: '$.a.items[0][0][0]',
-      kind: 'boolean',
+      kind: 'BooleanLiteral',
       value: 'true',
       origin: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       span: '8:12',
@@ -268,7 +268,7 @@ test('validates a complete flat stream under the default profile', () => {
 });
 
 test('requires ancestry in the default profile but not the partial profile', () => {
-  const records = [{ path: '$.a.b', kind: 'number', value: '1' }];
+  const records = [{ path: '$.a.b', kind: 'NumberLiteral', value: '1' }];
   const complete = validateTelexRecords(records);
   assert.equal(complete.valid, false);
   assert.equal(complete.diagnostics[0].code, 'AES_MISSING_PARENT');
@@ -282,8 +282,8 @@ test('requires ancestry in the default profile but not the partial profile', () 
 
 test('does not treat the unrepresented root as an indexed container or attribute owner', () => {
   const result = validateTelexRecords([
-    { path: '$[0]', kind: 'number', value: '1' },
-    { path: '$.@.meta', kind: 'string', value: 'root' },
+    { path: '$[0]', kind: 'NumberLiteral', value: '1' },
+    { path: '$.@.meta', kind: 'StringLiteral', value: 'root' },
   ]);
   assert.deepEqual(result.diagnostics.map(({ code }) => code), [
     'AES_MISSING_PARENT',
@@ -293,8 +293,8 @@ test('does not treat the unrepresented root as an indexed container or attribute
 
 test('allows repeated paths and identities only in the partial profile', () => {
   const records = [
-    { path: '$.a', kind: 'number', identity: 'same', value: '1' },
-    { path: '$.a', kind: 'number', identity: 'same', value: '2' },
+    { path: '$.a', kind: 'NumberLiteral', identity: 'same', value: '1' },
+    { path: '$.a', kind: 'NumberLiteral', identity: 'same', value: '2' },
   ];
   const completeCodes = validateTelexRecords(records).diagnostics.map(({ code }) => code);
   assert.deepEqual(completeCodes, ['AES_DUPLICATE_PATH', 'AES_DUPLICATE_IDENTITY']);
@@ -303,10 +303,10 @@ test('allows repeated paths and identities only in the partial profile', () => {
 
 test('retains event-local validation in the partial profile', () => {
   const result = validateTelexRecords([
-    { path: '$.a', kind: 'object', value: 'nested' },
-    { path: '$.b', kind: 'boolean', value: 'True' },
+    { path: '$.a', kind: 'ObjectNode', value: 'nested' },
+    { path: '$.b', kind: 'BooleanLiteral', value: 'True' },
     { path: '$.c', kind: 'future-kind' },
-    { path: '$.d', kind: 'string', 'x.example.claim': 'yes' },
+    { path: '$.d', kind: 'StringLiteral', 'x.example.claim': 'yes' },
   ], { profile: PARTIAL_AES_PROFILE });
   assert.equal(result.valid, false);
   assert.deepEqual(result.diagnostics.map(({ code }) => code), [
@@ -320,12 +320,12 @@ test('retains event-local validation in the partial profile', () => {
 
 test('checks parent kinds and node-head placement in the complete profile', () => {
   const result = validateTelexRecords([
-    { path: '$.scalar', kind: 'number', value: '1' },
-    { path: '$.scalar.child', kind: 'string', value: 'no' },
-    { path: '$.list', kind: 'list' },
-    { path: '$.list[0]', kind: 'node-head', value: 'misplaced' },
-    { path: '$.node', kind: 'node' },
-    { path: '$.node[0]', kind: 'string', value: 'not-a-head' },
+    { path: '$.scalar', kind: 'NumberLiteral', value: '1' },
+    { path: '$.scalar.child', kind: 'StringLiteral', value: 'no' },
+    { path: '$.list', kind: 'ListNode' },
+    { path: '$.list[0]', kind: 'NodeHead', value: 'misplaced' },
+    { path: '$.node', kind: 'NodeLiteral' },
+    { path: '$.node[0]', kind: 'StringLiteral', value: 'not-a-head' },
   ]);
   assert.deepEqual(result.diagnostics.map(({ code }) => code), [
     'AES_INCOMPATIBLE_PARENT',
@@ -336,16 +336,16 @@ test('checks parent kinds and node-head placement in the complete profile', () =
 
 test('checks locally specified payload and span grammars', () => {
   const result = validateTelexRecords([
-    { path: '$.hex', kind: 'hex', value: 'CAFE' },
-    { path: '$.ref', kind: 'clone-reference', value: 'relative.path' },
+    { path: '$.hex', kind: 'HexLiteral', value: 'CAFE' },
+    { path: '$.ref', kind: 'CloneReference', value: 'relative.path' },
     {
       path: '$.span',
-      kind: 'nan',
+      kind: 'NaNLiteral',
       value: 'nan',
       origin: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       span: '4:2',
     },
-    { path: '$.empty', kind: 'number' },
+    { path: '$.empty', kind: 'NumberLiteral' },
   ], { profile: PARTIAL_AES_PROFILE });
   assert.deepEqual(result.diagnostics.map(({ code }) => code), [
     'AES_INVALID_VALUE',
@@ -359,7 +359,7 @@ test('checks locally specified payload and span grammars', () => {
 test('allows only explicitly registered extension fields', () => {
   const records = [{
     path: '$.a',
-    kind: 'number',
+    kind: 'NumberLiteral',
     value: '1',
     'x.example.claim': 'yes',
   }];
@@ -372,19 +372,19 @@ test('allows only explicitly registered extension fields', () => {
 
 test('validates the profile selected by a Telex stream', () => {
   const partial = encodeTelex(
-    [{ path: '$.a.b', kind: 'number', value: '1' }],
+    [{ path: '$.a.b', kind: 'NumberLiteral', value: '1' }],
     { profile: PARTIAL_AES_PROFILE },
   );
   assert.equal(validateTelex(partial).valid, true);
-  assert.equal(validateTelex(encodeTelex([{ path: '$.a.b', kind: 'number', value: '1' }])).valid, false);
+  assert.equal(validateTelex(encodeTelex([{ path: '$.a.b', kind: 'NumberLiteral', value: '1' }])).valid, false);
 });
 
 test('accepts tolerant syntax and exposes that it is non-canonical', () => {
-  const input = 'telex.aes=0\r\n\r\nkind=string\r\npath=$.x\r\nvalue=\\u{000041}\r\n';
+  const input = 'telex.aes=0\r\n\r\nkind=StringLiteral\r\npath=$.x\r\nvalue=\\u{000041}\r\n';
   const parsed = parseTelex(input);
   assert.equal(parsed.records[0].value, 'A');
   assert.equal(parsed.canonical, false);
-  assert.equal(canonicalizeTelex(input), 'telex.aes=0\n\npath=$.x\nkind=string\nvalue=A\n');
+  assert.equal(canonicalizeTelex(input), 'telex.aes=0\n\npath=$.x\nkind=StringLiteral\nvalue=A\n');
 });
 
 test('rejects duplicate fields', () => {

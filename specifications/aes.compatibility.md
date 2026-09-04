@@ -61,8 +61,8 @@ loss; it never silently drops data.
 
 A legacy record with `kind=node,value=tag` becomes:
 
-1. a value-less `node` at the legacy node path; and
-2. a `node-head` with the tag payload at index `[0]` below that node.
+1. a value-less `NodeLiteral` at the legacy node path; and
+2. a `NodeHead` with the tag payload at index `[0]` below that node.
 
 All legacy node descendants gain the head level. The adapter translates paths
 using structural context, not textual replacement. For a node at `$.a`:
@@ -75,7 +75,7 @@ using structural context, not textual replacement. For a node at `$.a`:
 | second child `$.a[1]` | `$.a[0][1]` |
 
 The same translation is applied recursively to descendant addresses and to
-clone-reference and pointer-reference payloads. A numeric legacy child is
+`CloneReference` and `PointerReference` payloads. A numeric legacy child is
 never reinterpreted as a portable node head.
 
 The adapter fails when it cannot prove from its declared source contract which
@@ -105,7 +105,7 @@ records under `aes.partial.v0`.
 
 A legacy structural occurrence identity maps to `identity` on the portable
 event representing the same occurrence. Node binding identity belongs on the
-outer `node`; node-tag identity belongs on `node-head`; attribute-entry and
+outer `NodeLiteral`; node-tag identity belongs on `NodeHead`; attribute-entry and
 anonymous-child identities remain on their own events.
 
 A missing legacy identity remains absent. Compatibility conversion never
@@ -159,7 +159,7 @@ At minimum, a down-conversion adapter MUST reject:
 
 - a node with zero or multiple heads when the target requires one
   (`AES_COMPAT_UNREPRESENTABLE`);
-- a direct reference to a synthetic `node-head` occurrence;
+- a direct reference to a synthetic `NodeHead` occurrence;
 - a partial stream whose missing context is needed to rebuild legacy nesting;
 - identity, extension, header, or provenance data unsupported by the target,
   unless the caller explicitly authorizes and receives a report of that loss;
@@ -167,7 +167,7 @@ At minimum, a down-conversion adapter MUST reject:
   address; and
 - a portable value kind or payload with no exact target representation.
 
-For a representable one-head node, the adapter collapses the `node-head` value
+For a representable one-head node, the adapter collapses the `NodeHead` value
 into the legacy node record and removes exactly one proven head index from each
 content path and reference target. Flat attributes may be nested only after
 complete ownership and order have been established.
@@ -265,7 +265,7 @@ Shared compatibility vectors cover at least:
 - present, absent, and duplicate structural identities;
 - body data that resembles a legacy synthetic header;
 - ASCII, multibyte, combining, and astral source ranges;
-- unsupported value kinds and direct node-head references;
+- unsupported value kinds and direct `NodeHead` references;
 - zero- and multiple-head down-conversion into single-head targets;
 - partial-stream down-conversion without required ancestry;
 - rejection of untagged input and unknown contract identifiers;

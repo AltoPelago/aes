@@ -37,7 +37,7 @@
       "description": "A canonical scalar stanza decodes without changing field order or payload",
       "operation": "parse",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.message\nkind=string\nvalue=hello\n"
+        "telex": "telex.aes=0\n\npath=$.message\nkind=StringLiteral\nvalue=hello\n"
       },
       "expected": {
         "ok": true,
@@ -50,7 +50,7 @@
         "records": [
           {
             "path": "$.message",
-            "kind": "string",
+            "kind": "StringLiteral",
             "value": "hello"
           }
         ]
@@ -81,7 +81,7 @@
       "description": "Telex escapes decode independently of JSON or AEON source escaping",
       "operation": "parse",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.message\nkind=string\nvalue=line\\nwave=🌊\\\\end\n"
+        "telex": "telex.aes=0\n\npath=$.message\nkind=StringLiteral\nvalue=line\\nwave=🌊\\\\end\n"
       },
       "expected": {
         "ok": true,
@@ -94,7 +94,7 @@
         "records": [
           {
             "path": "$.message",
-            "kind": "string",
+            "kind": "StringLiteral",
             "value": "line\nwave=🌊\\end"
           }
         ]
@@ -106,7 +106,7 @@
       "description": "A tolerant parser accepts CRLF and reports non-canonical input",
       "operation": "parse",
       "input": {
-        "telex": "telex.aes=0\r\n\r\npath=$.a\r\nkind=number\r\nvalue=1\r\n"
+        "telex": "telex.aes=0\r\n\r\npath=$.a\r\nkind=NumberLiteral\r\nvalue=1\r\n"
       },
       "expected": {
         "ok": true,
@@ -119,7 +119,7 @@
         "records": [
           {
             "path": "$.a",
-            "kind": "number",
+            "kind": "NumberLiteral",
             "value": "1"
           }
         ]
@@ -131,11 +131,11 @@
       "description": "Canonicalization orders core fields and shortens a Unicode escape",
       "operation": "canonicalize",
       "input": {
-        "telex": "telex.aes=0\r\n\r\nkind=string\r\npath=$.a\r\nvalue=\\u{000041}\r\n"
+        "telex": "telex.aes=0\r\n\r\nkind=StringLiteral\r\npath=$.a\r\nvalue=\\u{000041}\r\n"
       },
       "expected": {
         "ok": true,
-        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nvalue=A\n"
+        "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\nvalue=A\n"
       },
       "tags": ["canonicalization", "field-order", "escaping"]
     },
@@ -192,7 +192,7 @@
       "description": "Events require a blank separator after stream metadata",
       "operation": "parse",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\npath=$.a\nkind=number\nvalue=1\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\npath=$.a\nkind=NumberLiteral\nvalue=1\n"
       },
       "expected": {
         "ok": false,
@@ -208,7 +208,7 @@
       "description": "Payload escapes use only the Telex escape vocabulary",
       "operation": "parse",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nvalue=bad\\q\n"
+        "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\nvalue=bad\\q\n"
       },
       "expected": {
         "ok": false,
@@ -224,11 +224,11 @@
       "description": "Canonicalization retains an explicitly declared profile",
       "operation": "canonicalize",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\nkind=number\npath=$.a.b\nvalue=1\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\nkind=NumberLiteral\npath=$.a.b\nvalue=1\n"
       },
       "expected": {
         "ok": true,
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.b\nkind=number\nvalue=1\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n"
       },
       "tags": ["canonicalization", "profile", "partial"]
     },
@@ -237,11 +237,11 @@
       "description": "Canonicalization orders fields but never sorts events by path",
       "operation": "canonicalize",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\nkind=number\npath=$.z\nvalue=1\n\nkind=number\npath=$.a\nvalue=2\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\nkind=NumberLiteral\npath=$.z\nvalue=1\n\nkind=NumberLiteral\npath=$.a\nvalue=2\n"
       },
       "expected": {
         "ok": true,
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.z\nkind=number\nvalue=1\n\npath=$.a\nkind=number\nvalue=2\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.z\nkind=NumberLiteral\nvalue=1\n\npath=$.a\nkind=NumberLiteral\nvalue=2\n"
       },
       "tags": ["canonicalization", "event-order", "partial"]
     },
@@ -250,7 +250,7 @@
       "description": "An explicit AEON document projection enables flat header records without making them body events",
       "operation": "parse",
       "input": {
-        "telex": "telex.aes=0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:mode\"]\nkind=string\nvalue=strict\n\npath=$.a\nkind=number\nvalue=1\n"
+        "telex": "telex.aes=0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:mode\"]\nkind=StringLiteral\nvalue=strict\n\npath=$.a\nkind=NumberLiteral\nvalue=1\n"
       },
       "expected": {
         "ok": true,
@@ -263,12 +263,12 @@
         "records": [
           {
             "header": "$.[\"aeon:mode\"]",
-            "kind": "string",
+            "kind": "StringLiteral",
             "value": "strict"
           },
           {
             "path": "$.a",
-            "kind": "number",
+            "kind": "NumberLiteral",
             "value": "1"
           }
         ]
@@ -280,11 +280,11 @@
       "description": "Canonicalization orders profile before projection and header before other record fields",
       "operation": "canonicalize",
       "input": {
-        "telex": "telex.aes=0\nprojection=aeon.document.v0\nprofile=aes.complete.v0\n\nkind=string\nheader=$.[\"aeon:mode\"]\nvalue=strict\n"
+        "telex": "telex.aes=0\nprojection=aeon.document.v0\nprofile=aes.complete.v0\n\nkind=StringLiteral\nheader=$.[\"aeon:mode\"]\nvalue=strict\n"
       },
       "expected": {
         "ok": true,
-        "telex": "telex.aes=0\nprofile=aes.complete.v0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:mode\"]\nkind=string\nvalue=strict\n"
+        "telex": "telex.aes=0\nprofile=aes.complete.v0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:mode\"]\nkind=StringLiteral\nvalue=strict\n"
       },
       "tags": ["canonicalization", "projection", "field-order"]
     },
@@ -309,11 +309,11 @@
       "description": "Canonicalization preserves civil, explicit-offset, and UTC WTC payloads without resolving or rewriting their references",
       "operation": "canonicalize",
       "input": {
-        "telex": "telex.aes=0\n\nvalue=2025-01-01T09:30&local\ndatatype=wtc\nkind=wtc\npath=$.civilLocal\n\nvalue=2025-01-01T09:30+11:00&Australia/Melbourne\ndatatype=wtc\nkind=wtc\npath=$.offsetNamed\n\nvalue=2034-12-31T22:00Z&-36.7590183/144.2826718/213\ndatatype=wtc\nkind=wtc\npath=$.utcGeo\n"
+        "telex": "telex.aes=0\n\nvalue=2025-01-01T09:30&local\ndatatype=wtc\nkind=WTCDateTimeLiteral\npath=$.civilLocal\n\nvalue=2025-01-01T09:30+11:00&Australia/Melbourne\ndatatype=wtc\nkind=WTCDateTimeLiteral\npath=$.offsetNamed\n\nvalue=2034-12-31T22:00Z&-36.7590183/144.2826718/213\ndatatype=wtc\nkind=WTCDateTimeLiteral\npath=$.utcGeo\n"
       },
       "expected": {
         "ok": true,
-        "telex": "telex.aes=0\n\npath=$.civilLocal\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30&local\n\npath=$.offsetNamed\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30+11:00&Australia/Melbourne\n\npath=$.utcGeo\nkind=wtc\ndatatype=wtc\nvalue=2034-12-31T22:00Z&-36.7590183/144.2826718/213\n"
+        "telex": "telex.aes=0\n\npath=$.civilLocal\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30&local\n\npath=$.offsetNamed\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30+11:00&Australia/Melbourne\n\npath=$.utcGeo\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2034-12-31T22:00Z&-36.7590183/144.2826718/213\n"
       },
       "tags": ["canonicalization", "wtc", "temporal", "preservation"]
     },
@@ -360,11 +360,11 @@
       "description": "Lowercase and padded Unicode escapes decode but canonicalize to shortest uppercase spelling",
       "operation": "canonicalize",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nvalue=\\u{1f}\\u{000041}\n"
+        "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\nvalue=\\u{1f}\\u{000041}\n"
       },
       "expected": {
         "ok": true,
-        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nvalue=\\u{1F}A\n"
+        "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\nvalue=\\u{1F}A\n"
       },
       "tags": ["canonicalization", "escaping", "unicode", "case", "padding"]
     },
@@ -373,7 +373,7 @@
       "description": "Every dotted field-name segment begins with a lowercase ASCII letter",
       "operation": "parse",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nx.42base.flag=value\n"
+        "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\nx.42base.flag=value\n"
       },
       "expected": {
         "ok": false,
@@ -405,7 +405,7 @@
       "description": "A raw LF ends the field and following payload text must itself be a field line",
       "operation": "parse",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nvalue=first\nsecond\n"
+        "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\nvalue=first\nsecond\n"
       },
       "expected": {
         "ok": false,

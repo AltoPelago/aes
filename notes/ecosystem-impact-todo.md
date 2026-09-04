@@ -75,8 +75,8 @@ and acceptance work remains open below.
 - [x] Do not generate an identity merely to serialize an event.
 - [x] Put an anonymous list, tuple, or node-child identity directly on that
   child's indexed event; do not emit a `typed-value` wrapper.
-- [x] Put a node binding identity on the outer `node` event and a node-head
-  identity on its indexed `node-head` event.
+- [x] Put a node binding identity on the outer `NodeLiteral` event and a node
+  head identity on its indexed `NodeHead` event.
 
 #### Specification and CTS
 
@@ -148,20 +148,20 @@ while the wider consumer audit remains open.
 
 #### Confirmed baseline
 
-- [x] Represent a node as a value-less ordered `node` container.
-- [x] Represent each node head as an indexed `node-head` event carrying its tag
+- [x] Represent a node as a value-less ordered `NodeLiteral` container.
+- [x] Represent each node head as an indexed `NodeHead` event carrying its tag
   in `value`.
 - [x] Current AEON produces one head at `[0]`; its content begins below that
   head at `[0][0]`, `[0][1]`, and so on.
 - [x] Keep AES structurally capable of representing zero or multiple heads so
   future node forms do not require another event-model change.
-- [x] Keep binding-head metadata on the outer `node` event and node-head
-  metadata on the indexed `node-head` event.
+- [x] Keep binding-head metadata on the outer `NodeLiteral` event and node-head
+  metadata on the indexed `NodeHead` event.
 
 #### Required ecosystem work
 
 - [x] Update TypeScript, Rust, Python, and PHP AEON-to-AES adapters to expand a
-  `NodeLiteral` into an outer `node`, a `node-head`, and recursively flattened
+  `NodeLiteral` into an outer `NodeLiteral`, a `NodeHead`, and recursively flattened
   content events.
   - [x] TypeScript: added the explicit portable projection, recursive node-path
     expansion, node-boundary reference translation, and CLI/CTS coverage.
@@ -175,8 +175,8 @@ while the wider consumer audit remains open.
 - [x] Define AEON source-path to portable event-path translation for node
   descendants; the old first child path must never be silently reinterpreted
   as the new node-head path.
-- [x] Define translation and validation for clone-reference and
-  pointer-reference target payloads across the additional node path level.
+- [x] Define translation and validation for `CloneReference` and
+  `PointerReference` target payloads across the additional node path level.
 - [ ] Implement structure-aware source-path/event-path translation in all four
   language adapters, including reverse-projection rejection for direct
   synthetic node-head reference targets.
@@ -188,14 +188,16 @@ while the wider consumer audit remains open.
 - [ ] Give the node tag/head its own source span in ASTs that currently expose
   only the complete node-literal span; emit origin-only provenance until that
   exact range is available.
-- [x] Update portable kind registries and validators to add `node-head` and make
-  `node` value-less. The JavaScript and Rust validators enforce the shared
+- [x] Use the normative AEON representation-kind names at portable boundaries,
+  including `StringLiteral`, `NodeLiteral`, and the new `NodeHead`; do not
+  maintain a parallel lowercase or kebab-case vocabulary. The JavaScript and
+  Rust validators enforce the shared
   vocabulary and value-presence rules; a shared negative conformance vector
-  locks both sides of the `node`/`node-head` distinction.
+  locks both sides of the `NodeLiteral`/`NodeHead` distinction.
 - [x] Update SANSA structural navigation and parent/container compatibility for
-  `node[head-index][content-index]`. The host-neutral resolver retains the
-  adapter's explicit node -> node-head -> content hierarchy, all four language
-  parser surfaces accept the portable `%node-head` filter, and experimental
+  `NodeLiteral[head-index][content-index]`. The host-neutral resolver retains
+  the adapter's explicit node -> node head -> content hierarchy, all four
+  language parser surfaces accept the portable `%NodeHead` filter, and experimental
   SANSA Resolve snapshot 0.2 locks expansion, parent, attribute, nested-node,
   and legacy collapsed-path behavior.
 - [ ] Update AEOS datatype and cardinality validation for the AEON requirement
@@ -236,29 +238,32 @@ while the wider consumer audit remains open.
   arguments and clarifiers, without the AEON `:`.
 - [x] Keep a datatype only on the event where it was declared; do not infer or
   propagate container generic arguments onto descendants.
-- [x] Use separate `clone-reference` and `pointer-reference` kinds with one
+- [x] Use separate `CloneReference` and `PointerReference` kinds with one
   canonical target-path payload shape.
 - [x] Under `aes.complete.v0`, require each reference target to exist exactly
   once in the body plane; under `aes.partial.v0`, validate target syntax without
   requiring local presence. Reference cycles remain a downstream concern.
-- [x] Normalize trimtick content before AES and transport it as `kind=string`;
+- [x] Normalize trimtick content before AES and transport it as
+  `kind=StringLiteral`;
   delimiter width and indentation are source mechanics.
-- [x] Add `wtc` as a distinct temporal kind.
+- [x] Add `WTCDateTimeLiteral` as a distinct temporal kind.
 - [x] Use exact lowercase `local` for the reserved WTC resolver-local
   reference.
 - [x] Treat `conflictAuthority` as a consumer responsibility, not document or
   AES event authority.
 - [x] Do not transport exact AEON lexemes or a generic representation field.
-- [ ] Reconcile TypeScript, Rust, Python, PHP, ASP, AEOS, and CTS value-kind
-  names and canonical payload rules with the portable table.
+- [ ] Reconcile ASP, AEOS, and downstream CTS canonical payload rules with the
+  portable table. TypeScript, Rust, Python, PHP, AES validators, and portable
+  CTS now use the normative AEON representation-kind names.
 - [x] Add WTC cases covering the three temporal anchor forms and local, named,
   and geographic references without introducing `conflictAuthority` into the
   portable event contract.
 - [ ] Verify canonical payloads and semantic hashes preserve recognized value
   distinctions, including temporal distinctions, while excluding source-only
   spelling.
-- [ ] Remove dependencies on implementation AST class names, raw tokens, and
-  nested value trees at portable boundaries.
+- [ ] Ensure portable boundaries use the normative AEON representation
+  vocabulary without depending on runtime class identity, raw tokens, or
+  nested value trees.
 
 ### 1.5 Spans and provenance
 
@@ -392,7 +397,8 @@ while the wider consumer audit remains open.
 ## 3. Compatibility and stored-data migration
 
 - [x] Define a versioned compatibility projection from legacy
-  `kind=node,value=tag` records to an outer `node` plus indexed `node-head`.
+  legacy `kind=node,value=tag` records to an outer `NodeLiteral` plus indexed
+  `NodeHead`.
 - [x] Define compatibility behavior for stored events created before stable
   structural identity was required: preserve a present identity and leave a
   missing one absent rather than manufacturing it.

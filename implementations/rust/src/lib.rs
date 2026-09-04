@@ -8,29 +8,29 @@ const CORE_FIELDS: [&str; 8] = [
     "header", "path", "kind", "datatype", "identity", "value", "origin", "span",
 ];
 const VALUE_KINDS: [&str; 23] = [
-    "string",
-    "number",
-    "infinity",
-    "nan",
-    "null",
-    "boolean",
-    "toggle",
-    "hex",
-    "radix",
-    "encoding",
-    "separator",
-    "sansa-address",
-    "date",
-    "time",
-    "datetime",
-    "wtc",
-    "object",
-    "list",
-    "tuple",
-    "node",
-    "node-head",
-    "clone-reference",
-    "pointer-reference",
+    "StringLiteral",
+    "NumberLiteral",
+    "InfinityLiteral",
+    "NaNLiteral",
+    "NullLiteral",
+    "BooleanLiteral",
+    "ToggleLiteral",
+    "HexLiteral",
+    "RadixLiteral",
+    "EncodingLiteral",
+    "SeparatorLiteral",
+    "SansaAddressLiteral",
+    "DateLiteral",
+    "TimeLiteral",
+    "DateTimeLiteral",
+    "WTCDateTimeLiteral",
+    "ObjectNode",
+    "ListNode",
+    "TupleLiteral",
+    "NodeLiteral",
+    "NodeHead",
+    "CloneReference",
+    "PointerReference",
 ];
 
 pub const TELEX_VERSION: &str = "0";
@@ -696,7 +696,7 @@ fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec
     };
     let path = record_address(event);
     let value = event.get("value");
-    if ["object", "list", "tuple", "node"].contains(&kind) {
+    if ["ObjectNode", "ListNode", "TupleLiteral", "NodeLiteral"].contains(&kind) {
         if value.is_some() {
             diagnostics.push(
                 Diagnostic::new(
@@ -722,10 +722,10 @@ fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec
     };
 
     let exact_valid = match kind {
-        "infinity" => ["Infinity", "-Infinity"].contains(&value),
-        "nan" => ["NaN", "-NaN"].contains(&value),
-        "boolean" => ["true", "false"].contains(&value),
-        "toggle" => ["yes", "no", "on", "off"].contains(&value),
+        "InfinityLiteral" => ["Infinity", "-Infinity"].contains(&value),
+        "NaNLiteral" => ["NaN", "-NaN"].contains(&value),
+        "BooleanLiteral" => ["true", "false"].contains(&value),
+        "ToggleLiteral" => ["yes", "no", "on", "off"].contains(&value),
         _ => true,
     };
     if !exact_valid {
@@ -738,7 +738,7 @@ fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec
             .with_field("value"),
         );
     }
-    if kind == "hex"
+    if kind == "HexLiteral"
         && (value.is_empty()
             || !value
                 .bytes()
@@ -753,14 +753,14 @@ fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec
             .with_field("value"),
         );
     }
-    if kind == "node-head" && value.is_empty() {
+    if kind == "NodeHead" && value.is_empty() {
         diagnostics.push(
             Diagnostic::new("AES_INVALID_VALUE", "Node tags must not be empty")
                 .at_record(index, path)
                 .with_field("value"),
         );
     }
-    if kind == "wtc"
+    if kind == "WTCDateTimeLiteral"
         && let Some((_, reference)) = value.rsplit_once('&')
         && reference.eq_ignore_ascii_case("local")
         && reference != "local"
@@ -774,7 +774,7 @@ fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec
             .with_field("value"),
         );
     }
-    if ["clone-reference", "pointer-reference"].contains(&kind) {
+    if ["CloneReference", "PointerReference"].contains(&kind) {
         let invalid = if value == "$" {
             Some(String::from("The root is not an event path"))
         } else {
@@ -887,7 +887,7 @@ fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Ve
                     .with_required_path("$"),
                 );
             }
-            if kind == Some("node-head") {
+            if kind == Some("NodeHead") {
                 diagnostics.push(invalid_node_head(candidate));
             }
             continue;
@@ -910,31 +910,37 @@ fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Ve
         };
         let parent_kind = parent.event.get("kind");
         match segment {
-            Segment::Member if parent_kind != Some("object") => diagnostics.push(
-                incompatible_parent(candidate, parent_path, parent_kind, "object"),
+            Segment::Member if parent_kind != Some("ObjectNode") => diagnostics.push(
+                incompatible_parent(candidate, parent_path, parent_kind, "ObjectNode"),
             ),
-            Segment::Index if parent_kind == Some("node") && kind != Some("node-head") => {
+            Segment::Index if parent_kind == Some("NodeLiteral") && kind != Some("NodeHead") => {
                 diagnostics.push(incompatible_parent(
                     candidate,
                     parent_path,
                     parent_kind,
-                    "node-head child",
+                    "NodeHead child",
                 ));
             }
             Segment::Index
-                if ![Some("list"), Some("tuple"), Some("node"), Some("node-head")]
-                    .contains(&parent_kind) =>
+                if ![
+                    Some("ListNode"),
+                    Some("TupleLiteral"),
+                    Some("NodeLiteral"),
+                    Some("NodeHead"),
+                ]
+                .contains(&parent_kind) =>
             {
                 diagnostics.push(incompatible_parent(
                     candidate,
                     parent_path,
                     parent_kind,
-                    "list, tuple, node, or node-head",
+                    "ListNode, TupleLiteral, NodeLiteral, or NodeHead",
                 ));
             }
             Segment::Attribute | Segment::Member | Segment::Index => {}
         }
-        if kind == Some("node-head") && (*segment != Segment::Index || parent_kind != Some("node"))
+        if kind == Some("NodeHead")
+            && (*segment != Segment::Index || parent_kind != Some("NodeLiteral"))
         {
             diagnostics.push(invalid_node_head(candidate));
         }
@@ -953,7 +959,7 @@ fn validate_reference_targets(
         .collect::<HashSet<_>>();
     for candidate in reference_events {
         let kind = candidate.event.get("kind");
-        if ![Some("clone-reference"), Some("pointer-reference")].contains(&kind) {
+        if ![Some("CloneReference"), Some("PointerReference")].contains(&kind) {
             continue;
         }
         let Some(target) = candidate.event.get("value") else {
@@ -1022,7 +1028,7 @@ fn incompatible_parent(
 fn invalid_node_head(candidate: &EventCandidate<'_>) -> Diagnostic {
     Diagnostic::new(
         "AES_INVALID_NODE_HEAD",
-        "A 'node-head' must be an indexed direct child of a 'node'",
+        "A 'NodeHead' must be an indexed direct child of a 'NodeLiteral'",
     )
     .at_record(candidate.index, candidate.address)
 }

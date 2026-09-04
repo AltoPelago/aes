@@ -59,20 +59,20 @@ a Telex projection could be:
 telex.aes=0
 
 path=$.customer
-kind=object
+kind=ObjectNode
 datatype=object
 origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 span=0:73
 
 path=$.customer.name
-kind=string
+kind=StringLiteral
 datatype=string
 value=Alice
 origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 span=22:43
 
 path=$.customer.balance
-kind=radix
+kind=RadixLiteral
 datatype=decimal
 value=010.00
 origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef

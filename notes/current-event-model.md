@@ -76,8 +76,9 @@ Generic arguments and clarifiers stay on the declaring event and are not
 inferred onto descendants. Clone and pointer references use distinct kinds with
 the same canonical target-path payload shape. Trimtick processing occurs before
 AES emission, so its decoded and trimmed result is transported as an ordinary
-`string`; delimiter width and indentation remain source concerns. World time
-context is retained as the distinct `wtc` kind. Its complete authored payload
+`StringLiteral`; delimiter width and indentation remain source concerns. World
+time context is retained as the distinct `WTCDateTimeLiteral` kind. Its
+complete authored payload
 preserves civil, explicit-offset, and UTC anchor forms independently across
 lowercase `local`, named, and geographic references. AES does not resolve or
 rewrite those forms. `conflictAuthority` remains trusted consumer policy, not
@@ -86,20 +87,20 @@ document authority or an AES event field.
 Anonymous typed values are flattened into the event at their indexed path. The
 anonymous head's datatype and structural identity become the same `datatype`
 and `identity` fields used by named bindings; there is no `typed-value` wrapper
-kind. Node values are projected one structural level further: the outer `node`
-event is a value-less ordered container and each `node-head` descendant carries
-its tag. Current AEON produces one head at index zero, while the AES shape does
+kind. Node values are projected one structural level further: the outer
+`NodeLiteral` event is a value-less ordered container and each `NodeHead`
+descendant carries its tag. Current AEON produces one head at index zero, while the AES shape does
 not preclude future empty or multi-headed node profiles.
 
 AEON source paths and portable AES event paths are distinct domains. Ordinary
 segments remain stable, but crossing from a node to source child `[i]` expands
-to node-head/content segments `[0][i]` in AES, recursively for nested nodes.
+to NodeHead/content segments `[0][i]` in AES, recursively for nested nodes.
 Reference payloads use the AES event-path domain and are translated with
 document structure; structural identity never participates. A synthetic
-node-head target has no current AEON reference spelling, so reverse projection
+NodeHead target has no current AEON reference spelling, so reverse projection
 fails explicitly instead of reinterpreting it as the first child.
 
-A source-backed `node-head` span begins at its tag token and ends after its last
+A source-backed `NodeHead` span begins at its tag token and ends after its last
 identity, attribute, or datatype component. It excludes `<`, children, and
 closing delimiters. Implementations that only retain the whole node-literal
 span carry `origin` alone for the head until they can supply that exact range.

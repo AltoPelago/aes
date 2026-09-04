@@ -15,37 +15,37 @@ const CORE_FIELD_ORDER = new Map([
 ].map((field, index) => [field, index]));
 const CORE_FIELDS = new Set(CORE_FIELD_ORDER.keys());
 const VALUE_KINDS = new Set([
-  'string',
-  'number',
-  'infinity',
-  'nan',
-  'null',
-  'boolean',
-  'toggle',
-  'hex',
-  'radix',
-  'encoding',
-  'separator',
-  'sansa-address',
-  'date',
-  'time',
-  'datetime',
-  'wtc',
-  'object',
-  'list',
-  'tuple',
-  'node',
-  'node-head',
-  'clone-reference',
-  'pointer-reference',
+  'StringLiteral',
+  'NumberLiteral',
+  'InfinityLiteral',
+  'NaNLiteral',
+  'NullLiteral',
+  'BooleanLiteral',
+  'ToggleLiteral',
+  'HexLiteral',
+  'RadixLiteral',
+  'EncodingLiteral',
+  'SeparatorLiteral',
+  'SansaAddressLiteral',
+  'DateLiteral',
+  'TimeLiteral',
+  'DateTimeLiteral',
+  'WTCDateTimeLiteral',
+  'ObjectNode',
+  'ListNode',
+  'TupleLiteral',
+  'NodeLiteral',
+  'NodeHead',
+  'CloneReference',
+  'PointerReference',
 ]);
-const VALUELESS_KINDS = new Set(['object', 'list', 'tuple', 'node']);
-const INDEX_CONTAINER_KINDS = new Set(['list', 'tuple', 'node-head']);
+const VALUELESS_KINDS = new Set(['ObjectNode', 'ListNode', 'TupleLiteral', 'NodeLiteral']);
+const INDEX_CONTAINER_KINDS = new Set(['ListNode', 'TupleLiteral', 'NodeHead']);
 const EXACT_VALUES = new Map([
-  ['infinity', new Set(['Infinity', '-Infinity'])],
-  ['nan', new Set(['NaN', '-NaN'])],
-  ['boolean', new Set(['true', 'false'])],
-  ['toggle', new Set(['yes', 'no', 'on', 'off'])],
+  ['InfinityLiteral', new Set(['Infinity', '-Infinity'])],
+  ['NaNLiteral', new Set(['NaN', '-NaN'])],
+  ['BooleanLiteral', new Set(['true', 'false'])],
+  ['ToggleLiteral', new Set(['yes', 'no', 'on', 'off'])],
 ]);
 
 export const TELEX_VERSION = '0';
@@ -508,21 +508,21 @@ function validateEventValue(event, index, diagnostics) {
       { ...context, field: 'value' },
     ));
   }
-  if (event.kind === 'hex' && !/^[0-9a-f]+$/u.test(event.value)) {
+  if (event.kind === 'HexLiteral' && !/^[0-9a-f]+$/u.test(event.value)) {
     diagnostics.push(diagnostic(
       'AES_INVALID_VALUE',
       'Hex payloads require one or more lowercase hexadecimal digits',
       { ...context, field: 'value' },
     ));
   }
-  if (event.kind === 'node-head' && event.value.length === 0) {
+  if (event.kind === 'NodeHead' && event.value.length === 0) {
     diagnostics.push(diagnostic(
       'AES_INVALID_VALUE',
       'Node tags must not be empty',
       { ...context, field: 'value' },
     ));
   }
-  if (event.kind === 'wtc') {
+  if (event.kind === 'WTCDateTimeLiteral') {
     const separator = event.value.lastIndexOf('&');
     const reference = separator === -1 ? undefined : event.value.slice(separator + 1);
     if (reference?.toLowerCase() === 'local' && reference !== 'local') {
@@ -533,7 +533,7 @@ function validateEventValue(event, index, diagnostics) {
       ));
     }
   }
-  if (event.kind === 'clone-reference' || event.kind === 'pointer-reference') {
+  if (event.kind === 'CloneReference' || event.kind === 'PointerReference') {
     try {
       parseCanonicalDataPath(event.value);
       if (event.value === '$') throw new TypeError('The root is not an event path');
@@ -594,7 +594,7 @@ function validateReferenceTargets(referenceEvents, bodyEvents, diagnostics) {
       .map(({ address }) => address),
   );
   for (const { event, index, address } of referenceEvents) {
-    if (event.kind !== 'clone-reference' && event.kind !== 'pointer-reference') continue;
+    if (event.kind !== 'CloneReference' && event.kind !== 'PointerReference') continue;
     if (typeof event.value !== 'string' || event.value === '$') continue;
     try {
       parseCanonicalDataPath(event.value);
@@ -641,7 +641,7 @@ function validateCompleteStream(events, diagnostics) {
           { record: index, path: address, requiredPath: '$' },
         ));
       }
-      if (event.kind === 'node-head') {
+      if (event.kind === 'NodeHead') {
         diagnostics.push(invalidNodeHeadPlacement(event, index));
       }
       continue;
@@ -659,12 +659,12 @@ function validateCompleteStream(events, diagnostics) {
       continue;
     }
 
-    if (segment.type === 'member' && parent.event.kind !== 'object') {
-      diagnostics.push(incompatibleParent(event, index, parentPath, parent.event.kind, 'object'));
+    if (segment.type === 'member' && parent.event.kind !== 'ObjectNode') {
+      diagnostics.push(incompatibleParent(event, index, parentPath, parent.event.kind, 'ObjectNode'));
     } else if (segment.type === 'index') {
-      if (parent.event.kind === 'node') {
-        if (event.kind !== 'node-head') {
-          diagnostics.push(incompatibleParent(event, index, parentPath, 'node', 'node-head child'));
+      if (parent.event.kind === 'NodeLiteral') {
+        if (event.kind !== 'NodeHead') {
+          diagnostics.push(incompatibleParent(event, index, parentPath, 'NodeLiteral', 'NodeHead child'));
         }
       } else if (!INDEX_CONTAINER_KINDS.has(parent.event.kind)) {
         diagnostics.push(incompatibleParent(
@@ -672,13 +672,13 @@ function validateCompleteStream(events, diagnostics) {
           index,
           parentPath,
           parent.event.kind,
-          'list, tuple, node, or node-head',
+          'ListNode, TupleLiteral, NodeLiteral, or NodeHead',
         ));
       }
     }
 
-    if (event.kind === 'node-head'
-      && (segment.type !== 'index' || parent.event.kind !== 'node')) {
+    if (event.kind === 'NodeHead'
+      && (segment.type !== 'index' || parent.event.kind !== 'NodeLiteral')) {
       diagnostics.push(invalidNodeHeadPlacement(event, index));
     }
   }
@@ -715,7 +715,7 @@ function invalidNodeHeadPlacement(event, index) {
   const address = addressField === null ? undefined : event[addressField];
   return diagnostic(
     'AES_INVALID_NODE_HEAD',
-    "A 'node-head' must be an indexed direct child of a 'node'",
+    "A 'NodeHead' must be an indexed direct child of a 'NodeLiteral'",
     { record: index, ...(typeof address === 'string' ? { path: address } : {}) },
   );
 }

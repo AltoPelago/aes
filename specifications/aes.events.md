@@ -119,33 +119,34 @@ generic constraints, and inherited meaning are downstream concerns.
 
 | `kind` | `value` payload |
 | --- | --- |
-| `string` | decoded Unicode string; empty is valid |
-| `number` | canonical finite numeric text |
-| `infinity` | `Infinity` or `-Infinity` |
-| `nan` | `NaN` or `-NaN` |
-| `null` | recognized sentinel or decoded custom reason |
-| `boolean` | `true` or `false` |
-| `toggle` | `yes`, `no`, `on`, or `off` |
-| `hex` | lowercase hexadecimal digits without `#` or visual underscores |
-| `radix` | canonical radix payload without `%` or visual underscores |
-| `encoding` | encoding payload without `&`; padding is preserved |
-| `separator` | canonical separator payload without `^` |
-| `sansa-address` | canonical SANSA address |
-| `date` | canonical date text |
-| `time` | canonical time text |
-| `datetime` | canonical date-time text |
-| `wtc` | canonical world-time-context text |
-| `object` | absent |
-| `list` | absent |
-| `tuple` | absent |
-| `node` | absent |
-| `node-head` | node tag |
-| `clone-reference` | canonical target event path |
-| `pointer-reference` | canonical target event path |
+| `StringLiteral` | decoded Unicode string; empty is valid |
+| `NumberLiteral` | canonical finite numeric text |
+| `InfinityLiteral` | `Infinity` or `-Infinity` |
+| `NaNLiteral` | `NaN` or `-NaN` |
+| `NullLiteral` | recognized sentinel or decoded custom reason |
+| `BooleanLiteral` | `true` or `false` |
+| `ToggleLiteral` | `yes`, `no`, `on`, or `off` |
+| `HexLiteral` | lowercase hexadecimal digits without `#` or visual underscores |
+| `RadixLiteral` | canonical radix payload without `%` or visual underscores |
+| `EncodingLiteral` | encoding payload without `&`; padding is preserved |
+| `SeparatorLiteral` | canonical separator payload without `^` |
+| `SansaAddressLiteral` | canonical SANSA address |
+| `DateLiteral` | canonical date text |
+| `TimeLiteral` | canonical time text |
+| `DateTimeLiteral` | canonical date-time text without a world-time-context reference |
+| `WTCDateTimeLiteral` | canonical world-time-context text |
+| `ObjectNode` | absent |
+| `ListNode` | absent |
+| `TupleLiteral` | absent |
+| `NodeLiteral` | absent |
+| `NodeHead` | node tag |
+| `CloneReference` | canonical target event path |
+| `PointerReference` | canonical target event path |
 
-`value` is required for every kind except `object`, `list`, `tuple`, and
-`node`, for which it is absent. Every value payload is a string at the portable
-boundary even when its kind gives it numeric or temporal meaning.
+`value` is required for every kind except `ObjectNode`, `ListNode`,
+`TupleLiteral`, and `NodeLiteral`, for which it is absent. Every value payload
+is a string at the portable boundary even when its kind gives it numeric or
+temporal meaning.
 
 Container records do not carry nested value trees. Every represented member or
 item is a separate descendant record. A node head uses `value` for its tag. A
@@ -154,9 +155,9 @@ recognized sentinel or decoded custom reason. No kind introduces a
 kind-specific field name.
 
 Source spelling is normalized before the event enters AES. Quoted, backtick,
-and trimtick strings all become `kind=string`; trimtick width and indentation
-are source mechanics. Numeric separators and the leading AEON sigils for hex,
-radix, encoding, and separator values are not transported.
+and trimtick strings all become `kind=StringLiteral`; trimtick width and
+indentation are source mechanics. Numeric separators and the leading AEON
+sigils for hex, radix, encoding, and separator values are not transported.
 
 ### 4.3 References
 
@@ -165,11 +166,11 @@ target:
 
 ```text
 path=$.copy
-kind=clone-reference
+kind=CloneReference
 value=$.source
 
 path=$.alias
-kind=pointer-reference
+kind=PointerReference
 value=$.source
 ```
 
@@ -189,8 +190,8 @@ can supply the referenced occurrence.
 
 ### 4.4 WTC preservation
 
-A `wtc` event carries the complete canonical WTC text in `value`. Its temporal
-anchor and temporal reference remain one opaque payload:
+A `WTCDateTimeLiteral` event carries the complete canonical WTC text in
+`value`. Its temporal anchor and temporal reference remain one opaque payload:
 
 | Anchor form | Example payload |
 | --- | --- |
@@ -233,7 +234,7 @@ its indexed path:
 
 ```text
 path=$.values[0]
-kind=number
+kind=NumberLiteral
 datatype=int
 identity=item-1
 value=3
@@ -262,27 +263,27 @@ to SANSA and downstream consumers.
 
 ### 5.4 Nodes
 
-A node is a value-less ordered `node` container. Its heads are indexed
-`node-head` descendants that carry their tags and own their ordered content.
+A node is a value-less ordered `NodeLiteral` container. Its heads are indexed
+`NodeHead` descendants that carry their tags and own their ordered content.
 Current AEON produces exactly one head at index zero:
 
 ```text
 path=$.a
-kind=node
+kind=NodeLiteral
 datatype=node
 
 path=$.a[0]
-kind=node-head
+kind=NodeHead
 value=tag
 
 path=$.a[0][0]
-kind=string
+kind=StringLiteral
 value=hello
 ```
 
-Binding-head metadata remains on the outer `node` record. Metadata written on
-the AEON node head belongs to the indexed `node-head` record. Their attributes
-are independently representable at `$.a.@.x` and `$.a[0].@.x`.
+Binding-head metadata remains on the outer `NodeLiteral` record. Metadata
+written on the AEON node head belongs to the indexed `NodeHead` record. Their
+attributes are independently representable at `$.a.@.x` and `$.a[0].@.x`.
 
 Portable AES does not require exactly one node head. It can represent zero or
 multiple ordered heads so future source forms do not require a new event shape.
@@ -312,7 +313,7 @@ Let `S` be an AEON source path for a node and `E(S)` its AES event path:
 | node container at `S` | `E(S)` |
 | synthetic node head | `E(S)[0]` |
 | node child at `S[i]` | `E(S)[0][i]` |
-| node-head attribute | beneath `E(S)[0].@` |
+| NodeHead attribute | beneath `E(S)[0].@` |
 
 This table is specific to current AEON, whose source paths expose the children
 of one implicit head. It is not a source-neutral meaning for `S[i]`. A future
@@ -330,8 +331,8 @@ meaning. Translation recurses across every node boundary:
 | `$.a[0][0]` where both indexed occurrences are node children | `$.a[0][0][0][0]` |
 
 Reference payloads use the AES event-path domain. When `a` is a node, AEON
-`~a[0]` becomes `kind=clone-reference,value=$.a[0][0]`; `~>a[0]` produces the
-same target with `kind=pointer-reference`. Identity never participates in
+`~a[0]` becomes `kind=CloneReference,value=$.a[0][0]`; `~>a[0]` produces the
+same target with `kind=PointerReference`. Identity never participates in
 translation or path comparison.
 
 Reverse projection removes a head index only when structural context proves
@@ -389,9 +390,9 @@ If an available artifact does not match `origin`, the audit reports
 `AES_ORIGIN_MISMATCH`. If its range is out of bounds or either endpoint splits
 a UTF-8 scalar, it reports `AES_INVALID_SPAN`.
 
-### 7.1 Node-head span
+### 7.1 NodeHead span
 
-A source-backed node-head span begins at the first byte of its tag token and
+A source-backed NodeHead span begins at the first byte of its tag token and
 ends after its last head component: datatype, attribute block, structural
 identity, or tag in that precedence. It includes quoted tag delimiters,
 identity delimiters, attributes, datatype arguments, and intervening bytes.
@@ -422,7 +423,7 @@ it emits:
 
 Each parent precedes its descendants and each subtree is contiguous. Object
 members and attributes preserve declaration order. List and tuple items, node
-heads, and node-head content preserve ascending index order. Paths, datatypes,
+heads, and NodeHead content preserve ascending index order. Paths, datatypes,
 values, and identities are never implicit sort keys.
 
 A signature profile states which sequence it covers. A semantic document
@@ -439,16 +440,17 @@ consumer can navigate without external state.
 Every non-root structural prefix has a material record and each parent kind is
 compatible with its child segment. Parents are never inferred. An attribute
 requires its owner but no synthetic `.@` container. Node content requires both
-its `node` and `node-head` ancestry. Addresses and structural identities are
-unique.
+its `NodeLiteral` and `NodeHead` ancestry. Addresses and structural identities
+are unique.
 
-Every clone-reference and pointer-reference target identifies a body event in
+Every `CloneReference` and `PointerReference` target identifies a body event in
 the stream. Target existence does not impose target-before-reference ordering.
 
 Only a member record may occur directly beneath the unrepresented `$` root.
-Named children require object parents. Indexed children require list, tuple, or
-node-head parents. Every direct indexed child of a node is a node head, and a
-node-head cannot be an ordinary list or tuple item.
+Named children require `ObjectNode` parents. Indexed children require
+`ListNode`, `TupleLiteral`, or `NodeHead` parents. Every direct indexed child of
+a `NodeLiteral` is a `NodeHead`, and a `NodeHead` cannot be an ordinary list or
+tuple item.
 
 An AEON canonical document projection satisfies this profile.
 `aeon.gp.profile.v1` declares `aes.complete.v0` explicitly even though omission
@@ -481,14 +483,14 @@ non-empty quoted `aeon:` member:
 
 ```text
 header=$.["aeon:mode"]
-kind=string
+kind=StringLiteral
 value=strict
 
 header=$.["aeon:conventions"]
-kind=list
+kind=ListNode
 
 header=$.["aeon:conventions"][0]
-kind=string
+kind=StringLiteral
 value=aeon.gp.security.v1
 ```
 
@@ -632,7 +634,7 @@ the artifact or splits a UTF-8 scalar boundary.
 Portable AES recognizes and transports value distinctions. It does not define
 all operations over those values.
 
-For example, AES can carry `kind=radix`, `datatype=decimal`, and
+For example, AES can carry `kind=RadixLiteral`, `datatype=decimal`, and
 `value=010.00`. The Aeonic Semantic Language owns equality, comparison,
 ordering, conversion, measurement, and later arithmetic for that value.
 
