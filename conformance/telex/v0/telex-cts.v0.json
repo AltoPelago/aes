@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "version": "0.1.0",
+    "lane": "aes-telex",
+    "format": "telex.aes",
+    "format_version": "0",
+    "sut_protocol": "cts.protocol.v1",
+    "description": "Portable Draft 0 Telex syntax and AES profile vectors",
+    "snapshot_id": "aes-telex-cts-v0-snapshot-0.1",
+    "spec_snapshot_id": "aes-telex-specs-v0-snapshot-0.1"
+  },
+  "suites": [
+    {
+      "id": "syntax-and-canonicalization",
+      "file": "suites/01-syntax-and-canonicalization.json"
+    },
+    {
+      "id": "event-and-profile-validation",
+      "file": "suites/02-event-and-profile-validation.json"
+    }
+  ]
+}

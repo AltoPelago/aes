@@ -49,10 +49,11 @@ export const DEFAULT_TELEX_PROFILE = 'aes.telex.v0';
 export const RAW_TELEX_PROFILE = 'aes.raw.v0';
 
 export class TelexSyntaxError extends Error {
-  constructor(message, line) {
+  constructor(message, line, code = 'TELEX_SYNTAX_ERROR') {
     super(line === undefined ? message : `Line ${line}: ${message}`);
     this.name = 'TelexSyntaxError';
     this.line = line;
+    this.code = code;
   }
 }
 
@@ -61,10 +62,10 @@ export function parseTelex(input) {
     throw new TypeError('Telex input must be a string');
   }
   if (input.startsWith('\uFEFF')) {
-    throw new TelexSyntaxError('UTF-8 byte-order marks are not allowed', 1);
+    throw new TelexSyntaxError('UTF-8 byte-order marks are not allowed', 1, 'TELEX_BOM');
   }
   if (/\r(?!\n)/u.test(input)) {
-    throw new TelexSyntaxError('Bare carriage returns are not allowed');
+    throw new TelexSyntaxError('Bare carriage returns are not allowed', undefined, 'TELEX_BARE_CR');
   }
 
   const canonicalLineEndings = !input.includes('\r\n');
@@ -74,7 +75,7 @@ export function parseTelex(input) {
   if (hasFinalLf) lines.pop();
 
   if (lines[0] !== VERSION_LINE) {
-    throw new TelexSyntaxError(`Expected ${VERSION_LINE}`, 1);
+    throw new TelexSyntaxError(`Expected ${VERSION_LINE}`, 1, 'TELEX_INVALID_PREAMBLE');
   }
 
   if (lines.length === 1) {
@@ -94,7 +95,7 @@ export function parseTelex(input) {
   if (lines[1].startsWith(`${PROFILE_FIELD}=`)) {
     const decoded = decodePayload(lines[1].slice(PROFILE_FIELD.length + 1), 2);
     if (decoded.value.length === 0) {
-      throw new TelexSyntaxError('Profile identifier must not be empty', 2);
+      throw new TelexSyntaxError('Profile identifier must not be empty', 2, 'TELEX_EMPTY_PROFILE');
     }
     profile = decoded.value;
     profileExplicit = true;
@@ -112,7 +113,11 @@ export function parseTelex(input) {
   }
 
   if (lines[eventStart - 1] !== '') {
-    throw new TelexSyntaxError('Expected a blank line after the stream header', eventStart);
+    throw new TelexSyntaxError(
+      'Expected a blank line after the stream header',
+      eventStart,
+      'TELEX_MISSING_HEADER_SEPARATOR',
+    );
   }
 
   const records = [];
@@ -140,14 +145,14 @@ export function parseTelex(input) {
 
     const delimiter = line.indexOf('=');
     if (delimiter < 1) {
-      throw new TelexSyntaxError('Expected field=value', lineNumber);
+      throw new TelexSyntaxError('Expected field=value', lineNumber, 'TELEX_INVALID_FIELD_LINE');
     }
     const field = line.slice(0, delimiter);
     if (!FIELD_NAME.test(field)) {
-      throw new TelexSyntaxError(`Invalid field name: ${field}`, lineNumber);
+      throw new TelexSyntaxError(`Invalid field name: ${field}`, lineNumber, 'TELEX_INVALID_FIELD_NAME');
     }
     if (record.has(field)) {
-      throw new TelexSyntaxError(`Duplicate field: ${field}`, lineNumber);
+      throw new TelexSyntaxError(`Duplicate field: ${field}`, lineNumber, 'TELEX_DUPLICATE_FIELD');
     }
     const decoded = decodePayload(line.slice(delimiter + 1), lineNumber);
     canonical &&= decoded.canonical;
@@ -644,10 +649,18 @@ function decodePayload(payload, lineNumber) {
     const codePoint = payload.codePointAt(index);
     if (character !== '\\') {
       if (codePoint <= 0x1f || codePoint === 0x7f) {
-        throw new TelexSyntaxError('Unescaped control character in payload', lineNumber);
+        throw new TelexSyntaxError(
+          'Unescaped control character in payload',
+          lineNumber,
+          'TELEX_UNESCAPED_CONTROL',
+        );
       }
       if (codePoint >= 0xd800 && codePoint <= 0xdfff) {
-        throw new TelexSyntaxError('Payload contains a surrogate instead of a Unicode scalar', lineNumber);
+        throw new TelexSyntaxError(
+          'Payload contains a surrogate instead of a Unicode scalar',
+          lineNumber,
+          'TELEX_INVALID_UNICODE_SCALAR',
+        );
       }
       value += String.fromCodePoint(codePoint);
       if (codePoint > 0xffff) index += 1;
@@ -656,7 +669,7 @@ function decodePayload(payload, lineNumber) {
 
     const escape = payload[++index];
     if (escape === undefined) {
-      throw new TelexSyntaxError('Incomplete escape', lineNumber);
+      throw new TelexSyntaxError('Incomplete escape', lineNumber, 'TELEX_INCOMPLETE_ESCAPE');
     }
     const short = { '\\': '\\', n: '\n', r: '\r', t: '\t', 0: '\0' }[escape];
     if (short !== undefined) {
@@ -664,19 +677,27 @@ function decodePayload(payload, lineNumber) {
       continue;
     }
     if (escape !== 'u' || payload[index + 1] !== '{') {
-      throw new TelexSyntaxError(`Unknown escape: \\${escape}`, lineNumber);
+      throw new TelexSyntaxError(`Unknown escape: \\${escape}`, lineNumber, 'TELEX_UNKNOWN_ESCAPE');
     }
     const close = payload.indexOf('}', index + 2);
     if (close === -1) {
-      throw new TelexSyntaxError('Unterminated Unicode escape', lineNumber);
+      throw new TelexSyntaxError(
+        'Unterminated Unicode escape',
+        lineNumber,
+        'TELEX_UNTERMINATED_UNICODE_ESCAPE',
+      );
     }
     const digits = payload.slice(index + 2, close);
     if (!/^[0-9A-Fa-f]{1,6}$/u.test(digits)) {
-      throw new TelexSyntaxError('Invalid Unicode escape', lineNumber);
+      throw new TelexSyntaxError('Invalid Unicode escape', lineNumber, 'TELEX_INVALID_UNICODE_ESCAPE');
     }
     const scalar = Number.parseInt(digits, 16);
     if (scalar > 0x10ffff || (scalar >= 0xd800 && scalar <= 0xdfff)) {
-      throw new TelexSyntaxError('Unicode escape is not a scalar value', lineNumber);
+      throw new TelexSyntaxError(
+        'Unicode escape is not a scalar value',
+        lineNumber,
+        'TELEX_INVALID_UNICODE_SCALAR',
+      );
     }
     if (digits !== scalar.toString(16).toUpperCase()) canonical = false;
     if ({ 0: '\0', 9: '\t', A: '\n', D: '\r' }[digits.toUpperCase()] !== undefined) {

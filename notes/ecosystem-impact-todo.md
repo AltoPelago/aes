@@ -240,4 +240,6 @@ component already conforms.
   emits the new node projection into durable stores.
 - [ ] Add shared Telex fixtures and require at least two independent
   implementations before Draft 1.
+- [x] Add repository-local Draft 0 Telex vectors and run them against the
+  JavaScript reference implementation before promotion into shared CTS.
 - [ ] Review every completed decision gate for additions to this checklist.

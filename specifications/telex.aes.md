@@ -157,6 +157,28 @@ controls and DEL with `\\u{...}`, and emit all other Unicode scalars directly.
 Escaping is defined by Telex. It is not JSON, JavaScript, Rust, or AEON source
 escaping.
 
+### 4.5 Syntax diagnostic codes
+
+Portable conformance vectors identify syntax failures by stable code. Error
+prose is diagnostic presentation and is not compared for conformance.
+
+| Code | Condition |
+| --- | --- |
+| `TELEX_BOM` | forbidden byte-order mark |
+| `TELEX_BARE_CR` | carriage return not followed by line feed |
+| `TELEX_INVALID_PREAMBLE` | missing, malformed, or unsupported preamble |
+| `TELEX_EMPTY_PROFILE` | empty explicit profile identifier |
+| `TELEX_MISSING_HEADER_SEPARATOR` | missing blank line before events |
+| `TELEX_INVALID_FIELD_LINE` | event line is not `field=value` |
+| `TELEX_INVALID_FIELD_NAME` | field name violates the Telex grammar |
+| `TELEX_DUPLICATE_FIELD` | field occurs more than once in one event |
+| `TELEX_UNESCAPED_CONTROL` | payload contains an unescaped control scalar |
+| `TELEX_INCOMPLETE_ESCAPE` | payload ends during an escape |
+| `TELEX_UNKNOWN_ESCAPE` | escape is not in the Telex vocabulary |
+| `TELEX_UNTERMINATED_UNICODE_ESCAPE` | Unicode escape has no closing brace |
+| `TELEX_INVALID_UNICODE_ESCAPE` | Unicode escape digits are malformed |
+| `TELEX_INVALID_UNICODE_SCALAR` | payload or escape does not represent a Unicode scalar |
+
 ## 5. Portable event profile
 
 The following is the Draft 0 candidate event profile. It needs reconciliation
@@ -618,6 +640,10 @@ Draft 1 should not be declared until the settled format and profile rules exist
 as conformance vectors in at least two independent implementations, not only as
 prose. Transport-specific media types and external registration are outside the
 Draft 0 format decision gates.
+
+The repository-local `conformance/telex/v0` manifest is the mutable Draft 0
+development snapshot. Passing it in the JavaScript reference implementation is
+necessary but does not satisfy the independent-implementation requirement.
 
 ## 11. Relationship to the Aeonic Semantic Language
 

@@ -1,0 +1,212 @@
+{
+  "meta": {
+    "suite_id": "syntax-and-canonicalization",
+    "lane": "aes-telex",
+    "format_version": "0",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/telex.aes.md#4-physical-format",
+      "specifications/telex.aes.md#6-canonical-form"
+    ]
+  },
+  "id": "syntax-and-canonicalization",
+  "title": "Telex Draft 0 Syntax and Canonicalization",
+  "tests": [
+    {
+      "id": "telex-syntax-001-empty-default",
+      "description": "An empty stream selects the complete profile by default",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n"
+      },
+      "expected": {
+        "ok": true,
+        "version": "0",
+        "profile": "aes.telex.v0",
+        "profile_explicit": false,
+        "canonical": true,
+        "records": []
+      },
+      "tags": ["syntax", "profile-default", "empty"]
+    },
+    {
+      "id": "telex-syntax-002-canonical-scalar",
+      "description": "A canonical scalar stanza decodes without changing field order or payload",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.message\nkind=string\nvalue=hello\n"
+      },
+      "expected": {
+        "ok": true,
+        "version": "0",
+        "profile": "aes.telex.v0",
+        "profile_explicit": false,
+        "canonical": true,
+        "records": [
+          {
+            "path": "$.message",
+            "kind": "string",
+            "value": "hello"
+          }
+        ]
+      },
+      "tags": ["syntax", "scalar", "canonical"]
+    },
+    {
+      "id": "telex-syntax-003-explicit-raw",
+      "description": "An explicit raw profile is stream metadata rather than an event",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n"
+      },
+      "expected": {
+        "ok": true,
+        "version": "0",
+        "profile": "aes.raw.v0",
+        "profile_explicit": true,
+        "canonical": true,
+        "records": []
+      },
+      "tags": ["syntax", "profile-raw", "header"]
+    },
+    {
+      "id": "telex-syntax-004-payload-escapes",
+      "description": "Telex escapes decode independently of JSON or AEON source escaping",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.message\nkind=string\nvalue=line\\nwave=🌊\\\\end\n"
+      },
+      "expected": {
+        "ok": true,
+        "version": "0",
+        "profile": "aes.telex.v0",
+        "profile_explicit": false,
+        "canonical": true,
+        "records": [
+          {
+            "path": "$.message",
+            "kind": "string",
+            "value": "line\nwave=🌊\\end"
+          }
+        ]
+      },
+      "tags": ["syntax", "escaping", "unicode"]
+    },
+    {
+      "id": "telex-syntax-005-tolerant-crlf",
+      "description": "A tolerant parser accepts CRLF and reports non-canonical input",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\r\n\r\npath=$.a\r\nkind=number\r\nvalue=1\r\n"
+      },
+      "expected": {
+        "ok": true,
+        "version": "0",
+        "profile": "aes.telex.v0",
+        "profile_explicit": false,
+        "canonical": false,
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "number",
+            "value": "1"
+          }
+        ]
+      },
+      "tags": ["syntax", "tolerant", "crlf"]
+    },
+    {
+      "id": "telex-syntax-006-canonicalize-order-and-escape",
+      "description": "Canonicalization orders core fields and shortens a Unicode escape",
+      "operation": "canonicalize",
+      "input": {
+        "telex": "telex.aes=0\r\n\r\nkind=string\r\npath=$.a\r\nvalue=\\u{000041}\r\n"
+      },
+      "expected": {
+        "ok": true,
+        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nvalue=A\n"
+      },
+      "tags": ["canonicalization", "field-order", "escaping"]
+    },
+    {
+      "id": "telex-syntax-007-duplicate-field",
+      "description": "A stanza cannot repeat a field",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.a\npath=$.b\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_DUPLICATE_FIELD",
+          "line": 4
+        }
+      },
+      "tags": ["syntax", "failure", "duplicate"]
+    },
+    {
+      "id": "telex-syntax-008-invalid-preamble",
+      "description": "An unsupported or malformed preamble fails explicitly",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_PREAMBLE",
+          "line": 1
+        }
+      },
+      "tags": ["syntax", "failure", "version"]
+    },
+    {
+      "id": "telex-syntax-009-empty-profile",
+      "description": "An explicit profile identifier cannot be empty",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\nprofile=\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_EMPTY_PROFILE",
+          "line": 2
+        }
+      },
+      "tags": ["syntax", "failure", "profile"]
+    },
+    {
+      "id": "telex-syntax-010-missing-header-separator",
+      "description": "Events require a blank separator after stream metadata",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\npath=$.a\nkind=number\nvalue=1\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_MISSING_HEADER_SEPARATOR",
+          "line": 3
+        }
+      },
+      "tags": ["syntax", "failure", "framing"]
+    },
+    {
+      "id": "telex-syntax-011-unknown-escape",
+      "description": "Payload escapes use only the Telex escape vocabulary",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nvalue=bad\\q\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_UNKNOWN_ESCAPE",
+          "line": 5
+        }
+      },
+      "tags": ["syntax", "failure", "escaping"]
+    }
+  ]
+}

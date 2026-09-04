@@ -5,8 +5,8 @@
   "type": "module",
   "description": "AES specifications and experimental Telex syntax codec",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "test:conformance": "node --test test/conformance.test.js"
   },
   "license": "MIT"
 }
-

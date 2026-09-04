@@ -1,0 +1,269 @@
+{
+  "meta": {
+    "suite_id": "event-and-profile-validation",
+    "lane": "aes-telex",
+    "format_version": "0",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/telex.aes.md#5-portable-event-profile",
+      "specifications/telex.aes.md#7-validation-layers"
+    ]
+  },
+  "id": "event-and-profile-validation",
+  "title": "Telex Draft 0 Event and Profile Validation",
+  "tests": [
+    {
+      "id": "telex-profile-001-complete-default",
+      "description": "The implicit complete profile accepts flat objects, attributes, lists, nodes, and node content",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.a\nkind=object\nidentity=root-a\n\npath=$.a.@.source\nkind=string\nvalue=fixture\n\npath=$.a.items\nkind=list\n\npath=$.a.items[0]\nkind=node\n\npath=$.a.items[0][0]\nkind=node-head\nvalue=tag\n\npath=$.a.items[0][0][0]\nkind=boolean\nvalue=true\n"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.telex.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "complete", "attributes", "node"]
+    },
+    {
+      "id": "telex-profile-002-default-missing-parent",
+      "description": "The default profile rejects a descendant whose parent event is absent",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.a.b\nkind=number\nvalue=1\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.telex.v0",
+        "diagnostic_codes": ["AES_MISSING_PARENT"]
+      },
+      "tags": ["validation", "complete", "ancestry", "failure"]
+    },
+    {
+      "id": "telex-profile-003-raw-missing-parent",
+      "description": "The explicit raw profile permits a valid event without its parent context",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a.b\nkind=number\nvalue=1\n"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "raw", "ancestry"]
+    },
+    {
+      "id": "telex-profile-004-raw-retains-event-validity",
+      "description": "Raw changes stream constraints but does not permit an invalid event value",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=boolean\nvalue=True\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": ["AES_INVALID_VALUE"]
+      },
+      "tags": ["validation", "raw", "event-shape", "failure"]
+    },
+    {
+      "id": "telex-profile-005-default-duplicates",
+      "description": "Complete streams require unique paths and structural identities",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.a\nkind=number\nidentity=same\nvalue=1\n\npath=$.a\nkind=number\nidentity=same\nvalue=2\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.telex.v0",
+        "diagnostic_codes": ["AES_DUPLICATE_PATH", "AES_DUPLICATE_IDENTITY"]
+      },
+      "tags": ["validation", "complete", "uniqueness", "failure"]
+    },
+    {
+      "id": "telex-profile-006-raw-duplicates",
+      "description": "Raw history may repeat paths and structural identities across events",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=number\nidentity=same\nvalue=1\n\npath=$.a\nkind=number\nidentity=same\nvalue=2\n"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "raw", "history", "duplicates"]
+    },
+    {
+      "id": "telex-profile-007-incompatible-member-parent",
+      "description": "A named structural child requires an object parent",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.scalar\nkind=number\nvalue=1\n\npath=$.scalar.child\nkind=string\nvalue=no\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.telex.v0",
+        "diagnostic_codes": ["AES_INCOMPATIBLE_PARENT"]
+      },
+      "tags": ["validation", "complete", "container", "failure"]
+    },
+    {
+      "id": "telex-profile-008-node-head-placement",
+      "description": "A node-head cannot be used as an ordinary list item",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.items\nkind=list\n\npath=$.items[0]\nkind=node-head\nvalue=tag\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.telex.v0",
+        "diagnostic_codes": ["AES_INVALID_NODE_HEAD"]
+      },
+      "tags": ["validation", "complete", "node-head", "failure"]
+    },
+    {
+      "id": "telex-profile-009-node-requires-head-child",
+      "description": "Every direct indexed child of a node is a node-head event",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.item\nkind=node\n\npath=$.item[0]\nkind=string\nvalue=not-a-head\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.telex.v0",
+        "diagnostic_codes": ["AES_INCOMPATIBLE_PARENT"]
+      },
+      "tags": ["validation", "complete", "node", "failure"]
+    },
+    {
+      "id": "telex-profile-010-root-is-not-owner",
+      "description": "The unrepresented document root cannot own indexed or attribute events",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$[0]\nkind=number\nvalue=1\n\npath=$.@.meta\nkind=string\nvalue=root\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.telex.v0",
+        "diagnostic_codes": ["AES_MISSING_PARENT", "AES_MISSING_PARENT"]
+      },
+      "tags": ["validation", "complete", "root", "failure"]
+    },
+    {
+      "id": "telex-profile-011-value-presence",
+      "description": "Containers omit value while non-container kinds require it",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=object\nvalue=nested\n\npath=$.b\nkind=number\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": ["AES_UNEXPECTED_VALUE", "AES_MISSING_VALUE"]
+      },
+      "tags": ["validation", "event-shape", "value", "failure"]
+    },
+    {
+      "id": "telex-profile-012-locally-defined-values",
+      "description": "Kinds with locally specified vocabularies use their exact canonical payloads",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.hex\nkind=hex\nvalue=CAFE\n\npath=$.toggle\nkind=toggle\nvalue=enabled\n\npath=$.nan\nkind=nan\nvalue=nan\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": ["AES_INVALID_VALUE", "AES_INVALID_VALUE", "AES_INVALID_VALUE"]
+      },
+      "tags": ["validation", "event-shape", "canonical-value", "failure"]
+    },
+    {
+      "id": "telex-profile-013-reference-target-shape",
+      "description": "Clone and pointer payloads contain canonical absolute target paths",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.copy\nkind=clone-reference\nvalue=relative.path\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": ["AES_INVALID_REFERENCE"]
+      },
+      "tags": ["validation", "event-shape", "reference", "failure"]
+    },
+    {
+      "id": "telex-profile-014-span-shape",
+      "description": "A source span is an ordered pair of canonical byte offsets",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=number\nvalue=1\nspan=4:2\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": ["AES_INVALID_SPAN"]
+      },
+      "tags": ["validation", "event-shape", "span", "failure"]
+    },
+    {
+      "id": "telex-profile-015-unregistered-extension",
+      "description": "An extension field is rejected unless the selected validation context registers it exactly",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=number\nvalue=1\nx.example.claim=yes\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": ["AES_UNKNOWN_FIELD"]
+      },
+      "tags": ["validation", "extension", "failure"]
+    },
+    {
+      "id": "telex-profile-016-registered-extension",
+      "description": "Exact extension registration enables only the named field",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=number\nvalue=1\nx.example.claim=yes\n",
+        "registered_fields": ["x.example.claim"]
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "extension"]
+    },
+    {
+      "id": "telex-profile-017-unsupported-profile",
+      "description": "Syntax readers preserve unknown profiles but semantic validation fails closed",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=x.example.future.v1\n\npath=$.a\nkind=number\nvalue=1\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "x.example.future.v1",
+        "diagnostic_codes": ["AES_UNSUPPORTED_PROFILE"]
+      },
+      "tags": ["validation", "profile", "failure"]
+    },
+    {
+      "id": "telex-profile-018-unknown-kind",
+      "description": "Raw streams still require a known portable AES value kind",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a\nkind=future-kind\nvalue=1\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": ["AES_UNKNOWN_KIND"]
+      },
+      "tags": ["validation", "event-shape", "kind", "failure"]
+    }
+  ]
+}

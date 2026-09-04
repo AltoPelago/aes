@@ -43,11 +43,19 @@ This is a spec-first bootstrap. Nothing in this repository is normative yet.
   Draft 0 rules and the selected profile's structural checks.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early
   illustrative stream, not a frozen conformance vector.
+- [`conformance/`](conformance/README.md) contains language-neutral Draft 0
+  vectors for syntax, canonicalization, and AES profile validation.
 
 Run the syntax tests with:
 
 ```bash
 npm test
+```
+
+Run only the portable vector harness with:
+
+```bash
+npm run test:conformance
 ```
 
 ## Boundaries
