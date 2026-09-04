@@ -30,7 +30,11 @@ telex.aes    film.aes
 
 ## Current status
 
-This is a spec-first bootstrap. Nothing in this repository is normative yet.
+This repository remains the implementation-adjacent AES workspace. Canonical
+publication sources now live under `sources/aes/v0/` in
+[`aeonite-specs`](../../aeonite-org/aeonite-specs/); their declared lifecycle
+and normativity govern published Draft 0. The Markdown documents here are
+working/reference copies and do not override those canonical sources.
 
 - [Portable AES Event Contract Draft 0](specifications/aes.events.md) owns the
   transport-neutral record, profile, projection, and fidelity rules.

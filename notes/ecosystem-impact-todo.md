@@ -352,9 +352,14 @@ while the wider consumer audit remains open.
 
 ### Specifications and conformance
 
-- [ ] `aeonite-specs`: update the canonical AES specification, which currently
-  describes implementation-shaped AST values, required source spans, and
-  embedded attributes.
+- [x] Audit current specification ownership and identify AES material that must
+  move, remain with a source language or consumer, or be reconciled. See
+  `notes/specification-ownership-audit.md`.
+- [x] `aeonite-specs`: establish the first-class `aes/v0` family, publish the
+  transport-neutral event, Telex, compatibility, and semantic-language
+  documents, and supersede the implementation-shaped AES appendix.
+- [x] `aeonite-website`: add a first-class AES Draft 0 section, family routing,
+  home-page entry, sitemap/LLM discovery, and publication checks.
 - [ ] `aeonite-specs`: update AEON node, structural-identity, span, reference,
   datatype, and WTC projection requirements.
 - [ ] `aeonite-cts`: replace contradictory identity vectors and add portable
