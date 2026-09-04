@@ -101,8 +101,13 @@ surfaces until these gates are complete.
   of source and target paths. Exact-alias relocation preserves a single
   identity and fails closed on conflicting identities; derived identity policy
   remains explicit in the transform/projector.
-- [ ] Verify ASP operations preserve identity independently of operation target
+- [x] Verify ASP operations preserve identity independently of operation target
   addresses.
+  Identity-bearing assignment, attribute-operation, and nested attribute-entry
+  writes now validate and retain `structuralId` through ASP storage, compact
+  transport, candidate reconstruction, AEOS adaptation, and SANSA replacement
+  lowering without deriving identity from the target path. Portable mapping for
+  expanded node heads and anonymous children remains tracked separately below.
 - [ ] Verify AES-DB records preserve identity independently of persisted record
   paths and physical storage layout.
 
