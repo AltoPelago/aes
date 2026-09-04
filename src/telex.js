@@ -1,4 +1,5 @@
 const VERSION_LINE = 'telex.aes=0';
+const PROFILE_FIELD = 'profile';
 const FIELD_NAME = /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/;
 const CORE_FIELD_ORDER = new Map([
   'path',
@@ -10,6 +11,8 @@ const CORE_FIELD_ORDER = new Map([
 ].map((field, index) => [field, index]));
 
 export const TELEX_VERSION = '0';
+export const DEFAULT_TELEX_PROFILE = 'aes.telex.v0';
+export const RAW_TELEX_PROFILE = 'aes.raw.v0';
 
 export class TelexSyntaxError extends Error {
   constructor(message, line) {
@@ -43,22 +46,49 @@ export function parseTelex(input) {
   if (lines.length === 1) {
     return {
       version: TELEX_VERSION,
+      profile: DEFAULT_TELEX_PROFILE,
+      profileExplicit: false,
       records: [],
       canonical: canonicalLineEndings && hasFinalLf,
     };
   }
-  if (lines[1] !== '') {
-    throw new TelexSyntaxError('Expected a blank line after the preamble', 2);
+
+  let profile = DEFAULT_TELEX_PROFILE;
+  let profileExplicit = false;
+  let headerCanonical = true;
+  let eventStart = 2;
+  if (lines[1].startsWith(`${PROFILE_FIELD}=`)) {
+    const decoded = decodePayload(lines[1].slice(PROFILE_FIELD.length + 1), 2);
+    if (decoded.value.length === 0) {
+      throw new TelexSyntaxError('Profile identifier must not be empty', 2);
+    }
+    profile = decoded.value;
+    profileExplicit = true;
+    headerCanonical = decoded.canonical;
+    eventStart = 3;
+    if (lines.length === 2) {
+      return {
+        version: TELEX_VERSION,
+        profile,
+        profileExplicit,
+        records: [],
+        canonical: canonicalLineEndings && hasFinalLf && headerCanonical,
+      };
+    }
+  }
+
+  if (lines[eventStart - 1] !== '') {
+    throw new TelexSyntaxError('Expected a blank line after the stream header', eventStart);
   }
 
   const records = [];
   let record = null;
-  let canonical = canonicalLineEndings && hasFinalLf;
+  let canonical = canonicalLineEndings && hasFinalLf && headerCanonical;
   // Count the required preamble separator so an additional blank is visibly
   // non-canonical.
   let separatorWidth = 1;
 
-  for (let index = 2; index < lines.length; index += 1) {
+  for (let index = eventStart; index < lines.length; index += 1) {
     const lineNumber = index + 1;
     const line = lines[index];
     if (line === '') {
@@ -94,14 +124,27 @@ export function parseTelex(input) {
   if (separatorWidth > 0) canonical = false;
   canonical &&= records.every(hasCanonicalFieldOrder);
 
-  return { version: TELEX_VERSION, records, canonical };
+  return {
+    version: TELEX_VERSION,
+    profile,
+    profileExplicit,
+    records,
+    canonical,
+  };
 }
 
-export function encodeTelex(records) {
+export function encodeTelex(records, options = {}) {
   if (!Array.isArray(records)) {
     throw new TypeError('Telex records must be an array');
   }
-  if (records.length === 0) return `${VERSION_LINE}\n`;
+  const { profile } = options;
+  if (profile !== undefined && (typeof profile !== 'string' || profile.length === 0)) {
+    throw new TypeError('Telex profile must be a non-empty string');
+  }
+  const header = profile === undefined
+    ? VERSION_LINE
+    : `${VERSION_LINE}\n${PROFILE_FIELD}=${encodePayload(profile)}`;
+  if (records.length === 0) return `${header}\n`;
 
   const stanzas = records.map((record, recordIndex) => {
     const entries = record instanceof Map ? [...record.entries()] : Object.entries(record);
@@ -120,11 +163,13 @@ export function encodeTelex(records) {
     return entries.map(([field, value]) => `${field}=${encodePayload(value)}`).join('\n');
   });
 
-  return `${VERSION_LINE}\n\n${stanzas.join('\n\n')}\n`;
+  return `${header}\n\n${stanzas.join('\n\n')}\n`;
 }
 
 export function canonicalizeTelex(input) {
-  return encodeTelex(parseTelex(input).records);
+  const parsed = parseTelex(input);
+  const options = parsed.profileExplicit ? { profile: parsed.profile } : {};
+  return encodeTelex(parsed.records, options);
 }
 
 /**

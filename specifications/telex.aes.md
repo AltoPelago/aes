@@ -91,7 +91,7 @@ invalid UTF-8.
 Telex performs no Unicode normalization. A conforming implementation preserves
 the decoded Unicode scalar sequence exactly.
 
-### 4.2 Preamble
+### 4.2 Stream header
 
 The first line is exactly:
 
@@ -99,8 +99,24 @@ The first line is exactly:
 telex.aes=0
 ```
 
-The preamble is followed by a blank line when at least one event follows. Future
-format versions use a different value, not an inferred feature set.
+The preamble may be followed by one profile declaration:
+
+```text
+profile=aes.raw.v0
+```
+
+The stream header is followed by a blank line when at least one event follows.
+Future format versions use a different preamble value, not an inferred feature
+set. The profile selects semantic constraints within that format version.
+
+An omitted profile declaration means `aes.telex.v0`. This default is normative,
+not a request for profile negotiation. A producer that requires unconstrained
+event transport must declare `aes.raw.v0` explicitly.
+
+The profile payload uses Telex payload escaping. Draft 0 permits one profile
+declaration and rejects an empty identifier. Syntax readers preserve unknown
+non-empty profile identifiers; semantic consumers reject identifiers they do
+not support.
 
 ### 4.3 Event framing
 
@@ -453,45 +469,57 @@ signature may first project events into the canonical order defined by its
 profile. A ledger signature covers the original event order exactly. Telex
 does not infer one signing mode from the event content.
 
-### 5.10 Prefix completeness
+### 5.10 Completeness and profiles
 
-Prefix completeness is an AES profile constraint, not Telex syntax. A raw
-stream may contain an event at `$.a.b` without carrying `$.a`; it can represent
-an incremental event, filtered stream, transaction fragment, subscription, or
-ledger entry without claiming to be an independently navigable state.
+`aes.telex.v0` is the default AES profile. It requires a complete,
+self-contained stream that a consumer can navigate without external state. A
+profile declaration is optional only because omission selects
+`aes.telex.v0`; omission does not select an unconstrained mode.
 
-A materialized snapshot profile requires every non-root structural prefix to
-have a material event and requires each parent kind to be compatible with its
-child segment. Parents are never inferred or synthesized. An attribute event
-requires its owning event, but `.@` does not require a synthetic attribute-space
-container event. Node content requires both its `node` and `node-head` ancestry.
+Under `aes.telex.v0`, every non-root structural prefix has a material event and
+each parent kind is compatible with its child segment. Parents are never
+inferred or synthesized. An attribute event requires its owning event, but
+`.@` does not require a synthetic attribute-space container event. Node content
+requires both its `node` and `node-head` ancestry. Event shape, path uniqueness,
+and the other portable event requirements in this specification also apply.
+
+`aes.raw.v0` explicitly relaxes stream-level completeness. It may contain an
+event at `$.a.b` without carrying `$.a`; it can represent an incremental event,
+filtered stream, transaction fragment, subscription, or ledger entry without
+claiming to be independently navigable AES state.
 
 Transaction and ledger profiles may establish completeness against prior state
-plus the supplied segment rather than against the segment alone. A canonical
-AEON document projection is prefix-complete.
+plus the supplied segment rather than against the segment alone. They must be
+selected explicitly. A canonical AEON document projection is complete.
+
+Completeness is an AES profile constraint, not a Telex syntax constraint. A
+syntax parser therefore may successfully decode an incomplete default-profile
+stream so that it can report the semantic failure.
 
 The reference codec exposes `checkTelexCompleteness(input)` and
 `checkPrefixCompleteness(records)` as lightweight diagnostics. They report
 missing structural prefixes without reordering events. They do not check
 container-kind compatibility, uniqueness, references, or any other claim of a
-materialized AES profile.
+complete AES profile.
 
-The normative materialized-profile rule belongs to AES. An AEON profile such as
-`aeon.gp.profile.v1` may declare that its AES projection satisfies that profile;
-it should reference the AES-owned rule rather than redefine it.
+The normative completeness rule belongs to AES. `aeon.gp.profile.v1` explicitly
+declares that its AES projection satisfies `aes.telex.v0`, even though the same
+profile would be selected by omission in a Telex stream. The GP profile
+references this AES-owned rule rather than redefining it.
 
 ## 6. Canonical form
 
 A canonical Telex encoder emits:
 
 1. the exact version preamble;
-2. one blank line before the first event;
-3. events in their semantic stream order;
-4. fields in the order below;
-5. extension fields in Unicode-code-point order after core fields;
-6. the shortest canonical escape for each payload scalar;
-7. one blank line between events; and
-8. exactly one final LF.
+2. the profile declaration when one was explicitly supplied;
+3. one blank line before the first event;
+4. events in their semantic stream order;
+5. fields in the order below;
+6. extension fields in Unicode-code-point order after core fields;
+7. the shortest canonical escape for each payload scalar;
+8. one blank line between events; and
+9. exactly one final LF.
 
 Core field order:
 
@@ -522,15 +550,29 @@ conformance merely because it can split fields.
 
 ## 8. Unknown fields and versions
 
-Draft 0 syntax parsers preserve unknown fields. Semantic decoders reject an
-unknown required core field or unsupported event kind unless an explicitly
-negotiated profile defines it.
+Draft 0 syntax parsers accept and preserve any syntactically valid field. They
+include unknown fields in canonical output and never interpret or discard them.
+Extension fields use the convention `x.<owner>.<name>` and sort with other
+non-core fields after the core field list. The `x` prefix does not mean that a
+field is optional or safe to ignore.
+
+A standalone AES semantic decoder rejects every unknown field unless an
+explicitly selected profile registers that exact field and defines its
+validation. Enabling one extension does not enable other fields from the same
+owner. Extensions cannot redefine core fields.
+
+A generic relay, inspector, canonicalizer, or store may preserve and forward
+unknown fields without understanding them, but it cannot claim semantic AES
+conformance for those events. A component must not sign a transformed event
+after silently dropping unknown fields.
 
 Silently discarding unknown data would make round trips lossy. Treating an
 unknown field as harmless without profile knowledge could change meaning.
 
 Version negotiation belongs to an enclosing protocol such as `poem.aes`.
-Opening a standalone file with an unsupported version fails explicitly.
+Opening a standalone file with an unsupported version fails explicitly. A new
+required core field requires a new Telex version; it is not introduced as an
+extension to `telex.aes=0`.
 
 ## 9. Security and resource bounds
 
@@ -546,16 +588,12 @@ Decoders must accept caller-supplied limits for at least:
 Syntax decoding performs no reference resolution, schema loading, network
 access, datatype execution, or source-language evaluation.
 
-## 10. Decision gates before Draft 1
+## 10. Draft 1 exit criteria
 
-The following must be settled with fixtures and at least two implementations:
-
-1. Which unknown-field behavior is safe for standalone files and negotiated
-   protocols?
-2. What media type and profile identifiers are registered for Telex?
-
-Draft 1 should not be declared until the answers exist as conformance vectors,
-not only prose.
+Draft 1 should not be declared until the settled format and profile rules exist
+as conformance vectors in at least two independent implementations, not only as
+prose. Transport-specific media types and external registration are outside the
+Draft 0 format decision gates.
 
 ## 11. Relationship to the Aeonic Semantic Language
 

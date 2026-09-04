@@ -208,9 +208,14 @@ component already conforms.
 
 ## 7. Specifications, CTS, and rollout
 
-- [ ] Add an AES projection requirement to `aeon.gp.profile.v1` by referencing
-  the AES-owned materialized/prefix-complete profile; do not duplicate its
-  normative structural rules in the AEON GP contract.
+- [ ] Add an explicit AES projection requirement to `aeon.gp.profile.v1` by
+  referencing `aes.telex.v0`; do not duplicate its normative structural rules
+  in the AEON GP contract. Telex selects the same complete profile when its
+  stream header omits `profile`.
+- [ ] Audit relays, canonicalizers, durable codecs, and signing paths to ensure
+  unknown Telex fields are preserved or rejected, never silently discarded.
+- [ ] Register exact extension fields in negotiated profiles and reject all
+  unregistered `x.*` fields at semantic boundaries.
 - [ ] Define separate signature profiles for canonical semantic projections
   and exact-order ledger streams; do not make Telex canonicalization reorder
   events implicitly.
@@ -222,7 +227,8 @@ component already conforms.
   attributes.
 - [ ] Update AEON node and structural-identity specifications to match the
   implemented grammar and the portable AES projection.
-- [ ] Publish profile identifiers so legacy and portable AES records cannot be
+- [ ] Publish `aes.telex.v0` (complete and the default) and `aes.raw.v0`
+  (explicitly unconstrained) so legacy and portable AES records cannot be
   confused.
 - [ ] Define reader-first rollout and compatibility rules before any producer
   emits the new node projection into durable stores.

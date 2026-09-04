@@ -92,6 +92,17 @@ ledger retains its original sequence. Signature profiles must explicitly state
 whether they cover a canonical semantic projection or the exact supplied event
 order.
 
+Telex syntax preserves unknown fields, using `x.<owner>.<name>` as the extension
+naming convention. Semantic decoders fail closed unless an active profile
+registers the exact field. The prefix never makes an extension implicitly
+optional, and new required core fields require a new Telex version.
+
+The complete, self-contained `aes.telex.v0` profile is the Telex default. An
+omitted profile declaration selects it; partial or otherwise unconstrained
+streams must explicitly declare `aes.raw.v0` or a future specialized profile.
+`aeon.gp.profile.v1` references `aes.telex.v0` explicitly so its projection
+contract remains visible even though Telex would apply the same default.
+
 ## Recommended boundary
 
 The working recommendation is:

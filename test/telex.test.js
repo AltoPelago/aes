@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  DEFAULT_TELEX_PROFILE,
+  RAW_TELEX_PROFILE,
   TelexSyntaxError,
   checkPrefixCompleteness,
   checkTelexCompleteness,
@@ -31,6 +33,8 @@ test('round-trips records and canonicalizes core field order', () => {
   ].join('\n'));
   assert.deepEqual(parseTelex(encoded), {
     version: '0',
+    profile: DEFAULT_TELEX_PROFILE,
+    profileExplicit: false,
     records: [{
       path: '$.message',
       kind: 'string',
@@ -108,6 +112,71 @@ test('treats an attribute selector and its key as one structural path step', () 
   });
 });
 
+test('preserves unknown extension fields without interpreting them', () => {
+  const input = [
+    'telex.aes=0',
+    '',
+    'path=$.a',
+    'kind=number',
+    'value=1',
+    'x.aesdb.revision=42',
+    '',
+  ].join('\n');
+  const parsed = parseTelex(input);
+  assert.equal(parsed.records[0]['x.aesdb.revision'], '42');
+  assert.equal(encodeTelex(parsed.records), input);
+});
+
+test('defaults to the complete Telex profile when no profile is declared', () => {
+  const parsed = parseTelex(encodeTelex([{ path: '$.a', kind: 'object' }]));
+  assert.equal(parsed.profile, DEFAULT_TELEX_PROFILE);
+  assert.equal(parsed.profileExplicit, false);
+});
+
+test('round-trips an explicit raw profile without treating it as an event', () => {
+  const records = [{ path: '$.a.b', kind: 'number', value: '1' }];
+  const encoded = encodeTelex(records, { profile: RAW_TELEX_PROFILE });
+  assert.equal(encoded, [
+    'telex.aes=0',
+    'profile=aes.raw.v0',
+    '',
+    'path=$.a.b',
+    'kind=number',
+    'value=1',
+    '',
+  ].join('\n'));
+  assert.deepEqual(parseTelex(encoded), {
+    version: '0',
+    profile: RAW_TELEX_PROFILE,
+    profileExplicit: true,
+    records,
+    canonical: true,
+  });
+  assert.equal(canonicalizeTelex(encoded), encoded);
+});
+
+test('accepts unknown non-empty profiles at the syntax layer', () => {
+  const input = 'telex.aes=0\nprofile=x.example.future.v1\n';
+  assert.deepEqual(parseTelex(input), {
+    version: '0',
+    profile: 'x.example.future.v1',
+    profileExplicit: true,
+    records: [],
+    canonical: true,
+  });
+});
+
+test('rejects an empty profile declaration', () => {
+  assert.throws(
+    () => parseTelex('telex.aes=0\nprofile=\n'),
+    (error) => error instanceof TelexSyntaxError && /must not be empty/u.test(error.message),
+  );
+  assert.throws(
+    () => encodeTelex([], { profile: '' }),
+    /must be a non-empty string/u,
+  );
+});
+
 test('accepts tolerant syntax and exposes that it is non-canonical', () => {
   const input = 'telex.aes=0\r\n\r\nkind=string\r\npath=$.x\r\nvalue=\\u{000041}\r\n';
   const parsed = parseTelex(input);
@@ -138,6 +207,8 @@ test('supports an empty stream', () => {
   assert.equal(encodeTelex([]), 'telex.aes=0\n');
   assert.deepEqual(parseTelex('telex.aes=0\n'), {
     version: '0',
+    profile: DEFAULT_TELEX_PROFILE,
+    profileExplicit: false,
     records: [],
     canonical: true,
   });
