@@ -2,20 +2,54 @@
 
 Status: living working list
 
-Updated: 2026-09-04
+Updated: 2026-09-05
 
-This file records AES decisions and implementation findings that require work
-outside this repository. It is intentionally broader than the Telex Draft 0
-decision-gate list. Completing a Telex syntax codec does not complete these
-items.
+## Scope
+
+This file tracks changes required across the AEON ecosystem as a result of the
+portable AES event model currently being exercised by Telex. Telex is the
+change driver, not the subject of this checklist.
+
+In scope are shared contracts, language implementations, validators, query and
+editing systems, operation and persistence layers, compatibility, CTS, and
+rollout. Telex wire syntax, parsing, encoding profiles, and implementation
+milestones are out of scope and remain in the Telex specification and
+repository-local conformance notes.
 
 Checkboxes describe implementation or specification work. Checked decision
 statements are the current AES design baseline, not claims that every ecosystem
 component already conforms.
 
-## 1. Structural identity
+## 0. Ecosystem release gates
 
-### Confirmed model
+Do not enable producers to write the revised event shape to durable or shared
+surfaces until these gates are complete.
+
+- [ ] Resolve the structural-identity contradiction between the AEON grammar
+  and shared CTS. The grammar permits identity on attribute-entry and node
+  heads, while current negative CTS cases require implementations to reject
+  those locations.
+- [ ] Publish one transport-neutral portable AES event contract covering path,
+  kind, value, datatype, identity, attributes, ordering, and provenance.
+- [ ] Define the bidirectional mapping between AEON source paths and portable
+  AES event paths, including reference target payloads.
+- [ ] Decide whether `aeon:header` participates in the portable event stream,
+  is carried in a separate control-plane envelope, or is excluded.
+- [ ] Define the source/origin identity required to make byte spans durable and
+  portable.
+- [ ] Define an ecosystem-visible version or profile discriminator so legacy
+  and revised AES records cannot be confused. Its name must not depend on a
+  particular wire encoding.
+- [ ] Land shared CTS coverage for the agreed contract before implementations
+  claim support.
+- [ ] Define reader-first compatibility rules before any producer emits the
+  revised shape into durable stores or cross-service interfaces.
+
+## 1. Contract changes
+
+### 1.1 Structural identity
+
+#### Confirmed baseline
 
 - [x] Carry an optional structural occurrence identity as `identity` on the
   flat event that represents the headed occurrence.
@@ -28,42 +62,40 @@ component already conforms.
 - [x] Put a node binding identity on the outer `node` event and a node-head
   identity on its indexed `node-head` event.
 
-### TypeScript deficiencies found
+#### Specification and CTS
 
-- [ ] Add `structuralId` to `NodeLiteral`. The AEON grammar permits structural
-  identity after a node tag, but the TypeScript AST currently has no field for
-  it and `parseNode()` does not consume it.
-- [ ] Add `structuralId` to `AttributeValue`. The grammar permits structural
-  identity after an attribute-entry key, but the TypeScript attribute parser
-  currently skips that position.
-- [ ] Preserve attribute-entry identity through the TypeScript AES projection;
-  its current `AttributeEntry` surface carries value, datatype, and nested
-  attributes but no structural identity.
-- [ ] Audit canonical rendering, finalization, cloning, mode conversion, JSON
-  projection, and mutation helpers for places that manufacture
-  `structuralId: null` or otherwise drop an existing identity.
-- [ ] Add parser and round-trip tests for identities on ordinary bindings,
-  attribute entries, anonymous child heads, and node heads.
-- [ ] Add document-wide duplicate-identity tests spanning all four supported
-  head locations, rather than checking each location in isolation.
-- [ ] Add AES flattening tests proving the identity locations `$.a`,
-  `$.a.@.x`, `$.a[0]`, and `$.a[0][0]` are preserved independently.
+- [ ] Replace the shared CTS cases that reject identity on attribute-entry and
+  node heads with positive preservation cases matching the AEON grammar.
+- [ ] Define one portable identity grammar and one document-wide uniqueness
+  rule across ordinary bindings, attribute entries, anonymous child heads, and
+  node heads.
+- [ ] Add duplicate-identity tests spanning all four head locations rather
+  than testing each location in isolation.
+- [ ] Add projection cases proving the identities at `$.a`, `$.a.@.x`,
+  `$.a[0]`, and `$.a[0][0]` are preserved independently.
 
-### Cross-implementation work
+#### Implementation work
 
-- [ ] Audit the Rust and Python AST/event surfaces for all structural-identity
-  locations. The initial inventory found no event-level parity with the recent
-  TypeScript field.
-- [ ] Define one portable identity grammar and uniqueness rule in the AES/AEON
-  specifications and add shared CTS vectors.
-- [ ] Verify that SANSA projections, SO plans, ASP operations, and AES-DB
-  records preserve identity without treating it as path identity.
-- [ ] Define compatibility behavior for stored events created before a profile
-  required stable structural identity.
+- [ ] TypeScript: add `structuralId` to `NodeLiteral` and consume identity
+  after the node tag.
+- [ ] TypeScript: add `structuralId` to `AttributeValue` and consume identity
+  after the attribute-entry key.
+- [ ] TypeScript: preserve attribute-entry identity through AES projection.
+- [ ] TypeScript: audit canonical rendering, finalization, cloning, mode
+  conversion, JSON projection, and mutation helpers for manufactured
+  `structuralId: null` values or dropped identities.
+- [ ] Rust: retain the existing ordinary-binding and anonymous-head support;
+  add and verify attribute-entry and node-head identity support.
+- [ ] Python: retain the existing ordinary-binding and anonymous-head support;
+  add and verify attribute-entry and node-head identity support.
+- [ ] PHP: inventory and implement all four identity locations in its AST,
+  event projection, serialization, and validation surfaces.
+- [ ] Verify SANSA projections, SO plans, ASP operations, and AES-DB records
+  preserve identity without treating it as path identity.
 
-## 2. Node projection
+### 1.2 Node projection and paths
 
-### Confirmed model
+#### Confirmed baseline
 
 - [x] Represent a node as a value-less ordered `node` container.
 - [x] Represent each node head as an indexed `node-head` event carrying its tag
@@ -71,61 +103,51 @@ component already conforms.
 - [x] Current AEON produces one head at `[0]`; its content begins below that
   head at `[0][0]`, `[0][1]`, and so on.
 - [x] Keep AES structurally capable of representing zero or multiple heads so
-  future forms equivalent to `<>` and `<<tag>, <tag>>` do not require a new
-  event model.
+  future node forms do not require another event-model change.
 - [x] Keep binding-head metadata on the outer `node` event and node-head
   metadata on the indexed `node-head` event.
 
-### Required ecosystem changes
+#### Required ecosystem work
 
-- [ ] Update AEON-to-AES adapters to expand the current single `NodeLiteral`
-  event into a `node` event, a `node-head` event, and recursively flattened
+- [ ] Update TypeScript, Rust, Python, and PHP AEON-to-AES adapters to expand a
+  `NodeLiteral` into an outer `node`, a `node-head`, and recursively flattened
   content events.
-- [ ] Give the node tag/head its own narrow source span in ASTs that currently
-  expose only the span of the complete node literal.
+- [ ] Define AEON source-path to portable event-path translation for node
+  descendants; the old first child path must never be silently reinterpreted
+  as the new node-head path.
+- [ ] Define translation and validation for clone-reference and
+  pointer-reference target payloads across the additional node path level.
+- [ ] Apply the same mapping to SANSA selections, Tonics edit addresses, SO/ASP
+  mutation targets, diagnostics, and any public SDK navigation APIs.
+- [ ] Give the node tag/head its own source span in ASTs that currently expose
+  only the complete node-literal span, and define exactly which tokens the head
+  span covers.
 - [ ] Update portable kind registries and validators to add `node-head` and make
   `node` value-less.
 - [ ] Update SANSA structural navigation and parent/container compatibility for
   `node[head-index][content-index]`.
-- [ ] Update reference validation and materialization for the additional node
-  path level.
-- [ ] Update AEOS datatype and cardinality validation: current AEON requires
-  exactly one head, while Telex syntax itself does not impose that profile.
-- [ ] Update Tonics and editing tools that currently address node-head metadata
-  through node-specific commands or the old child paths.
-- [ ] Add nested-node, attributed-head, typed-head, empty-node, and multi-head
-  conformance vectors.
+- [ ] Update AEOS datatype and cardinality validation for the AEON requirement
+  of exactly one node head.
+- [ ] Update Tonics and other editing tools that address node-head metadata
+  through node-specific commands or legacy child paths.
 
-### Stored-data compatibility
-
-- [ ] Define a versioned compatibility projection from legacy
-  `kind=node,value=tag` records to outer `node` plus indexed `node-head`
-  records.
-- [ ] Do not silently reinterpret old numeric node-child paths as new
-  node-head paths.
-- [ ] Rebuild or invalidate AES-DB path, datatype, attribute, reference, and
-  ordered-child indexes affected by node path expansion.
-- [ ] Verify subtree moves, deletion, replay, snapshots, checkpoints, backup,
-  restore, and compaction preserve the new node-head occurrence.
-- [ ] Decide whether durable history remains in its original profile with a
-  read-time compatibility view or is migrated into a new versioned store.
-
-## 3. Flat attributes and descendants
+### 1.3 Flat attributes and descendants
 
 - [x] Emit attribute values as ordinary flat events at canonical paths
   containing `.@`; do not embed attribute maps in the portable AES event.
 - [x] Apply the same event shape recursively to nested attributes, object
-  members, indexed values items, node heads, and node content.
+  members, indexed values, node heads, and node content.
 - [x] Leave attribute ownership and scope interpretation to SANSA and
   downstream consumers.
-- [ ] Replace embedded attribute maps in existing AES adapters and transport
-  surfaces with flat event projection or an explicit compatibility adapter.
-- [ ] Verify prefix-completeness and container-compatibility rules for attribute
-  paths without synthesizing phantom parent bindings.
-- [ ] Add duplicate-path and nested-attribute CTS cases across all supported
-  parent kinds.
+- [ ] Replace embedded attribute maps in TypeScript, Rust, Python, and PHP AES
+  adapters and transport surfaces with flat projection or an explicit legacy
+  compatibility adapter.
+- [ ] Verify prefix-completeness and container-compatibility rules for
+  attribute paths without synthesizing phantom parent bindings.
+- [ ] Update SANSA, SO, ASP, AES-DB, validators, SDKs, and editing tools that
+  currently expect attributes to be nested inside a parent event.
 
-## 4. Datatypes and values
+### 1.4 Datatypes and values
 
 - [x] Carry the complete canonical datatype descriptor, including generic
   arguments and clarifiers, without the AEON `:`.
@@ -136,112 +158,186 @@ component already conforms.
 - [x] Normalize trimtick content before AES and transport it as `kind=string`;
   delimiter width and indentation are source mechanics.
 - [x] Add `wtc` as a distinct temporal kind.
+- [x] Use lowercase `local` for WTC local temporal anchors.
+- [x] Treat `conflictAuthority` as a consumer responsibility, not document or
+  AES event authority.
 - [x] Do not transport exact AEON lexemes or a generic representation field.
-- [ ] Reconcile TypeScript, Rust, Python, ASP, AEOS, and CTS value-kind names and
-  canonical payload rules with the portable table.
+- [ ] Reconcile TypeScript, Rust, Python, PHP, ASP, AEOS, and CTS value-kind
+  names and canonical payload rules with the portable table.
+- [ ] Add WTC cases covering the three temporal anchor forms and local, named,
+  and geographic references without introducing `conflictAuthority` into the
+  portable event contract.
+- [ ] Verify canonical payloads and semantic hashes preserve recognized value
+  distinctions, including temporal distinctions, while excluding source-only
+  spelling.
 - [ ] Remove dependencies on implementation AST class names, raw tokens, and
   nested value trees at portable boundaries.
-- [ ] Add positive and negative conformance vectors for every kind and its
-  allowed/required fields.
-- [ ] Verify semantic hashes exclude source-only spelling while preserving all
-  recognized AES value distinctions.
 
-## 5. Spans and provenance
+### 1.5 Spans and provenance
 
-### Confirmed direction
+#### Confirmed direction
 
 - [x] Use zero-based UTF-8 byte offsets with an inclusive start and exclusive
   end.
-- [x] Transport the compact form `span=start:end`; do not transport derived
-  line and column coordinates.
+- [x] Transport `span=start:end`; do not transport derived line and column
+  coordinates.
 - [x] Omit spans for events without source evidence and never fabricate a zero
   span.
 
-### Findings and work
+#### Required ecosystem work
 
-- [ ] Correct or replace the TypeScript lexer claim that its current offset is
-  a byte offset. JavaScript string indexing currently makes it a UTF-16 code
-  unit offset.
-- [ ] Convert TypeScript UTF-16 positions to UTF-8 byte offsets at the portable
-  AES boundary, or change the lexer while preserving compatibility for existing
-  consumers.
-- [ ] Convert Python code-point offsets to UTF-8 byte offsets at the portable
-  AES boundary.
-- [ ] Verify Rust byte offsets and Unicode-scalar columns against shared
-  non-ASCII fixtures.
-- [ ] Update the AEON span appendix and CTS protocol, which currently use
-  ambiguous or character-based offset language.
+- [ ] Define the portable source/origin identity contract. A durable byte span
+  must refer to an immutable source revision, digest, or equivalent stable
+  identifier.
 - [ ] Define whether offsets include an accepted UTF-8 BOM and always measure
   against the exact, unnormalized source resource.
 - [ ] Require span endpoints to fall on UTF-8 scalar boundaries.
 - [ ] Derive line and column only when the identified source bytes are
   available.
-- [ ] Decide the portable source/origin identity contract. A durable byte span
-  must refer to an immutable source revision, digest, or equivalent stable
-  source identifier.
-- [ ] Align Telex provenance with the existing ASP `origin` shape, which already
+- [ ] TypeScript: correct or replace the lexer claim that its UTF-16 string
+  index is a byte offset, and convert positions at the portable boundary.
+- [ ] Python: convert code-point offsets to UTF-8 byte offsets at the portable
+  boundary.
+- [ ] Rust: verify byte offsets and Unicode-scalar columns against shared
+  non-ASCII fixtures.
+- [ ] PHP: establish its current offset unit and convert it at the portable
+  boundary where necessary.
+- [ ] Update the AEON span appendix and CTS protocol, which currently use
+  ambiguous or character-based offset language.
+- [ ] Align portable provenance with the existing ASP `origin` shape, which
   carries `kind`, `source_id`, and `{start,end}`.
-- [ ] Version persisted ASP/AES-DB records whose span units or checksummed bytes
-  change; do not rewrite historical logs silently.
 - [ ] Ensure SO uses spans only for diagnostics, audit, and provenance—not
   identity, ordering, mutation preconditions, or semantic decisions.
 
-## 6. SO, ASP, and AES-DB integration
+### 1.6 AEON headers and control-plane metadata
 
-- [ ] Add an explicit portable-AES adapter at the SO/ASP boundary instead of
-  treating current TypeScript AST-shaped values as the interchange contract.
-- [ ] Update SO candidate construction and validation for flat attributes and
-  expanded node paths.
-- [ ] Update ASP codecs and operations to preserve `kind`, canonical `value`,
-  `datatype`, `identity`, and provenance without rebuilding source lexemes.
-- [ ] Update AES-DB reconstruction and materialization for value-less
-  containers and explicit descendant events.
-- [ ] Verify stable-order planning treats the node-head container and each
-  node-head content sequence as distinct ordering scopes.
-- [ ] Ensure generated SO/ASP/AES-DB events omit `span` unless they retain
-  genuine source evidence.
-- [ ] Keep AES-DB semantic-policy neutral: it stores and reconstructs the AES
-  contract but does not infer datatypes, resolve references, or interpret
+- [ ] Inventory how TypeScript, Rust, Python, and PHP currently expose
+  `aeon:header` and shorthand `aeon:*` fields through AES.
+- [ ] Decide whether headers are document events, a separate control-plane
+  envelope, or excluded from portable AES.
+- [ ] Define how the decision affects document completeness, ordering,
+  round-trip behavior, semantic hashes, signatures, and profile selection.
+- [ ] Add shared fixtures for structured headers, shorthand headers, header
+  conflicts, and body-only streams.
+
+## 2. Repository and component work
+
+### Specifications and conformance
+
+- [ ] `aeonite-specs`: update the canonical AES specification, which currently
+  describes implementation-shaped AST values, required source spans, and
+  embedded attributes.
+- [ ] `aeonite-specs`: update AEON node, structural-identity, span, reference,
+  datatype, and WTC projection requirements.
+- [ ] `aeonite-cts`: replace contradictory identity vectors and add portable
+  event-local, complete-stream, path, value, and provenance suites.
+- [ ] `aeonite-cts`: require at least two independent implementations to pass
+  each portable contract before promotion.
+
+### Language implementations and public surfaces
+
+- [ ] `altopelago/aeon`: update TypeScript, Rust, and Python parsers, ASTs,
+  flatteners, materializers, SDKs, CLIs, and JSON/debug projections.
+- [ ] `altopelago/aeon-php`: implement the same portable contract and shared
+  CTS coverage rather than treating PHP as a later compatibility exercise.
+- [ ] `altopelago/aeon-validator`: update validation and diagnostics for the
+  revised event shape and path model.
+- [ ] `altopelago/aeon-tooling`: inventory commands and interchange surfaces
+  that consume or emit AES-shaped JSON.
+- [ ] `altopelago/aeon-tonics`: update canonical rendering, formatting,
+  conversion, editing addresses, and node/attribute handling.
+
+### Semantic, operational, and persistence consumers
+
+- [ ] SANSA: update structural navigation, ownership, scope, reference
+  resolution, and source-path/event-path translation.
+- [ ] AEOS: update datatype, cardinality, kind, node-head, and WTC validation.
+- [ ] SO: add an explicit portable-AES adapter instead of treating current
+  TypeScript AST-shaped values as the interchange contract.
+- [ ] SO: update candidate construction, validation, stable-order scopes, and
+  path-addressed operations for flat attributes and expanded nodes.
+- [ ] ASP: preserve kind, canonical value, datatype, identity, and provenance
+  without rebuilding source lexemes.
+- [ ] ASP: update operations and origin handling for expanded paths and
+  source-backed spans.
+- [ ] AES-DB: reconstruct value-less containers and explicit descendants while
+  remaining neutral on datatype inference, reference resolution, and
   value-family semantics.
-- [ ] Add an end-to-end fixture covering AEON source -> portable AES -> SO ->
-  ASP -> AES-DB -> reconstructed portable AES.
+- [ ] Audit relays, canonicalizers, signing paths, and durable codecs for
+  assumptions about the legacy event shape.
 
-## 7. Specifications, CTS, and rollout
+## 3. Compatibility and stored-data migration
 
-- [ ] Add an explicit AES projection requirement to `aeon.gp.profile.v1` by
-  referencing `aes.telex.v0`; do not duplicate its normative structural rules
-  in the AEON GP contract. Telex selects the same complete profile when its
-  stream header omits `profile`.
-- [ ] Audit relays, canonicalizers, durable codecs, and signing paths to ensure
-  unknown Telex fields are preserved or rejected, never silently discarded.
-- [ ] Register exact extension fields in negotiated profiles and reject all
-  unregistered `x.*` fields at semantic boundaries.
-- [ ] Define separate signature profiles for canonical semantic projections
-  and exact-order ledger streams; do not make Telex canonicalization reorder
-  events implicitly.
-- [ ] Ensure hashing and signature implementations bind the selected AES
-  profile and order policy so signatures from different projections cannot be
-  confused.
-- [ ] Update the canonical AES specification, which currently describes an
-  implementation-shaped `ASTValue`, required source span, and embedded
-  attributes.
-- [ ] Update AEON node and structural-identity specifications to match the
-  implemented grammar and the portable AES projection.
-- [ ] Publish `aes.telex.v0` (complete and the default) and `aes.raw.v0`
-  (explicitly unconstrained) so legacy and portable AES records cannot be
-  confused.
-- [ ] Port the reference event-local and complete-stream validation diagnostics
-  into the shared CTS; ensure raw-profile consumers retain event validity while
-  relaxing only cross-event constraints.
-- [ ] Connect canonical datatype, SANSA-address, numeric, temporal, and other
-  value-family validators when their owning portable contracts are published;
-  do not copy one AEON implementation's grammar into AES.
-- [ ] Define reader-first rollout and compatibility rules before any producer
-  emits the new node projection into durable stores.
-- [ ] Add shared Telex fixtures and require at least two independent
-  implementations before Draft 1.
-- [x] Add repository-local Draft 0 Telex vectors and run them against the
-  JavaScript reference implementation before promotion into shared CTS.
-- [x] Add an independent Rust Telex implementation and run the same mutable
-  Draft 0 vectors against both implementations.
-- [ ] Review every completed decision gate for additions to this checklist.
+- [ ] Define a versioned compatibility projection from legacy
+  `kind=node,value=tag` records to an outer `node` plus indexed `node-head`.
+- [ ] Define compatibility behavior for stored events created before stable
+  structural identity was required.
+- [ ] Preserve legacy numeric node-child meaning; do not reinterpret it as a
+  node-head path without an explicit versioned projection.
+- [ ] Decide whether durable history remains in its original contract with a
+  read-time compatibility view or is migrated into a new versioned store.
+- [ ] Rebuild or invalidate AES-DB path, datatype, attribute, reference, and
+  ordered-child indexes affected by the revised projection.
+- [ ] Version persisted ASP/AES-DB records whose span units or checksummed
+  source bytes change; do not silently rewrite historical logs.
+- [ ] Verify subtree moves, deletion, replay, snapshots, checkpoints, backup,
+  restore, and compaction preserve node-head and identity occurrences.
+- [ ] Define the semantic-losslessness guarantee at the portable boundary.
+  Exact source reconstruction requires retained source/provenance and must not
+  be implied by a semantic event round trip alone.
+- [ ] Define separate signature policies for canonical semantic projections
+  and exact-order ledger streams.
+- [ ] Ensure hashes and signatures bind the selected portable contract version
+  and ordering policy so incompatible projections cannot be confused.
+
+## 4. Cross-repository acceptance tests
+
+- [ ] Structural identity: all four head locations, document-wide duplicates,
+  and preservation through every supported language and consumer adapter.
+- [ ] Nodes: nested, attributed, typed, empty, and multiple-head event streams;
+  AEON-facing profiles must still enforce exactly one head.
+- [ ] Paths and references: round trips across legacy and revised node paths,
+  with no target silently changing meaning.
+- [ ] Attributes: nested attribute descendants, duplicate paths,
+  prefix-completeness, and container compatibility.
+- [ ] Values: positive and negative cases for every kind and its
+  allowed/required fields, including WTC anchor/reference variants.
+- [ ] Spans: ASCII, non-ASCII, combining characters, astral characters, BOM,
+  and absent-source fixtures across TypeScript, Rust, Python, and PHP.
+- [ ] Headers: structured, shorthand, conflicting, and body-only inputs under
+  the chosen control-plane policy.
+- [ ] End to end: AEON source -> portable AES -> SO -> ASP -> AES-DB ->
+  reconstructed portable AES.
+- [ ] Compatibility: legacy readers reject or explicitly adapt revised records
+  and revised readers accept supported legacy records without ambiguity.
+
+## 5. Rollout sequence
+
+- [ ] Phase 1 — freeze and publish the transport-neutral event contract and
+  its version discriminator.
+- [ ] Phase 2 — update `aeonite-specs` and land shared CTS vectors.
+- [ ] Phase 3 — ship compatibility readers/adapters in TypeScript, Rust,
+  Python, and PHP while producers retain the legacy shape.
+- [ ] Phase 4 — update SANSA, AEOS, Tonics, validators, SDKs, SO, ASP, AES-DB,
+  relays, canonicalizers, and signing/hashing consumers.
+- [ ] Phase 5 — provide versioned read views or migrations for persisted data,
+  then rebuild or invalidate affected indexes.
+- [ ] Phase 6 — run the cross-repository acceptance suite and verify mixed
+  legacy/revised deployments.
+- [ ] Phase 7 — enable revised producers only after all required readers and
+  durable consumers have passed compatibility checks.
+- [ ] Review every completed ecosystem decision for additional repository,
+  migration, and CTS work before closing the rollout.
+
+## Deferred: Telex-specific work
+
+The following belongs to the Telex specification and repository-local work,
+not this ecosystem sweep:
+
+- Wire grammar, separators, escaping, BOM handling, and exact serialization.
+- Telex-specific stream headers, extension-field negotiation, and codec
+  versioning.
+- Telex raw/complete validation modes and their names.
+- JavaScript/Rust Telex codec parity and Draft 0 implementation milestones.
+- Telex fixture promotion except where a fixture becomes a transport-neutral
+  AES or shared CTS case.
