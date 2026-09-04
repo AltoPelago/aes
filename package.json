@@ -1,0 +1,12 @@
+{
+  "name": "@altopelago/aes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AES specifications and experimental Telex syntax codec",
+  "scripts": {
+    "test": "node --test"
+  },
+  "license": "MIT"
+}
+
