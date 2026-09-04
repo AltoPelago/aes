@@ -31,6 +31,9 @@ This is a spec-first bootstrap. Nothing in this repository is normative yet.
 - [Current event-model inventory](notes/current-event-model.md) records the
   differences that exist across the current TypeScript, Rust, and Python AEON
   implementations.
+- [AES ecosystem impact checklist](notes/ecosystem-impact-todo.md) tracks
+  specification, implementation, conformance, and migration work caused by the
+  portable event-model decisions.
 - [`src/telex.js`](src/telex.js) is a dependency-free syntax codec. It proves
   that the framing can be parsed and produced with a very small implementation;
   it deliberately does not decide AES value semantics.
