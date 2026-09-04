@@ -61,8 +61,8 @@ The Aeonic Semantic Language will centralize the shared meaning of AES values:
 equality, comparison, ordering, conversion, measurement, and later arithmetic.
 It is downstream of value recognition and shared by AEOS, SANSA, Tonics,
 storage, and other consumers. Its specification is a later repository stage;
-Telex only needs the representation vocabulary required to carry values
-without ambiguity.
+Telex only needs the value-kind vocabulary required to carry values without
+ambiguity.
 
 ## Roadmap
 

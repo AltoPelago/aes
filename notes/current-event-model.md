@@ -62,7 +62,12 @@ The portable profile needs explicit decisions for:
 
 Draft 0 does not transport source lexemes. Exact token spelling remains in the
 source and may be recovered through provenance; portable AES retains only the
-recognized value and representation distinctions.
+recognized value-kind, datatype, and payload distinctions.
+
+The complete canonical datatype descriptor is carried in one `datatype` field.
+Generic arguments and clarifiers stay on the declaring event and are not
+inferred onto descendants. Clone and pointer references use distinct kinds with
+the same canonical target-path payload shape.
 
 ## Recommended boundary
 

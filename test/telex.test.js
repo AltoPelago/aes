@@ -45,6 +45,14 @@ test('preserves Unicode and escapes control scalars', () => {
   assert.equal(parseTelex(encoded).records[0].value, '🌊\u0001');
 });
 
+test('keeps clone and pointer references distinct through kind', () => {
+  const records = [
+    { path: '$.copy', kind: 'clone-reference', value: '$.source' },
+    { path: '$.alias', kind: 'pointer-reference', value: '$.source' },
+  ];
+  assert.deepEqual(parseTelex(encodeTelex(records)).records, records);
+});
+
 test('accepts tolerant syntax and exposes that it is non-canonical', () => {
   const input = 'telex.aes=0\r\n\r\nkind=string\r\npath=$.x\r\nvalue=\\u{000041}\r\n';
   const parsed = parseTelex(input);

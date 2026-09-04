@@ -9,7 +9,6 @@ path=$.customer.name
 kind=string
 datatype=string
 value=Alice
-representation=quoted
 span=2:3:22-2:24:43
 
 path=$.customer.balance

@@ -33,7 +33,7 @@ Telex should be:
 - expressible as flat `field=value` lines;
 - deterministic in canonical form;
 - independent of JSON and host-language data models;
-- explicit about value kind and representation;
+- explicit about value kind and declared datatype;
 - able to carry all information in the portable AES event contract; and
 - small enough that a syntax implementation can be audited end to end.
 
@@ -65,7 +65,6 @@ path=$.customer.name
 kind=string
 datatype=string
 value=Alice
-representation=quoted
 span=2:3:22-2:24:43
 
 path=$.customer.balance
@@ -152,12 +151,11 @@ with the AES specification and the implementations before promotion.
 | Field | Presence | Meaning |
 | --- | --- | --- |
 | `path` | required | canonical SANSA data address of the binding |
-| `kind` | required | portable representation kind token |
-| `span` | required for source events | original source range |
+| `kind` | required | portable value-kind token |
 | `datatype` | optional | declared datatype, without inference |
 | `identity` | optional | structural identity carried by the binding |
 | `value` | kind-dependent | decoded textual payload |
-| `representation` | kind-dependent | representation detail not captured by `kind` |
+| `span` | required for source events | original source range |
 
 Every stanza after the preamble is an AES event. Draft 0 therefore has no
 `event=assignment` discriminator. Adding the same constant to every stanza
@@ -169,7 +167,33 @@ would not carry information.
 The stream order is the AES event order. An encoder MUST NOT sort events by
 path.
 
-### 5.2 Spans
+### 5.2 Datatypes
+
+`datatype` carries the complete canonical datatype descriptor as one textual
+payload. It is not limited to a bare type name.
+
+For example:
+
+```text
+datatype=csv["."]
+datatype=list<int>
+datatype=null<string>
+```
+
+The AEON binding `:` is not part of the descriptor. Generic arguments and
+clarifiers are retained in their canonical form because they are declared
+semantic claims, not source formatting.
+
+A datatype remains only on the event where it was declared. AES does not infer
+or propagate `int` from `list<int>` onto the list's child events. Interpreting a
+container generic, validating it against descendants, or assigning inherited
+meaning is downstream work.
+
+Telex treats the descriptor as a payload. Its grammar and canonical rendering
+belong to the portable AES/Aeonic type contract rather than the Telex framing
+grammar.
+
+### 5.3 Spans
 
 The candidate span form is:
 
@@ -189,7 +213,7 @@ not invent a zero span and imply source evidence that does not exist. The likely
 direction is an optional `origin` field plus omission of `span`, but that is not
 fixed in this draft.
 
-### 5.3 Representation kinds
+### 5.4 Value kinds
 
 The initial vocabulary to reconcile is:
 
@@ -222,15 +246,32 @@ item follows as an event at its own descendant canonical path. The same rule
 applies recursively to object members, list and tuple elements, node children,
 and values reached through attribute address spaces.
 
-A node additionally needs `node.tag` and may need `node.datatype`. References
-need a canonical `target`. Null reasons and other kind-specific information need
-fixed fields rather than inference from the payload.
+A node uses `value` for its tag. A reference uses `value` for its canonical
+target path. Nulls use `value` for their recognized sentinel or decoded custom
+reason. No kind introduces a kind-specific field name.
+
+Clone and pointer references remain distinct kinds even when they target the
+same canonical path:
+
+```text
+path=$.copy
+kind=clone-reference
+value=$.source
+
+path=$.alias
+kind=pointer-reference
+value=$.source
+```
+
+The AEON `~` and `~>` sigils are not retained in `value`; their distinction is
+carried by `kind`. A Telex decoder preserves the symbolic reference and does not
+resolve or materialize it.
 
 The exact per-kind field table belongs to the portable AES value-representation
 contract, not to the generic line parser. It is the largest unfinished part of
 this draft.
 
-### 5.4 Flat structure and attributes
+### 5.5 Flat structure and attributes
 
 AES has one flat event model. It does not embed attribute collections inside an
 owning event and Telex does not have an attribute-specific payload grammar.
@@ -251,8 +292,8 @@ $.a.@.a.b
 $.a.@.a.b.@.a
 ```
 
-Each event uses the same `path`, `kind`, datatype, identity, value,
-representation, and provenance fields as any other event.
+Each event uses the same `path`, `kind`, datatype, identity, value, and
+provenance fields as any other event.
 
 The `.@` segment is part of the canonical path. Telex preserves it but does not
 interpret attribute ownership or scope. SANSA and downstream consumers own
@@ -262,14 +303,14 @@ indexed elements, and node children.
 Telex preserves event order exactly. It does not derive a new order from path
 structure and it never groups, sorts, or nests attribute-space events.
 
-### 5.5 Source lexemes
+### 5.6 Source lexemes
 
 AES does not carry the exact original source token or a `lexeme` field.
 
-`kind`, `value`, and any required representation field preserve the recognized
-value distinctions. Quote choice, escape spelling, numeric separators, and
-other source-authoring details remain in the original source. Source-aware
-tooling may recover them through provenance and spans.
+`kind`, `datatype`, and `value` preserve the recognized value distinctions.
+Quote choice, escape spelling, numeric separators, and other source-authoring
+details remain in the original source. Source-aware tooling may recover them
+through provenance and spans.
 
 This boundary prevents canonical Telex bytes from changing merely because two
 sources use different spellings for the same portable AES value.
@@ -295,7 +336,6 @@ kind
 datatype
 identity
 value
-representation
 span
 ```
 

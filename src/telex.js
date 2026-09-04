@@ -6,7 +6,6 @@ const CORE_FIELD_ORDER = new Map([
   'datatype',
   'identity',
   'value',
-  'representation',
   'span',
 ].map((field, index) => [field, index]));
 
