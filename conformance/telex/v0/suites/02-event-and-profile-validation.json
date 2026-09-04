@@ -17,7 +17,7 @@
       "description": "The implicit complete profile accepts flat objects, attributes, lists, nodes, and node content",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.a\nkind=object\nidentity=root-a\n\npath=$.a.@.source\nkind=string\nvalue=fixture\n\npath=$.a.items\nkind=list\n\npath=$.a.items[0]\nkind=node\n\npath=$.a.items[0][0]\nkind=node-head\nvalue=tag\n\npath=$.a.items[0][0][0]\nkind=boolean\nvalue=true\n"
+        "telex": "telex.aes=0\n\npath=$.a\nkind=object\nidentity=root-a\n\npath=$.a.@.source\nkind=string\nvalue=fixture\n\npath=$.a.items\nkind=list\n\npath=$.a.items[0]\nkind=node\n\npath=$.a.items[0][0]\nkind=node-head\nvalue=tag\n\npath=$.a.items[0][0][0]\nkind=boolean\nvalue=true\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=8:12\n"
       },
       "expected": {
         "valid": true,
@@ -199,7 +199,7 @@
       "description": "A source span is an ordered pair of canonical byte offsets",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=number\nvalue=1\nspan=4:2\n"
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=number\nvalue=1\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=4:2\n"
       },
       "expected": {
         "valid": false,
@@ -362,6 +362,48 @@
         "diagnostic_codes": ["AES_MISSING_PARENT"]
       },
       "tags": ["validation", "projection", "header", "partial", "failure"]
+    },
+    {
+      "id": "telex-profile-026-span-requires-origin",
+      "description": "A byte span without immutable source identity is not portable",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=number\nvalue=1\nspan=0:1\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v0",
+        "diagnostic_codes": ["AES_SPAN_REQUIRES_ORIGIN"]
+      },
+      "tags": ["validation", "provenance", "span", "failure"]
+    },
+    {
+      "id": "telex-profile-027-origin-without-span",
+      "description": "A record may identify its exact source even when no exact byte range is known",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=number\nvalue=1\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.partial.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "provenance", "origin"]
+    },
+    {
+      "id": "telex-profile-028-origin-canonical-form",
+      "description": "Draft 0 origins require an exact lowercase SHA-256 digest payload",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.short\nkind=number\nvalue=1\norigin=sha256:abc\n\npath=$.upper\nkind=number\nvalue=2\norigin=sha256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v0",
+        "diagnostic_codes": ["AES_INVALID_ORIGIN", "AES_INVALID_ORIGIN"]
+      },
+      "tags": ["validation", "provenance", "origin", "canonical", "failure"]
     }
   ]
 }

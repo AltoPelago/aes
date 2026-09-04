@@ -42,7 +42,9 @@ This is a spec-first bootstrap. Nothing in this repository is normative yet.
   validation. `validateTelex` and `validateTelexRecords` apply the event-local
   Draft 0 rules and the selected profile's structural checks. AEON headers are
   absent by default; `projection=aeon.document.v0` explicitly enables flat
-  `header=` control records in a separate address plane.
+  `header=` control records in a separate address plane. Optional provenance
+  uses a record-local `origin=sha256:<digest>` and permits `span` only alongside
+  that origin.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early
   illustrative stream, not a frozen conformance vector.
 - [`conformance/`](conformance/README.md) contains language-neutral Draft 0

@@ -82,9 +82,12 @@ not preclude future empty or multi-headed node profiles.
 
 Portable spans use only an inclusive start and exclusive end measured as
 zero-based UTF-8 byte offsets. Line and column coordinates are derived rather
-than transported. Source-less events omit the span instead of manufacturing a
-zero location; identifying the immutable source resource remains part of the
-provenance decision.
+than transported. Both provenance fields are optional. A source-less record
+omits both; a known source may carry `origin` alone; and `span` is valid only
+with `origin`. Draft 0 identifies the exact, unnormalized source bytes with a
+record-local `sha256:<64 lowercase hex>` digest, including any accepted source
+BOM and original line endings. This keeps multi-source streams flat and lets
+Film compress repeated origins later.
 
 Event order remains producer-profile dependent and is always preserved by
 Telex. Canonical AEON document projection uses depth-first preorder, while a

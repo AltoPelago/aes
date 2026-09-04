@@ -3,16 +3,19 @@ telex.aes=0
 path=$.customer
 kind=object
 datatype=object
+origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 span=0:73
 
 path=$.customer.name
 kind=string
 datatype=string
 value=Alice
+origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 span=22:43
 
 path=$.customer.balance
 kind=radix
 datatype=decimal
 value=010.00
+origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 span=46:71

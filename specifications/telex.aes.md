@@ -59,24 +59,29 @@ telex.aes=0
 path=$.customer
 kind=object
 datatype=object
+origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 span=0:73
 
 path=$.customer.name
 kind=string
 datatype=string
 value=Alice
+origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 span=22:43
 
 path=$.customer.balance
 kind=radix
 datatype=decimal
 value=010.00
+origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 span=46:71
 ```
 
 The object event carries its own representation kind. Its children are ordinary
 subsequent events. `value=010.00` is a textual payload whose meaning is fixed by
 `kind=radix` and `datatype=decimal`; it is not parsed as a Telex number.
+The repeated digest is illustrative; a real producer computes it from the exact
+source bytes.
 
 ## 4. Physical format
 
@@ -209,7 +214,8 @@ with the AES specification and the implementations before promotion.
 | `datatype` | optional | declared datatype, without inference |
 | `identity` | optional | structural identity carried by the binding |
 | `value` | kind-dependent | decoded textual payload |
-| `span` | profile-dependent | original source byte range |
+| `origin` | optional | immutable identity of the exact source bytes |
+| `span` | optional; requires `origin` | original source byte range |
 
 Every stanza has exactly one address field: `path` for a body event or
 `header` for a control-plane record defined by an explicit projection. A stanza
@@ -266,12 +272,35 @@ Line and column coordinates are not transported. They are derived diagnostic
 views and different host languages otherwise tend to count bytes, Unicode
 scalars, or UTF-16 code units inconsistently.
 
-A source-backed AES profile requires a span for each event with corresponding
-source evidence. An event created without source text omits `span`; it must not
-invent `0:0` and imply evidence that does not exist. The portable source/origin
-identity contract remains a separate decision. Telex syntax treats `span` as an
-ordinary payload, while an AES event-shape validator enforces this grammar and
-the selected profile.
+Both provenance fields are optional. Their permitted combinations are:
+
+| `origin` | `span` | Meaning |
+| --- | --- | --- |
+| absent | absent | no portable source evidence |
+| present | absent | exact source known, exact record location unknown |
+| present | present | exact source and byte range known |
+| absent | present | invalid |
+
+Draft 0 defines one origin form:
+
+```text
+origin=sha256:<64 lowercase hexadecimal digits>
+```
+
+The digest is computed over the exact, unnormalized source byte sequence.
+Consequently it includes an accepted source BOM, original line endings, and
+every other source byte. It identifies source evidence; it is not a document or
+structural identity. A record-local origin permits one stream to combine
+records derived from different immutable sources without a source table or
+stream-wide assumption. Repetition is intentional in Telex; Film may compress
+repeated origins without changing the AES contract.
+
+A source-backed producer may emit `origin` alone when it cannot establish an
+exact range. A record created without source evidence omits both fields rather
+than inventing `0:0` or a placeholder digest. Telex syntax treats both as
+ordinary payloads, while the AES record-shape validator enforces their grammar
+and dependency. Semantic value hashes exclude `origin` and `span`;
+provenance-aware signature profiles may explicitly include them.
 
 ### 5.4 Value kinds
 
@@ -628,6 +657,8 @@ The reference validators use these stable semantic diagnostic codes:
 | `AES_HEADER_REQUIRES_PROJECTION` | `header` occurs without `aeon.document.v0` |
 | `AES_INVALID_HEADER_PATH` | header address is malformed or lacks its leading quoted `aeon:` member |
 | `AES_HEADER_ORDER` | header record occurs after a body event |
+| `AES_INVALID_ORIGIN` | origin is not a canonical Draft 0 source digest |
+| `AES_SPAN_REQUIRES_ORIGIN` | span occurs without source identity |
 
 ## 6. Canonical form
 
@@ -653,6 +684,7 @@ kind
 datatype
 identity
 value
+origin
 span
 ```
 

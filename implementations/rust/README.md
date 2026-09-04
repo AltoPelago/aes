@@ -6,6 +6,8 @@ canonicalization, and AES profile validation.
 The default stream contains body events only. The optional
 `aeon.document.v0` projection adds flat `header` records in a disjoint address
 plane; it remains independent of the complete/partial AES profile selection.
+Optional source provenance is record-local: `origin` may stand alone, while
+`span` requires a canonical SHA-256 origin.
 
 The library has no runtime dependencies. `serde_json` is a test-only dependency
 used to load the language-neutral vectors from `conformance/telex/v0`.

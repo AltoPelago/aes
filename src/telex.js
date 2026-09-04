@@ -10,6 +10,7 @@ const CORE_FIELD_ORDER = new Map([
   'datatype',
   'identity',
   'value',
+  'origin',
   'span',
 ].map((field, index) => [field, index]));
 const CORE_FIELDS = new Set(CORE_FIELD_ORDER.keys());
@@ -543,7 +544,22 @@ function validateOptionalCoreFields(event, index, diagnostics) {
     }
   }
 
+  if (typeof event.origin === 'string' && !/^sha256:[0-9a-f]{64}$/u.test(event.origin)) {
+    diagnostics.push(diagnostic(
+      'AES_INVALID_ORIGIN',
+      "Origin must be 'sha256:' followed by 64 lowercase hexadecimal digits",
+      { ...context, field: 'origin' },
+    ));
+  }
+
   if (!Object.hasOwn(event, 'span') || typeof event.span !== 'string') return;
+  if (!Object.hasOwn(event, 'origin')) {
+    diagnostics.push(diagnostic(
+      'AES_SPAN_REQUIRES_ORIGIN',
+      "Field 'span' requires source identity in 'origin'",
+      { ...context, field: 'span' },
+    ));
+  }
   const match = event.span.match(/^(0|[1-9][0-9]*):(0|[1-9][0-9]*)$/u);
   if (match === null || BigInt(match[1]) > BigInt(match[2])) {
     diagnostics.push(diagnostic(

@@ -35,8 +35,9 @@ surfaces until these gates are complete.
 - [x] Exclude AEON headers from the default body event stream and carry them
   only through the explicit, encoding-neutral `aeon.document.v0` projection,
   using flat `header` records in a disjoint control-plane address space.
-- [ ] Define the source/origin identity required to make byte spans durable and
-  portable.
+- [x] Make `origin` and `span` optional record-local provenance. Draft 0 uses
+  `origin=sha256:<64 lowercase hex>` over exact source bytes, and rejects a
+  `span` that has no `origin`.
 - [x] Use encoding-neutral `aes.complete.v0` and `aes.partial.v0` profile
   discriminators so legacy and revised AES records cannot be confused; keep
   `telex.aes=0` as the independent wire-format version.
@@ -81,7 +82,7 @@ surfaces until these gates are complete.
 - [x] TypeScript: add `structuralId` to `AttributeValue` and consume identity
   after the attribute-entry key.
 - [x] TypeScript: preserve attribute-entry identity through AES projection.
-- [ ] TypeScript: audit canonical rendering, finalization, cloning, mode
+- [x] TypeScript: audit canonical rendering, finalization, cloning, mode
   conversion, JSON projection, and mutation helpers for manufactured
   `structuralId: null` values or dropped identities.
 - [x] Rust: retain the existing ordinary-binding and anonymous-head support;
@@ -93,13 +94,14 @@ surfaces until these gates are complete.
 - [ ] Verify SANSA projections, SO plans, ASP operations, and AES-DB records
   preserve identity without treating it as path identity.
 
-Progress on the remaining TypeScript audit: canonical rendering, minizing,
-prettifying, mode conversion, and Titonic AST/AES conversion now preserve all
-four identity locations. The Tonics compatibility baseline also passes its full
-typecheck and test suite after aligning annotation placement, datatype
-clarifiers, and SANSA literal handling with the current TypeScript APIs.
-Portable finalization, flat-event JSON projection, and the wider consumer audit
-remain open.
+The TypeScript local AST/AES audit is complete. Canonical rendering, minizing,
+prettifying, mode conversion, map/node finalization, inspect/map JSON output,
+public SDK AES access, Starter Tonic, Titonic, and aeon-edit preserve all four
+identity locations. Clone materialization clears identities copied from the
+source subtree while retaining the destination binding identity. Semantic JSON
+finalization intentionally omits identities and is documented as a lossy
+materialization. The TypeScript and Tonics full typecheck/test baselines pass;
+portable flat-event projection and the wider consumer audit remain open.
 
 ### 1.2 Node projection and paths
 
@@ -191,14 +193,21 @@ remain open.
   coordinates.
 - [x] Omit spans for events without source evidence and never fabricate a zero
   span.
+- [x] Keep both fields optional: omit both without source evidence, permit
+  `origin` alone when the source is known but the location is not, and require
+  `origin` whenever `span` is present.
+- [x] Use a record-local `sha256:<64 lowercase hex>` origin in Draft 0 so a
+  stream can combine multiple sources without a source table. Film may compress
+  repeated origins without changing the AES model.
 
 #### Required ecosystem work
 
-- [ ] Define the portable source/origin identity contract. A durable byte span
-  must refer to an immutable source revision, digest, or equivalent stable
-  identifier.
-- [ ] Define whether offsets include an accepted UTF-8 BOM and always measure
+- [x] Define the portable source/origin identity contract. The SHA-256 digest
+  covers the exact, unnormalized source byte sequence.
+- [x] Define that offsets include an accepted UTF-8 BOM and always measure
   against the exact, unnormalized source resource.
+- [x] Add shared Telex vectors for origin-only records, valid origin-plus-span,
+  rejected span-only records, malformed spans, and non-canonical origins.
 - [ ] Require span endpoints to fall on UTF-8 scalar boundaries.
 - [ ] Derive line and column only when the identified source bytes are
   available.

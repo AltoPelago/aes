@@ -4,8 +4,8 @@ use std::error::Error;
 use std::fmt;
 
 const VERSION_LINE: &str = "telex.aes=0";
-const CORE_FIELDS: [&str; 7] = [
-    "header", "path", "kind", "datatype", "identity", "value", "span",
+const CORE_FIELDS: [&str; 8] = [
+    "header", "path", "kind", "datatype", "identity", "value", "origin", "span",
 ];
 const VALUE_KINDS: [&str; 23] = [
     "string",
@@ -496,7 +496,10 @@ pub fn validate_telex_records_with_projection(
     if projection.is_some_and(|value| value != AEON_DOCUMENT_PROJECTION) {
         diagnostics.push(Diagnostic::new(
             "AES_UNSUPPORTED_PROJECTION",
-            format!("Unsupported AES projection: {}", projection.unwrap_or_default()),
+            format!(
+                "Unsupported AES projection: {}",
+                projection.unwrap_or_default()
+            ),
         ));
     }
 
@@ -588,9 +591,12 @@ pub fn validate_telex_records_with_projection(
                 }
                 if body_seen {
                     diagnostics.push(
-                        Diagnostic::new("AES_HEADER_ORDER", "Header records must precede body events")
-                            .at_record(index, address)
-                            .with_field("header"),
+                        Diagnostic::new(
+                            "AES_HEADER_ORDER",
+                            "Header records must precede body events",
+                        )
+                        .at_record(index, address)
+                        .with_field("header"),
                     );
                 }
                 if let (Some(path), Some(details)) = (address, &path_details)
@@ -768,17 +774,39 @@ fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut
             );
         }
     }
-    if let Some(span) = event.get("span")
-        && !valid_span(span)
+    if let Some(origin) = event.get("origin")
+        && !valid_origin(origin)
     {
         diagnostics.push(
             Diagnostic::new(
-                "AES_INVALID_SPAN",
-                "Span must be canonical 'start-byte:end-byte' with start-byte <= end-byte",
+                "AES_INVALID_ORIGIN",
+                "Origin must be 'sha256:' followed by 64 lowercase hexadecimal digits",
             )
             .at_record(index, path)
-            .with_field("span"),
+            .with_field("origin"),
         );
+    }
+    if let Some(span) = event.get("span") {
+        if !event.contains("origin") {
+            diagnostics.push(
+                Diagnostic::new(
+                    "AES_SPAN_REQUIRES_ORIGIN",
+                    "Field 'span' requires source identity in 'origin'",
+                )
+                .at_record(index, path)
+                .with_field("span"),
+            );
+        }
+        if !valid_span(span) {
+            diagnostics.push(
+                Diagnostic::new(
+                    "AES_INVALID_SPAN",
+                    "Span must be canonical 'start-byte:end-byte' with start-byte <= end-byte",
+                )
+                .at_record(index, path)
+                .with_field("span"),
+            );
+        }
     }
 }
 
@@ -883,10 +911,7 @@ fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Ve
     }
 }
 
-fn validate_identity_uniqueness(
-    events: &[&EventCandidate<'_>],
-    diagnostics: &mut Vec<Diagnostic>,
-) {
+fn validate_identity_uniqueness(events: &[&EventCandidate<'_>], diagnostics: &mut Vec<Diagnostic>) {
     let mut identities: HashMap<&str, usize> = HashMap::new();
     for candidate in events {
         let Some(identity) = candidate
@@ -968,7 +993,11 @@ fn is_aeon_header_path(path: &str, details: &PathDetails) -> bool {
     if details.segments.first() != Some(&Segment::Member) {
         return false;
     }
-    let Some(first) = details.prefixes.first().filter(|prefix| prefix.starts_with("$.[")) else {
+    let Some(first) = details
+        .prefixes
+        .first()
+        .filter(|prefix| prefix.starts_with("$.["))
+    else {
         return false;
     };
     decode_json_string(first, 3)
@@ -1203,6 +1232,15 @@ fn valid_span(span: &str) -> bool {
         return false;
     }
     start.len() < end.len() || (start.len() == end.len() && start <= end)
+}
+
+fn valid_origin(origin: &str) -> bool {
+    origin.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64
+            && digest
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    })
 }
 
 fn canonical_unsigned(value: &str) -> bool {

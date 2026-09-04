@@ -14,7 +14,8 @@ The manifest separates:
 - syntax and canonicalization;
 - event-local AES validation; and
 - complete versus partial stream validation; and
-- explicit AEON document projection and header-plane validation.
+- explicit AEON document projection and header-plane validation; and
+- optional record-local origin and span validation.
 
 Portable tests assert stable error or diagnostic codes rather than matching
 implementation-specific prose. Semantic `diagnostic_codes` are compared as a

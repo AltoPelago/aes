@@ -21,6 +21,7 @@ test('round-trips records and canonicalizes core field order', () => {
     value: 'hello\nworld\\again=still-value',
     path: '$.message',
     span: '0:19',
+    origin: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     kind: 'string',
   }];
 
@@ -31,6 +32,7 @@ test('round-trips records and canonicalizes core field order', () => {
     'path=$.message',
     'kind=string',
     'value=hello\\nworld\\\\again=still-value',
+    'origin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     'span=0:19',
     '',
   ].join('\n'));
@@ -44,6 +46,7 @@ test('round-trips records and canonicalizes core field order', () => {
       path: '$.message',
       kind: 'string',
       value: 'hello\nworld\\again=still-value',
+      origin: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
       span: '0:19',
     }],
     canonical: true,
@@ -249,7 +252,13 @@ test('validates a complete flat stream under the default profile', () => {
     { path: '$.a.items', kind: 'list' },
     { path: '$.a.items[0]', kind: 'node' },
     { path: '$.a.items[0][0]', kind: 'node-head', value: 'tag' },
-    { path: '$.a.items[0][0][0]', kind: 'boolean', value: 'true', span: '8:12' },
+    {
+      path: '$.a.items[0][0][0]',
+      kind: 'boolean',
+      value: 'true',
+      origin: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      span: '8:12',
+    },
   ];
   assert.deepEqual(validateTelexRecords(records), {
     valid: true,
@@ -329,7 +338,13 @@ test('checks locally specified payload and span grammars', () => {
   const result = validateTelexRecords([
     { path: '$.hex', kind: 'hex', value: 'CAFE' },
     { path: '$.ref', kind: 'clone-reference', value: 'relative.path' },
-    { path: '$.span', kind: 'nan', value: 'nan', span: '4:2' },
+    {
+      path: '$.span',
+      kind: 'nan',
+      value: 'nan',
+      origin: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      span: '4:2',
+    },
     { path: '$.empty', kind: 'number' },
   ], { profile: PARTIAL_AES_PROFILE });
   assert.deepEqual(result.diagnostics.map(({ code }) => code), [
