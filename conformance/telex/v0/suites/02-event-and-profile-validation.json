@@ -418,6 +418,48 @@
         "diagnostic_codes": []
       },
       "tags": ["validation", "complete", "node", "node-head", "identity", "reference", "path"]
+    },
+    {
+      "id": "telex-profile-030-wtc-anchor-reference-matrix",
+      "description": "WTC preserves civil, explicit-offset, and UTC anchors independently across local, named, and geographic references",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.civilLocal\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30&local\n\npath=$.offsetLocal\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30+02:00&local\n\npath=$.utcLocal\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T07:30Z&local\n\npath=$.civilNamed\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30&Australia/Melbourne\n\npath=$.offsetNamed\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30+11:00&Australia/Melbourne\n\npath=$.utcNamed\nkind=wtc\ndatatype=wtc\nvalue=2024-12-31T22:30Z&Australia/Melbourne\n\npath=$.civilGeo\nkind=wtc\ndatatype=wtc\nvalue=2035-01-01T09:00&-36.7590183/144.2826718\n\npath=$.offsetGeo\nkind=wtc\ndatatype=wtc\nvalue=2035-01-01T09:00+11:00&-36.7590183/144.2826718/213\n\npath=$.utcGeo\nkind=wtc\ndatatype=wtc\nvalue=2034-12-31T22:00Z&-36.7590183/144.2826718/213\n"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "wtc", "temporal", "anchors", "local", "named", "geographic"]
+    },
+    {
+      "id": "telex-profile-031-wtc-local-is-lowercase",
+      "description": "The reserved WTC local reference rejects non-canonical case variants",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.meeting\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30Z&Local\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v0",
+        "diagnostic_codes": ["AES_INVALID_VALUE"]
+      },
+      "tags": ["validation", "wtc", "local", "case", "failure"]
+    },
+    {
+      "id": "telex-profile-032-no-document-conflict-authority",
+      "description": "The standard AES event contract has no document-supplied conflict-authority field",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.meeting\nkind=wtc\ndatatype=wtc\nvalue=2035-01-01T09:00+10:00&Australia/Melbourne\nconflict-authority=reference\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v0",
+        "diagnostic_codes": ["AES_UNKNOWN_FIELD"]
+      },
+      "tags": ["validation", "wtc", "authority", "unknown-field", "failure"]
     }
   ]
 }

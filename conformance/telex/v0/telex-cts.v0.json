@@ -1,13 +1,13 @@
 {
   "meta": {
-    "version": "0.4.0",
+    "version": "0.5.0",
     "lane": "aes-telex",
     "format": "telex.aes",
     "format_version": "0",
     "sut_protocol": "cts.protocol.v1",
     "description": "Portable Draft 0 Telex syntax and AES profile vectors",
-    "snapshot_id": "aes-telex-cts-v0-snapshot-0.4",
-    "spec_snapshot_id": "aes-telex-specs-v0-snapshot-0.4"
+    "snapshot_id": "aes-telex-cts-v0-snapshot-0.5",
+    "spec_snapshot_id": "aes-telex-specs-v0-snapshot-0.5"
   },
   "suites": [
     {

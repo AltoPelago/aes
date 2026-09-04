@@ -373,6 +373,38 @@ The AEON `~` and `~>` sigils are not retained in `value`; their distinction is
 carried by `kind`. A Telex decoder preserves the symbolic reference and does not
 resolve or materialize it.
 
+#### 5.4.1 WTC payload preservation
+
+A `wtc` event carries the complete canonical WTC text in `value`. The temporal
+anchor and temporal reference remain one opaque payload at the Telex layer:
+
+| Anchor form | Example payload |
+| --- | --- |
+| civil | `2025-01-01T09:30&local` |
+| explicit offset | `2025-01-01T09:30+11:00&Australia/Melbourne` |
+| UTC | `2024-12-31T22:30Z&-36.7590183/144.2826718` |
+
+Each anchor form is independently valid with the exact lowercase `local`
+reference, a named reference, or a geographic
+`latitude/longitude[/height]` reference. The reserved local spelling is
+exactly `local`; case variants such as `Local` and `LOCAL` are not aliases.
+Authored case in other named references is preserved.
+
+Telex does not convert a numeric offset to `Z`, resolve a named reference,
+normalize geographic components, or otherwise rewrite the payload. Explicit
+offset and UTC forms remain lexically distinct even if they identify the same
+instant. Full WTC grammar and resolution semantics belong to AEON Core and the
+Aeonic Semantic Language; the reference validator locally enforces only the
+reserved lowercase `local` spelling.
+
+`conflictAuthority` is trusted consumer resolution policy. It is not a WTC
+payload component, portable AES core field, or document authority defined by
+`aeon.document.v0`. A document member or attribute with that spelling, when a
+source language permits one, remains ordinary untrusted data. A generic relay
+may preserve an extension claim, but carrying it does not grant authority and
+the standard AES profiles reject it unless an explicit extension contract is
+selected.
+
 The table defines the portable AES value representation. A generic Telex syntax
 parser need not validate it, but an AES event-shape validator must.
 
@@ -830,11 +862,11 @@ those body cross-event checks. For `aeon.document.v0`, it independently checks
 header ordering and complete header ancestry and compatibility.
 
 Canonical payload grammars owned elsewhere remain separate validation points.
-In particular, the helper does not substitute implementation-specific rules
-for canonical numeric, radix, encoding, separator, SANSA-address, temporal,
-world-time-context, datatype, or structural-identity grammars that this draft
-does not define. Full semantic conformance requires those owning contracts once
-published.
+In particular, apart from the exact lowercase WTC `local` rule, the helper does
+not substitute implementation-specific rules for canonical numeric, radix,
+encoding, separator, SANSA-address, temporal, world-time-context, datatype, or
+structural-identity grammars that this draft does not define. Full semantic
+conformance requires those owning contracts once published.
 
 ## 8. Unknown fields and versions
 

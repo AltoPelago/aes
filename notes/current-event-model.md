@@ -76,7 +76,11 @@ inferred onto descendants. Clone and pointer references use distinct kinds with
 the same canonical target-path payload shape. Trimtick processing occurs before
 AES emission, so its decoded and trimmed result is transported as an ordinary
 `string`; delimiter width and indentation remain source concerns. World time
-context is retained as the distinct `wtc` kind.
+context is retained as the distinct `wtc` kind. Its complete authored payload
+preserves civil, explicit-offset, and UTC anchor forms independently across
+lowercase `local`, named, and geographic references. AES does not resolve or
+rewrite those forms. `conflictAuthority` remains trusted consumer policy, not
+document authority or an AES event field.
 
 Anonymous typed values are flattened into the event at their indexed path. The
 anonymous head's datatype and structural identity become the same `datatype`

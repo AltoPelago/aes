@@ -72,8 +72,10 @@ surfaces until these gates are complete.
   node heads.
 - [x] Add duplicate-identity tests spanning all four head locations rather
   than testing each location in isolation.
-- [ ] Add projection cases proving the identities at `$.a`, `$.a.@.x`,
-  `$.a[0]`, and `$.a[0][0]` are preserved independently.
+- [x] Add projection cases proving the identities at `$.a`, `$.a.@.x`,
+  `$.a[0]`, and `$.a[0][0]` are preserved independently. These are staged in
+  the experimental `aes-cts-v1-snapshot-0.3` next manifest; activation remains
+  gated on the flat-attribute and expanded-node adapter work below.
 
 #### Implementation work
 
@@ -197,13 +199,14 @@ portable flat-event projection and the wider consumer audit remain open.
 - [x] Normalize trimtick content before AES and transport it as `kind=string`;
   delimiter width and indentation are source mechanics.
 - [x] Add `wtc` as a distinct temporal kind.
-- [x] Use lowercase `local` for WTC local temporal anchors.
+- [x] Use exact lowercase `local` for the reserved WTC resolver-local
+  reference.
 - [x] Treat `conflictAuthority` as a consumer responsibility, not document or
   AES event authority.
 - [x] Do not transport exact AEON lexemes or a generic representation field.
 - [ ] Reconcile TypeScript, Rust, Python, PHP, ASP, AEOS, and CTS value-kind
   names and canonical payload rules with the portable table.
-- [ ] Add WTC cases covering the three temporal anchor forms and local, named,
+- [x] Add WTC cases covering the three temporal anchor forms and local, named,
   and geographic references without introducing `conflictAuthority` into the
   portable event contract.
 - [ ] Verify canonical payloads and semantic hashes preserve recognized value

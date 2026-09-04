@@ -749,6 +749,20 @@ fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec
                 .with_field("value"),
         );
     }
+    if kind == "wtc"
+        && let Some((_, reference)) = value.rsplit_once('&')
+        && reference.eq_ignore_ascii_case("local")
+        && reference != "local"
+    {
+        diagnostics.push(
+            Diagnostic::new(
+                "AES_INVALID_VALUE",
+                "The reserved WTC reference must be exact lowercase 'local'",
+            )
+            .at_record(index, path)
+            .with_field("value"),
+        );
+    }
     if ["clone-reference", "pointer-reference"].contains(&kind)
         && let Err(message) = parse_canonical_data_path(value)
     {

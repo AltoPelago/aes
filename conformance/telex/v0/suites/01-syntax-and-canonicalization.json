@@ -302,6 +302,19 @@
         }
       },
       "tags": ["syntax", "projection", "failure"]
+    },
+    {
+      "id": "telex-syntax-017-wtc-lexical-preservation",
+      "description": "Canonicalization preserves civil, explicit-offset, and UTC WTC payloads without resolving or rewriting their references",
+      "operation": "canonicalize",
+      "input": {
+        "telex": "telex.aes=0\n\nvalue=2025-01-01T09:30&local\ndatatype=wtc\nkind=wtc\npath=$.civilLocal\n\nvalue=2025-01-01T09:30+11:00&Australia/Melbourne\ndatatype=wtc\nkind=wtc\npath=$.offsetNamed\n\nvalue=2034-12-31T22:00Z&-36.7590183/144.2826718/213\ndatatype=wtc\nkind=wtc\npath=$.utcGeo\n"
+      },
+      "expected": {
+        "ok": true,
+        "telex": "telex.aes=0\n\npath=$.civilLocal\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30&local\n\npath=$.offsetNamed\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30+11:00&Australia/Melbourne\n\npath=$.utcGeo\nkind=wtc\ndatatype=wtc\nvalue=2034-12-31T22:00Z&-36.7590183/144.2826718/213\n"
+      },
+      "tags": ["canonicalization", "wtc", "temporal", "preservation"]
     }
   ]
 }

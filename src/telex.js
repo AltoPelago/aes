@@ -517,6 +517,17 @@ function validateEventValue(event, index, diagnostics) {
       { ...context, field: 'value' },
     ));
   }
+  if (event.kind === 'wtc') {
+    const separator = event.value.lastIndexOf('&');
+    const reference = separator === -1 ? undefined : event.value.slice(separator + 1);
+    if (reference?.toLowerCase() === 'local' && reference !== 'local') {
+      diagnostics.push(diagnostic(
+        'AES_INVALID_VALUE',
+        "The reserved WTC reference must be exact lowercase 'local'",
+        { ...context, field: 'value' },
+      ));
+    }
+  }
   if (event.kind === 'clone-reference' || event.kind === 'pointer-reference') {
     try {
       parseCanonicalDataPath(event.value);
