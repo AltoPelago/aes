@@ -11,6 +11,8 @@ import {
   canonicalizeTelex,
   encodeTelex,
   parseTelex,
+  validateTelex,
+  validateTelexRecords,
 } from '../src/telex.js';
 
 test('round-trips records and canonicalizes core field order', () => {
@@ -177,6 +179,128 @@ test('rejects an empty profile declaration', () => {
   );
 });
 
+test('validates a complete flat stream under the default profile', () => {
+  const records = [
+    { path: '$.a', kind: 'object', identity: 'root-a' },
+    { path: '$.a.@.source', kind: 'string', value: 'fixture' },
+    { path: '$.a.items', kind: 'list' },
+    { path: '$.a.items[0]', kind: 'node' },
+    { path: '$.a.items[0][0]', kind: 'node-head', value: 'tag' },
+    { path: '$.a.items[0][0][0]', kind: 'boolean', value: 'true', span: '8:12' },
+  ];
+  assert.deepEqual(validateTelexRecords(records), {
+    valid: true,
+    profile: DEFAULT_TELEX_PROFILE,
+    diagnostics: [],
+  });
+});
+
+test('requires ancestry in the default profile but not the raw profile', () => {
+  const records = [{ path: '$.a.b', kind: 'number', value: '1' }];
+  const complete = validateTelexRecords(records);
+  assert.equal(complete.valid, false);
+  assert.equal(complete.diagnostics[0].code, 'AES_MISSING_PARENT');
+
+  assert.deepEqual(validateTelexRecords(records, { profile: RAW_TELEX_PROFILE }), {
+    valid: true,
+    profile: RAW_TELEX_PROFILE,
+    diagnostics: [],
+  });
+});
+
+test('does not treat the unrepresented root as an indexed container or attribute owner', () => {
+  const result = validateTelexRecords([
+    { path: '$[0]', kind: 'number', value: '1' },
+    { path: '$.@.meta', kind: 'string', value: 'root' },
+  ]);
+  assert.deepEqual(result.diagnostics.map(({ code }) => code), [
+    'AES_MISSING_PARENT',
+    'AES_MISSING_PARENT',
+  ]);
+});
+
+test('allows repeated paths and identities only in the raw profile', () => {
+  const records = [
+    { path: '$.a', kind: 'number', identity: 'same', value: '1' },
+    { path: '$.a', kind: 'number', identity: 'same', value: '2' },
+  ];
+  const completeCodes = validateTelexRecords(records).diagnostics.map(({ code }) => code);
+  assert.deepEqual(completeCodes, ['AES_DUPLICATE_PATH', 'AES_DUPLICATE_IDENTITY']);
+  assert.equal(validateTelexRecords(records, { profile: RAW_TELEX_PROFILE }).valid, true);
+});
+
+test('retains event-local validation in the raw profile', () => {
+  const result = validateTelexRecords([
+    { path: '$.a', kind: 'object', value: 'nested' },
+    { path: '$.b', kind: 'boolean', value: 'True' },
+    { path: '$.c', kind: 'future-kind' },
+    { path: '$.d', kind: 'string', 'x.example.claim': 'yes' },
+  ], { profile: RAW_TELEX_PROFILE });
+  assert.equal(result.valid, false);
+  assert.deepEqual(result.diagnostics.map(({ code }) => code), [
+    'AES_UNEXPECTED_VALUE',
+    'AES_INVALID_VALUE',
+    'AES_UNKNOWN_KIND',
+    'AES_UNKNOWN_FIELD',
+    'AES_MISSING_VALUE',
+  ]);
+});
+
+test('checks parent kinds and node-head placement in the complete profile', () => {
+  const result = validateTelexRecords([
+    { path: '$.scalar', kind: 'number', value: '1' },
+    { path: '$.scalar.child', kind: 'string', value: 'no' },
+    { path: '$.list', kind: 'list' },
+    { path: '$.list[0]', kind: 'node-head', value: 'misplaced' },
+    { path: '$.node', kind: 'node' },
+    { path: '$.node[0]', kind: 'string', value: 'not-a-head' },
+  ]);
+  assert.deepEqual(result.diagnostics.map(({ code }) => code), [
+    'AES_INCOMPATIBLE_PARENT',
+    'AES_INVALID_NODE_HEAD',
+    'AES_INCOMPATIBLE_PARENT',
+  ]);
+});
+
+test('checks locally specified payload and span grammars', () => {
+  const result = validateTelexRecords([
+    { path: '$.hex', kind: 'hex', value: 'CAFE' },
+    { path: '$.ref', kind: 'clone-reference', value: 'relative.path' },
+    { path: '$.span', kind: 'nan', value: 'nan', span: '4:2' },
+    { path: '$.empty', kind: 'number' },
+  ], { profile: RAW_TELEX_PROFILE });
+  assert.deepEqual(result.diagnostics.map(({ code }) => code), [
+    'AES_INVALID_VALUE',
+    'AES_INVALID_REFERENCE',
+    'AES_INVALID_VALUE',
+    'AES_INVALID_SPAN',
+    'AES_MISSING_VALUE',
+  ]);
+});
+
+test('allows only explicitly registered extension fields', () => {
+  const records = [{
+    path: '$.a',
+    kind: 'number',
+    value: '1',
+    'x.example.claim': 'yes',
+  }];
+  assert.equal(validateTelexRecords(records, { profile: RAW_TELEX_PROFILE }).valid, false);
+  assert.equal(validateTelexRecords(records, {
+    profile: RAW_TELEX_PROFILE,
+    registeredFields: ['x.example.claim'],
+  }).valid, true);
+});
+
+test('validates the profile selected by a Telex stream', () => {
+  const raw = encodeTelex(
+    [{ path: '$.a.b', kind: 'number', value: '1' }],
+    { profile: RAW_TELEX_PROFILE },
+  );
+  assert.equal(validateTelex(raw).valid, true);
+  assert.equal(validateTelex(encodeTelex([{ path: '$.a.b', kind: 'number', value: '1' }])).valid, false);
+});
+
 test('accepts tolerant syntax and exposes that it is non-canonical', () => {
   const input = 'telex.aes=0\r\n\r\nkind=string\r\npath=$.x\r\nvalue=\\u{000041}\r\n';
   const parsed = parseTelex(input);
@@ -219,6 +343,7 @@ test('keeps the repository example canonical', () => {
   const source = readFileSync(new URL('../examples/customer.telex.aes', import.meta.url), 'utf8');
   assert.equal(parseTelex(source).canonical, true);
   assert.equal(canonicalizeTelex(source), source);
+  assert.equal(validateTelex(source).valid, true);
 });
 
 test('rejects surrogate code units', () => {

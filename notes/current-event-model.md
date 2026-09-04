@@ -102,6 +102,9 @@ omitted profile declaration selects it; partial or otherwise unconstrained
 streams must explicitly declare `aes.raw.v0` or a future specialized profile.
 `aeon.gp.profile.v1` references `aes.telex.v0` explicitly so its projection
 contract remains visible even though Telex would apply the same default.
+The raw profile still requires individually valid AES events; it relaxes
+cross-event ancestry, uniqueness, compatibility, and ordering claims rather
+than turning arbitrary Telex stanzas into AES events.
 
 ## Recommended boundary
 

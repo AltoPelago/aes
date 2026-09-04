@@ -9,6 +9,40 @@ const CORE_FIELD_ORDER = new Map([
   'value',
   'span',
 ].map((field, index) => [field, index]));
+const CORE_FIELDS = new Set(CORE_FIELD_ORDER.keys());
+const VALUE_KINDS = new Set([
+  'string',
+  'number',
+  'infinity',
+  'nan',
+  'null',
+  'boolean',
+  'toggle',
+  'hex',
+  'radix',
+  'encoding',
+  'separator',
+  'sansa-address',
+  'date',
+  'time',
+  'datetime',
+  'wtc',
+  'object',
+  'list',
+  'tuple',
+  'node',
+  'node-head',
+  'clone-reference',
+  'pointer-reference',
+]);
+const VALUELESS_KINDS = new Set(['object', 'list', 'tuple', 'node']);
+const INDEX_CONTAINER_KINDS = new Set(['list', 'tuple', 'node-head']);
+const EXACT_VALUES = new Map([
+  ['infinity', new Set(['Infinity', '-Infinity'])],
+  ['nan', new Set(['NaN', '-NaN'])],
+  ['boolean', new Set(['true', 'false'])],
+  ['toggle', new Set(['yes', 'no', 'on', 'off'])],
+]);
 
 export const TELEX_VERSION = '0';
 export const DEFAULT_TELEX_PROFILE = 'aes.telex.v0';
@@ -207,6 +241,310 @@ export function checkPrefixCompleteness(records) {
   return { complete: missing.length === 0, missing };
 }
 
+/**
+ * Validate decoded events against the selected AES profile.
+ * Syntax errors still throw from parseTelex; semantic failures are diagnostics.
+ */
+export function validateTelex(input, options = {}) {
+  const parsed = typeof input === 'string' ? parseTelex(input) : input;
+  if (parsed === null || typeof parsed !== 'object' || !Array.isArray(parsed.records)) {
+    throw new TypeError('Expected Telex text or a parsed Telex result');
+  }
+  return validateTelexRecords(parsed.records, {
+    ...options,
+    profile: parsed.profile ?? DEFAULT_TELEX_PROFILE,
+  });
+}
+
+export function validateTelexRecords(records, options = {}) {
+  if (!Array.isArray(records)) {
+    throw new TypeError('Telex records must be an array');
+  }
+
+  const profile = options.profile ?? DEFAULT_TELEX_PROFILE;
+  if (typeof profile !== 'string' || profile.length === 0) {
+    throw new TypeError('AES profile must be a non-empty string');
+  }
+  const registeredFields = new Set(options.registeredFields ?? []);
+  for (const field of registeredFields) {
+    if (typeof field !== 'string' || !FIELD_NAME.test(field) || CORE_FIELDS.has(field)) {
+      throw new TypeError(`Invalid registered extension field: ${String(field)}`);
+    }
+  }
+
+  const diagnostics = [];
+  const events = [];
+  if (profile !== DEFAULT_TELEX_PROFILE && profile !== RAW_TELEX_PROFILE) {
+    diagnostics.push(diagnostic(
+      'AES_UNSUPPORTED_PROFILE',
+      `Unsupported AES profile: ${profile}`,
+    ));
+  }
+
+  for (let index = 0; index < records.length; index += 1) {
+    const source = records[index];
+    if (source === null || typeof source !== 'object') {
+      diagnostics.push(diagnostic(
+        'AES_INVALID_EVENT',
+        'An AES event must be an object or Map',
+        { record: index },
+      ));
+      continue;
+    }
+    const event = source instanceof Map ? Object.fromEntries(source) : source;
+    const context = { record: index, ...(typeof event.path === 'string' ? { path: event.path } : {}) };
+
+    for (const [field, payload] of Object.entries(event)) {
+      if (typeof payload !== 'string') {
+        diagnostics.push(diagnostic(
+          'AES_INVALID_PAYLOAD',
+          `Field '${field}' must have a string payload`,
+          { ...context, field },
+        ));
+      }
+      if (!CORE_FIELDS.has(field) && !registeredFields.has(field)) {
+        diagnostics.push(diagnostic(
+          'AES_UNKNOWN_FIELD',
+          `Field '${field}' is not registered by profile '${profile}'`,
+          { ...context, field },
+        ));
+      }
+    }
+
+    for (const field of ['path', 'kind']) {
+      if (!Object.hasOwn(event, field)) {
+        diagnostics.push(diagnostic(
+          'AES_MISSING_FIELD',
+          `AES events require '${field}'`,
+          { ...context, field },
+        ));
+      }
+    }
+
+    let pathDetails;
+    if (typeof event.path === 'string') {
+      try {
+        pathDetails = parseCanonicalDataPath(event.path);
+        if (event.path === '$') {
+          throw new TypeError('The root is not an event path');
+        }
+      } catch (error) {
+        diagnostics.push(diagnostic(
+          'AES_INVALID_PATH',
+          error.message,
+          { ...context, field: 'path' },
+        ));
+      }
+    }
+
+    const knownKind = typeof event.kind === 'string' && VALUE_KINDS.has(event.kind);
+    if (typeof event.kind === 'string' && !knownKind) {
+      diagnostics.push(diagnostic(
+        'AES_UNKNOWN_KIND',
+        `Unknown AES value kind: ${event.kind}`,
+        { ...context, field: 'kind' },
+      ));
+    }
+
+    if (knownKind) validateEventValue(event, index, diagnostics);
+    validateOptionalCoreFields(event, index, diagnostics);
+
+    events.push({ event, index, pathDetails, knownKind });
+  }
+
+  if (profile === DEFAULT_TELEX_PROFILE) {
+    validateCompleteStream(events, diagnostics);
+  }
+
+  return { valid: diagnostics.length === 0, profile, diagnostics };
+}
+
+function validateEventValue(event, index, diagnostics) {
+  const context = { record: index, ...(typeof event.path === 'string' ? { path: event.path } : {}) };
+  const hasValue = Object.hasOwn(event, 'value');
+  if (VALUELESS_KINDS.has(event.kind)) {
+    if (hasValue) {
+      diagnostics.push(diagnostic(
+        'AES_UNEXPECTED_VALUE',
+        `Kind '${event.kind}' must not carry 'value'`,
+        { ...context, field: 'value' },
+      ));
+    }
+    return;
+  }
+  if (!hasValue) {
+    diagnostics.push(diagnostic(
+      'AES_MISSING_VALUE',
+      `Kind '${event.kind}' requires 'value'`,
+      { ...context, field: 'value' },
+    ));
+    return;
+  }
+  if (typeof event.value !== 'string') return;
+
+  const exact = EXACT_VALUES.get(event.kind);
+  if (exact !== undefined && !exact.has(event.value)) {
+    diagnostics.push(diagnostic(
+      'AES_INVALID_VALUE',
+      `Invalid '${event.kind}' payload: ${event.value}`,
+      { ...context, field: 'value' },
+    ));
+  }
+  if (event.kind === 'hex' && !/^[0-9a-f]+$/u.test(event.value)) {
+    diagnostics.push(diagnostic(
+      'AES_INVALID_VALUE',
+      'Hex payloads require one or more lowercase hexadecimal digits',
+      { ...context, field: 'value' },
+    ));
+  }
+  if (event.kind === 'node-head' && event.value.length === 0) {
+    diagnostics.push(diagnostic(
+      'AES_INVALID_VALUE',
+      'Node tags must not be empty',
+      { ...context, field: 'value' },
+    ));
+  }
+  if (event.kind === 'clone-reference' || event.kind === 'pointer-reference') {
+    try {
+      parseCanonicalDataPath(event.value);
+    } catch (error) {
+      diagnostics.push(diagnostic(
+        'AES_INVALID_REFERENCE',
+        error.message,
+        { ...context, field: 'value' },
+      ));
+    }
+  }
+}
+
+function validateOptionalCoreFields(event, index, diagnostics) {
+  const context = { record: index, ...(typeof event.path === 'string' ? { path: event.path } : {}) };
+  for (const field of ['datatype', 'identity']) {
+    if (Object.hasOwn(event, field) && event[field] === '') {
+      diagnostics.push(diagnostic(
+        'AES_EMPTY_FIELD',
+        `Field '${field}' must not be empty when present`,
+        { ...context, field },
+      ));
+    }
+  }
+
+  if (!Object.hasOwn(event, 'span') || typeof event.span !== 'string') return;
+  const match = event.span.match(/^(0|[1-9][0-9]*):(0|[1-9][0-9]*)$/u);
+  if (match === null || BigInt(match[1]) > BigInt(match[2])) {
+    diagnostics.push(diagnostic(
+      'AES_INVALID_SPAN',
+      "Span must be canonical 'start-byte:end-byte' with start-byte <= end-byte",
+      { ...context, field: 'span' },
+    ));
+  }
+}
+
+function validateCompleteStream(events, diagnostics) {
+  const byPath = new Map();
+  const identities = new Map();
+
+  for (const candidate of events) {
+    const { event, index, pathDetails } = candidate;
+    if (pathDetails !== undefined) {
+      if (byPath.has(event.path)) {
+        diagnostics.push(diagnostic(
+          'AES_DUPLICATE_PATH',
+          `Duplicate event path '${event.path}'`,
+          { record: index, path: event.path, firstRecord: byPath.get(event.path).index },
+        ));
+      } else {
+        byPath.set(event.path, candidate);
+      }
+    }
+
+    if (typeof event.identity === 'string' && event.identity.length > 0) {
+      if (identities.has(event.identity)) {
+        diagnostics.push(diagnostic(
+          'AES_DUPLICATE_IDENTITY',
+          `Duplicate structural identity '${event.identity}'`,
+          { record: index, path: event.path, field: 'identity', firstRecord: identities.get(event.identity) },
+        ));
+      } else {
+        identities.set(event.identity, index);
+      }
+    }
+  }
+
+  for (const candidate of events) {
+    const { event, index, pathDetails } = candidate;
+    if (pathDetails === undefined) continue;
+    if (pathDetails.segments.length === 1) {
+      if (pathDetails.segments[0].type !== 'member') {
+        diagnostics.push(diagnostic(
+          'AES_MISSING_PARENT',
+          "Only a member event can be a direct child of the unrepresented '$' root",
+          { record: index, path: event.path, requiredPath: '$' },
+        ));
+      }
+      if (event.kind === 'node-head') {
+        diagnostics.push(invalidNodeHeadPlacement(event, index));
+      }
+      continue;
+    }
+
+    const segment = pathDetails.segments.at(-1);
+    const parentPath = pathDetails.prefixes.at(-2);
+    const parent = byPath.get(parentPath);
+    if (parent === undefined) {
+      diagnostics.push(diagnostic(
+        'AES_MISSING_PARENT',
+        `Missing parent event '${parentPath}'`,
+        { record: index, path: event.path, requiredPath: parentPath },
+      ));
+      continue;
+    }
+
+    if (segment.type === 'member' && parent.event.kind !== 'object') {
+      diagnostics.push(incompatibleParent(event, index, parentPath, parent.event.kind, 'object'));
+    } else if (segment.type === 'index') {
+      if (parent.event.kind === 'node') {
+        if (event.kind !== 'node-head') {
+          diagnostics.push(incompatibleParent(event, index, parentPath, 'node', 'node-head child'));
+        }
+      } else if (!INDEX_CONTAINER_KINDS.has(parent.event.kind)) {
+        diagnostics.push(incompatibleParent(
+          event,
+          index,
+          parentPath,
+          parent.event.kind,
+          'list, tuple, node, or node-head',
+        ));
+      }
+    }
+
+    if (event.kind === 'node-head'
+      && (segment.type !== 'index' || parent.event.kind !== 'node')) {
+      diagnostics.push(invalidNodeHeadPlacement(event, index));
+    }
+  }
+}
+
+function incompatibleParent(event, index, parentPath, actual, expected) {
+  return diagnostic(
+    'AES_INCOMPATIBLE_PARENT',
+    `Parent '${parentPath}' has kind '${actual}'; expected ${expected}`,
+    { record: index, path: event.path, requiredPath: parentPath },
+  );
+}
+
+function invalidNodeHeadPlacement(event, index) {
+  return diagnostic(
+    'AES_INVALID_NODE_HEAD',
+    "A 'node-head' must be an indexed direct child of a 'node'",
+    { record: index, ...(typeof event.path === 'string' ? { path: event.path } : {}) },
+  );
+}
+
+function diagnostic(code, message, context = {}) {
+  return { code, message, ...context };
+}
+
 function compareFields([left], [right]) {
   const leftRank = CORE_FIELD_ORDER.get(left);
   const rightRank = CORE_FIELD_ORDER.get(right);
@@ -225,31 +563,39 @@ function hasCanonicalFieldOrder(record) {
 }
 
 function canonicalPathPrefixes(path) {
+  return parseCanonicalDataPath(path).prefixes;
+}
+
+function parseCanonicalDataPath(path) {
   if (!path.startsWith('$')) {
     throw new TypeError(`Expected an absolute canonical path: ${path}`);
   }
-  if (path === '$') return [];
+  if (path === '$') return { prefixes: [], segments: [] };
 
   const prefixes = [];
+  const segments = [];
   let cursor = 1;
   while (cursor < path.length) {
     const start = cursor;
     if (path.startsWith('.@.', cursor)) {
       cursor += 3;
       cursor = readMemberEnd(path, cursor);
+      segments.push({ type: 'attribute' });
     } else if (path[cursor] === '.') {
       cursor += 1;
       cursor = readMemberEnd(path, cursor);
+      segments.push({ type: 'member' });
     } else if (path[cursor] === '[') {
       const index = path.slice(cursor).match(/^\[(?:0|[1-9][0-9]*)\]/u);
       if (!index) throw new TypeError(`Invalid canonical index in path: ${path}`);
       cursor += index[0].length;
+      segments.push({ type: 'index' });
     } else {
       throw new TypeError(`Invalid canonical path segment in: ${path}`);
     }
     prefixes.push(`${prefixes.at(-1) ?? '$'}${path.slice(start, cursor)}`);
   }
-  return prefixes;
+  return { prefixes, segments };
 }
 
 function readMemberEnd(path, cursor) {

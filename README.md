@@ -39,7 +39,8 @@ This is a spec-first bootstrap. Nothing in this repository is normative yet.
   it deliberately does not decide AES value semantics. It preserves an
   explicit stream profile, and its separate `checkTelexCompleteness` helper
   reports missing structural prefixes without claiming full `aes.telex.v0`
-  validation.
+  validation. `validateTelex` and `validateTelexRecords` apply the event-local
+  Draft 0 rules and the selected profile's structural checks.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early
   illustrative stream, not a frozen conformance vector.
 

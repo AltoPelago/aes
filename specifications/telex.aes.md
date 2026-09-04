@@ -482,11 +482,22 @@ inferred or synthesized. An attribute event requires its owning event, but
 `.@` does not require a synthetic attribute-space container event. Node content
 requires both its `node` and `node-head` ancestry. Event shape, path uniqueness,
 and the other portable event requirements in this specification also apply.
+The document root `$` is not itself an event, so only a member event may occur
+directly beneath it; an indexed or attribute-space event requires a represented
+owner below the root.
 
-`aes.raw.v0` explicitly relaxes stream-level completeness. It may contain an
-event at `$.a.b` without carrying `$.a`; it can represent an incremental event,
-filtered stream, transaction fragment, subscription, or ledger entry without
-claiming to be independently navigable AES state.
+`aes.raw.v0` retains event-local validity but relaxes cross-event constraints.
+Its events still require canonical paths, known value kinds, correct
+kind-dependent value presence, valid core fields, and any other rule that can
+be decided from that event alone. The stream may omit ancestors, repeat paths
+or structural identities, and carry events in delivery or ledger order. Parent
+compatibility is not asserted even when a parent happens to be present.
+
+For example, a raw stream may contain an event at `$.a.b` without carrying
+`$.a`; it can represent an incremental event, filtered stream, transaction
+fragment, subscription, or ledger entry without claiming to be independently
+navigable AES state. Arbitrary `field=value` stanzas are not thereby valid raw
+AES events.
 
 Transaction and ledger profiles may establish completeness against prior state
 plus the supplied segment rather than against the segment alone. They must be
@@ -547,6 +558,19 @@ Telex deliberately separates three checks:
 
 A tiny Telex parser may implement only layer 1. It must not claim AES
 conformance merely because it can split fields.
+
+The reference `validateTelex` helper implements the event-local checks whose
+grammars are defined in this draft. For `aes.telex.v0`, it additionally checks
+path and structural-identity uniqueness, required ancestry, parent/child
+container compatibility, and node-head placement. For `aes.raw.v0`, it omits
+those cross-event checks.
+
+Canonical payload grammars owned elsewhere remain separate validation points.
+In particular, the helper does not substitute implementation-specific rules
+for canonical numeric, radix, encoding, separator, SANSA-address, temporal,
+world-time-context, datatype, or structural-identity grammars that this draft
+does not define. Full semantic conformance requires those owning contracts once
+published.
 
 ## 8. Unknown fields and versions
 

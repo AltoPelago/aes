@@ -230,6 +230,12 @@ component already conforms.
 - [ ] Publish `aes.telex.v0` (complete and the default) and `aes.raw.v0`
   (explicitly unconstrained) so legacy and portable AES records cannot be
   confused.
+- [ ] Port the reference event-local and complete-stream validation diagnostics
+  into the shared CTS; ensure raw-profile consumers retain event validity while
+  relaxing only cross-event constraints.
+- [ ] Connect canonical datatype, SANSA-address, numeric, temporal, and other
+  value-family validators when their owning portable contracts are published;
+  do not copy one AEON implementation's grammar into AES.
 - [ ] Define reader-first rollout and compatibility rules before any producer
   emits the new node projection into durable stores.
 - [ ] Add shared Telex fixtures and require at least two independent
