@@ -404,6 +404,20 @@
         "diagnostic_codes": ["AES_INVALID_ORIGIN", "AES_INVALID_ORIGIN"]
       },
       "tags": ["validation", "provenance", "origin", "canonical", "failure"]
+    },
+    {
+      "id": "telex-profile-029-node-path-and-reference-domain",
+      "description": "Expanded node heads, independently identified occurrences, and reference payloads share the portable AES event-path domain",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.a\nkind=node\nidentity=binding-a\n\npath=$.a.@.x\nkind=string\nidentity=binding-attribute\nvalue=outer\n\npath=$.a[0]\nkind=node-head\nidentity=head-a\nvalue=tag\n\npath=$.a[0].@.x\nkind=string\nidentity=head-attribute\nvalue=head\n\npath=$.a[0][0]\nkind=node\nidentity=child-a\n\npath=$.a[0][0][0]\nkind=node-head\nidentity=child-head\nvalue=inner\n\npath=$.a[0][0][0][0]\nkind=string\nidentity=leaf\nvalue=value\n\npath=$.clone\nkind=clone-reference\nvalue=$.a[0][0]\n\npath=$.pointer\nkind=pointer-reference\nvalue=$.a[0][0][0][0]\n"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "complete", "node", "node-head", "identity", "reference", "path"]
     }
   ]
 }

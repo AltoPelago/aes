@@ -80,6 +80,19 @@ event is a value-less ordered container and each `node-head` descendant carries
 its tag. Current AEON produces one head at index zero, while the AES shape does
 not preclude future empty or multi-headed node profiles.
 
+AEON source paths and portable AES event paths are distinct domains. Ordinary
+segments remain stable, but crossing from a node to source child `[i]` expands
+to node-head/content segments `[0][i]` in AES, recursively for nested nodes.
+Reference payloads use the AES event-path domain and are translated with
+document structure; structural identity never participates. A synthetic
+node-head target has no current AEON reference spelling, so reverse projection
+fails explicitly instead of reinterpreting it as the first child.
+
+A source-backed `node-head` span begins at its tag token and ends after its last
+identity, attribute, or datatype component. It excludes `<`, children, and
+closing delimiters. Implementations that only retain the whole node-literal
+span carry `origin` alone for the head until they can supply that exact range.
+
 Portable spans use only an inclusive start and exclusive end measured as
 zero-based UTF-8 byte offsets. Line and column coordinates are derived rather
 than transported. Both provenance fields are optional. A source-less record

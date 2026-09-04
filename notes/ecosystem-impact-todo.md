@@ -30,7 +30,7 @@ surfaces until these gates are complete.
   heads, and the former negative CTS cases have been replaced.
 - [ ] Publish one transport-neutral portable AES event contract covering path,
   kind, value, datatype, identity, attributes, ordering, and provenance.
-- [ ] Define the bidirectional mapping between AEON source paths and portable
+- [x] Define the bidirectional mapping between AEON source paths and portable
   AES event paths, including reference target payloads.
 - [x] Exclude AEON headers from the default body event stream and carry them
   only through the explicit, encoding-neutral `aeon.document.v0` projection,
@@ -139,16 +139,22 @@ portable flat-event projection and the wider consumer audit remain open.
 - [ ] Update TypeScript, Rust, Python, and PHP AEON-to-AES adapters to expand a
   `NodeLiteral` into an outer `node`, a `node-head`, and recursively flattened
   content events.
-- [ ] Define AEON source-path to portable event-path translation for node
+- [x] Define AEON source-path to portable event-path translation for node
   descendants; the old first child path must never be silently reinterpreted
   as the new node-head path.
-- [ ] Define translation and validation for clone-reference and
+- [x] Define translation and validation for clone-reference and
   pointer-reference target payloads across the additional node path level.
+- [ ] Implement structure-aware source-path/event-path translation in all four
+  language adapters, including reverse-projection rejection for direct
+  synthetic node-head reference targets.
 - [ ] Apply the same mapping to SANSA selections, Tonics edit addresses, SO/ASP
   mutation targets, diagnostics, and any public SDK navigation APIs.
+- [x] Define the node-head source span as the tag token through the last
+  identity, attribute, or datatype component, excluding node delimiters and
+  children.
 - [ ] Give the node tag/head its own source span in ASTs that currently expose
-  only the complete node-literal span, and define exactly which tokens the head
-  span covers.
+  only the complete node-literal span; emit origin-only provenance until that
+  exact range is available.
 - [ ] Update portable kind registries and validators to add `node-head` and make
   `node` value-less.
 - [ ] Update SANSA structural navigation and parent/container compatibility for

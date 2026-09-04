@@ -464,6 +464,71 @@ Nested nodes follow directly from the same rule. For
 `a = <tag(<tag>, <tag>)>`, the inner node containers occur at `$.a[0][0]` and
 `$.a[0][1]`; their heads occur at `$.a[0][0][0]` and `$.a[0][1][0]`.
 
+#### 5.6.1 AEON source paths and AES event paths
+
+AEON source paths address values in the source-language structure. Portable
+AES paths address events in the expanded flat structure. They are separate
+path domains even when their canonical strings happen to be equal.
+
+An AEON adapter translates paths using the structure of the document, not by
+rewriting index strings in isolation. Let `S` be the AEON source path of a node
+and `E(S)` its translated AES event path:
+
+| Source occurrence | Portable AES event path |
+| --- | --- |
+| node container at `S` | `E(S)` |
+| the node's synthetic head | `E(S)[0]` |
+| node child at `S[i]` | `E(S)[0][i]` |
+| node-head attribute | beneath `E(S)[0].@` |
+
+Member, attribute, list-index, and tuple-index segments otherwise retain their
+meaning. Translation recurses, so every crossed node boundary introduces a
+head index. For example:
+
+| AEON source path | Portable AES event path |
+| --- | --- |
+| `$.a` | `$.a` |
+| `$.a[0]` | `$.a[0][0]` |
+| `$.a[0][0]` where both indexed occurrences are node children | `$.a[0][0][0][0]` |
+
+The payload of a `clone-reference` or `pointer-reference` is in the portable
+AES event-path domain. During AEON-to-AES projection, `~a[0]` therefore becomes
+`kind=clone-reference,value=$.a[0][0]` when `a` is a node. `~>a[0]` produces the
+same translated payload with `kind=pointer-reference`. Structural identity is
+never an input to translation or path comparison.
+
+Reverse projection removes a head index only when the represented parent is a
+node and the following index addresses that head's content. A direct portable
+reference to a synthetic node-head event, such as `$.a[0]`, has no reference
+form in current AEON. AES may represent it, but an AEON serializer must report
+that target as unrepresentable rather than reinterpret it as `~a[0]`.
+
+Consequently translation requires structural context. A partial stream that
+does not carry enough ancestry needs external profile state before it can be
+translated. A legacy stream in which `$.a[0]` meant the first node child also
+requires an explicit versioned compatibility adapter; it must not be silently
+read as the revised node-head event.
+
+#### 5.6.2 Node-head source span
+
+When source provenance is available, the `node-head` span covers the complete
+AEON node head. It begins at the first byte of the tag token and ends
+immediately after the last head component: the datatype when present,
+otherwise the attribute block or structural identity when present, otherwise
+the tag token. The range includes the complete quoted tag token, identity
+delimiters, attributes, datatype arguments, and any intervening source bytes.
+
+The span excludes the opening `<`, trivia before the tag, child-list
+delimiters, children, the closing `>`, and any surrounding binding-head syntax.
+For example, the node-head evidence in
+`<tag\HEAD\@{role = "button"}:node("hello")>` is the byte range containing
+`tag\HEAD\@{role = "button"}:node`.
+
+The outer `node`, its `node-head`, and descendant attribute events may have
+overlapping source ranges. An adapter that knows the source identity but only
+has the whole node-literal span emits `origin` without `span` for the
+`node-head`; it must not substitute the whole node span.
+
 ### 5.7 Flat structure and attributes
 
 AES has one flat event model. It does not embed attribute collections inside an
