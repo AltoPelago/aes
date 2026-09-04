@@ -67,7 +67,10 @@ recognized value-kind, datatype, and payload distinctions.
 The complete canonical datatype descriptor is carried in one `datatype` field.
 Generic arguments and clarifiers stay on the declaring event and are not
 inferred onto descendants. Clone and pointer references use distinct kinds with
-the same canonical target-path payload shape.
+the same canonical target-path payload shape. Trimtick processing occurs before
+AES emission, so its decoded and trimmed result is transported as an ordinary
+`string`; delimiter width and indentation remain source concerns. World time
+context is retained as the distinct `wtc` kind.
 
 ## Recommended boundary
 

@@ -215,31 +215,47 @@ fixed in this draft.
 
 ### 5.4 Value kinds
 
-The initial vocabulary to reconcile is:
+The portable value-kind vocabulary and its `value` payloads are:
 
-```text
-string
-number
-infinity
-nan
-null
-boolean
-toggle
-hex
-radix
-encoding
-separator
-sansa-address
-date
-datetime
-time
-object
-list
-tuple
-node
-clone-reference
-pointer-reference
-```
+| `kind` | `value` payload |
+| --- | --- |
+| `string` | decoded Unicode string; an empty payload is valid |
+| `number` | canonical finite numeric text |
+| `infinity` | `Infinity` or `-Infinity` |
+| `nan` | `NaN` or `-NaN` |
+| `null` | recognized sentinel or decoded custom reason |
+| `boolean` | `true` or `false` |
+| `toggle` | `yes`, `no`, `on`, or `off` |
+| `hex` | lowercase hexadecimal digits, without `#` or visual underscores |
+| `radix` | canonical radix payload, without `%` or visual underscores |
+| `encoding` | encoding payload without `&`; padding is preserved |
+| `separator` | canonical separator payload without `^` |
+| `sansa-address` | canonical SANSA address |
+| `date` | canonical date text |
+| `time` | canonical time text |
+| `datetime` | canonical date-time text |
+| `wtc` | canonical world-time-context text |
+| `object` | absent |
+| `list` | absent |
+| `tuple` | absent |
+| `node` | node tag |
+| `clone-reference` | canonical target path |
+| `pointer-reference` | canonical target path |
+
+`value` is required for every kind except `object`, `list`, and `tuple`, for
+which it is absent. Payloads are strings at the Telex layer even when their
+kind gives them numeric, temporal, or other semantics.
+
+AEON source spelling is normalized before the event enters AES. In particular,
+quoted strings, backtick strings, and trimtick strings all use `kind=string`.
+A trimtick payload has already undergone its trimming operation; delimiter
+width and indentation are source mechanics rather than properties of the
+resulting value. Numeric separators and the leading AEON sigils for hex,
+radix, encoding, and separator values are likewise not transported.
+
+The `separator` payload remains an opaque canonical value in AES. Its declared
+datatype and clarifiers may assign structure or interpretation downstream;
+Telex does not split it into a nested payload.
 
 Container events carry their kind but no nested value tree. Every member or
 item follows as an event at its own descendant canonical path. The same rule
@@ -267,9 +283,8 @@ The AEON `~` and `~>` sigils are not retained in `value`; their distinction is
 carried by `kind`. A Telex decoder preserves the symbolic reference and does not
 resolve or materialize it.
 
-The exact per-kind field table belongs to the portable AES value-representation
-contract, not to the generic line parser. It is the largest unfinished part of
-this draft.
+The table defines the portable AES value representation. A generic Telex syntax
+parser need not validate it, but an AES event-shape validator must.
 
 ### 5.5 Flat structure and attributes
 
@@ -385,17 +400,16 @@ access, datatype execution, or source-language evaluation.
 
 The following must be settled with fixtures and at least two implementations:
 
-1. What are the exact fields and canonical payloads for every value kind?
-2. What is the portable source-span coordinate system?
-3. How are anonymous typed values and structural identities represented on
+1. What is the portable source-span coordinate system?
+2. How are anonymous typed values and structural identities represented on
    their flat events?
-4. Which producer-side ordering constraints apply beyond Telex's requirement to
+3. Which producer-side ordering constraints apply beyond Telex's requirement to
    preserve the supplied event order exactly?
-5. Does a transport stream require prefix completeness, or may a declared raw
+4. Does a transport stream require prefix completeness, or may a declared raw
    event profile carry orphaned paths?
-6. Which unknown-field behavior is safe for standalone files and negotiated
+5. Which unknown-field behavior is safe for standalone files and negotiated
    protocols?
-7. What media type and profile identifiers are registered for Telex?
+6. What media type and profile identifiers are registered for Telex?
 
 Draft 1 should not be declared until the answers exist as conformance vectors,
 not only prose.
