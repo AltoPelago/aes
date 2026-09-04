@@ -463,6 +463,76 @@
         "diagnostic_codes": ["AES_UNKNOWN_FIELD"]
       },
       "tags": ["validation", "wtc", "authority", "unknown-field", "failure"]
+    },
+    {
+      "id": "telex-profile-033-complete-reference-target-required",
+      "description": "A complete stream rejects a syntactically valid reference to an absent body event",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.alias\nkind=pointer-reference\nvalue=$.missing\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v0",
+        "diagnostic_codes": ["AES_MISSING_REFERENCE_TARGET"]
+      },
+      "tags": ["validation", "complete", "reference", "target", "failure"]
+    },
+    {
+      "id": "telex-profile-034-partial-reference-target-may-be-absent",
+      "description": "A partial stream validates reference syntax without requiring the target event",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.alias\nkind=pointer-reference\nvalue=$.missing\n"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.partial.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "partial", "reference", "target"]
+    },
+    {
+      "id": "telex-profile-035-zero-width-span",
+      "description": "A portable source span must select at least one source byte",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=string\nvalue=\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=10:10\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v0",
+        "diagnostic_codes": ["AES_INVALID_SPAN"]
+      },
+      "tags": ["validation", "provenance", "span", "empty", "failure"]
+    },
+    {
+      "id": "telex-profile-036-complete-forward-reference",
+      "description": "Complete-stream target existence does not require target-before-reference order",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.alias\nkind=clone-reference\nvalue=$.source\n\npath=$.source\nkind=number\nvalue=1\n"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "complete", "reference", "forward"]
+    },
+    {
+      "id": "telex-profile-037-reference-root-is-not-event",
+      "description": "The unrepresented document root is not a canonical reference target event",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.alias\nkind=clone-reference\nvalue=$\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v0",
+        "diagnostic_codes": ["AES_INVALID_REFERENCE"]
+      },
+      "tags": ["validation", "partial", "reference", "root", "failure"]
     }
   ]
 }

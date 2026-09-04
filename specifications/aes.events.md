@@ -177,6 +177,16 @@ AEON's `~` and `~>` sigils are represented by `kind`, not retained in `value`.
 Portable AES preserves a symbolic reference and does not resolve or materialize
 it.
 
+Under `aes.complete.v0`, a syntactically valid target must identify exactly one
+body event in the same stream. Forward references are valid because existence
+is checked across the complete stream rather than against event order. Header
+addresses are not reference targets. AES checks existence only; cycle policy
+and clone or pointer materialization remain downstream concerns.
+
+Under `aes.partial.v0`, the target need only be a canonical event path. It may
+be absent because the surrounding transaction, subscription, or ledger state
+can supply the referenced occurrence.
+
 ### 4.4 WTC preservation
 
 A `wtc` event carries the complete canonical WTC text in `value`. Its temporal
@@ -278,6 +288,10 @@ Portable AES does not require exactly one node head. It can represent zero or
 multiple ordered heads so future source forms do not require a new event shape.
 AEON and other source profiles may impose their own cardinality.
 
+In the portable path domain, head `h` is at `[h]` below its node and child `i`
+of that head is at `[h][i]`. For example, a second head is `$.a[1]` and its
+first child is `$.a[1][0]`.
+
 For `a = <tag(<tag>, <tag>)>`, the inner node containers occur at
 `$.a[0][0]` and `$.a[0][1]`; their heads occur at `$.a[0][0][0]` and
 `$.a[0][1][0]`.
@@ -299,6 +313,12 @@ Let `S` be an AEON source path for a node and `E(S)` its AES event path:
 | synthetic node head | `E(S)[0]` |
 | node child at `S[i]` | `E(S)[0][i]` |
 | node-head attribute | beneath `E(S)[0].@` |
+
+This table is specific to current AEON, whose source paths expose the children
+of one implicit head. It is not a source-neutral meaning for `S[i]`. A future
+multi-head AEON syntax or another source language must version and define its
+own structure-aware mapping into the portable `[head-index][child-index]`
+layout.
 
 Member, attribute, list-index, and tuple-index segments otherwise retain their
 meaning. Translation recurses across every node boundary:
@@ -329,9 +349,8 @@ the revised node head.
 
 The portable span form is `start-byte:end-byte`. Both positions are zero-based
 UTF-8 byte offsets into the exact source identified by `origin`; start is
-inclusive and end is exclusive. `start-byte` must not exceed `end-byte`, and
-both endpoints must fall on UTF-8 scalar boundaries. Line and column views are
-derived and are not transported.
+inclusive and end is exclusive. `start-byte` must be less than `end-byte`.
+Line and column views are derived and are not transported.
 
 The allowed combinations are:
 
@@ -358,6 +377,17 @@ A source-less record omits both fields. A producer with known source but no
 exact range carries `origin` alone rather than inventing a zero span. Semantic
 value hashes exclude `origin` and `span`; a provenance-aware signature profile
 may explicitly include them.
+
+Local event validation checks canonical integer syntax, the non-empty ordered
+range, and the presence and syntax of `origin`. It does not load an external
+artifact. When exact source bytes are available, a source-backed provenance
+audit additionally verifies the SHA-256 digest, range bounds, and that both
+endpoints fall on UTF-8 scalar boundaries. An unavailable artifact leaves
+provenance unverified without making the locally valid record invalid.
+
+If an available artifact does not match `origin`, the audit reports
+`AES_ORIGIN_MISMATCH`. If its range is out of bounds or either endpoint splits
+a UTF-8 scalar, it reports `AES_INVALID_SPAN`.
 
 ### 7.1 Node-head span
 
@@ -411,6 +441,9 @@ compatible with its child segment. Parents are never inferred. An attribute
 requires its owner but no synthetic `.@` container. Node content requires both
 its `node` and `node-head` ancestry. Addresses and structural identities are
 unique.
+
+Every clone-reference and pointer-reference target identifies a body event in
+the stream. Target existence does not impose target-before-reference ordering.
 
 Only a member record may occur directly beneath the unrepresented `$` root.
 Named children require object parents. Indexed children require list, tuple, or
@@ -468,6 +501,11 @@ Header and body addresses are disjoint. When this projection is selected, the
 header plane is complete independently: addresses are unique, all ancestors
 exist, and parent kinds are compatible. This remains true when the body profile
 is partial. An AEON document with no header may produce an empty header plane.
+
+No record or delimiter represents the plane boundary. Each record selects its
+plane through `header` or `path`; once a body record occurs, a later header
+record is invalid. If the header plane is empty, the first record may be a body
+record.
 
 An AEON source `aeon:profile` claim does not select or replace the AES stream
 profile. Unknown projections fail semantic validation.
@@ -543,7 +581,9 @@ or the Aeonic Semantic Language remain separate validation points. Draft 0
 reference validators locally enforce only the payload rules defined here,
 including exact lowercase WTC `local`.
 
-Portable diagnostics use these stable codes; prose is not normative:
+### 12.1 Local diagnostics
+
+Portable local diagnostics use these stable codes; prose is not normative:
 
 | Code | Condition |
 | --- | --- |
@@ -563,7 +603,8 @@ Portable diagnostics use these stable codes; prose is not normative:
 | `AES_MISSING_VALUE` | a valued kind lacks `value` |
 | `AES_UNEXPECTED_VALUE` | a value-less kind carries `value` |
 | `AES_INVALID_VALUE` | locally specified value payload is invalid |
-| `AES_INVALID_REFERENCE` | reference target is not a canonical event path |
+| `AES_INVALID_REFERENCE` | reference target is not a canonical body event path |
+| `AES_MISSING_REFERENCE_TARGET` | complete stream omits a syntactically valid reference target |
 | `AES_EMPTY_FIELD` | optional datatype or identity is present but empty |
 | `AES_INVALID_ORIGIN` | origin is not a canonical Draft 0 source digest |
 | `AES_SPAN_REQUIRES_ORIGIN` | span occurs without origin |
@@ -573,6 +614,18 @@ Portable diagnostics use these stable codes; prose is not normative:
 | `AES_MISSING_PARENT` | complete plane omits required ancestry |
 | `AES_INCOMPATIBLE_PARENT` | child segment is incompatible with parent kind |
 | `AES_INVALID_NODE_HEAD` | node head is not a direct indexed child of a node |
+
+### 12.2 Source-backed audit diagnostics
+
+These diagnostics require access to the exact external source artifact and are
+not emitted by a local record validator:
+
+| Code | Condition |
+| --- | --- |
+| `AES_ORIGIN_MISMATCH` | available source bytes do not match the declared origin digest |
+
+`AES_INVALID_SPAN` is also used by a source-backed audit when a range exceeds
+the artifact or splits a UTF-8 scalar boundary.
 
 ## 13. Relationship to the Aeonic Semantic Language
 

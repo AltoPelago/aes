@@ -20,9 +20,15 @@ The manifest separates:
 - syntax and canonicalization;
 - event-local AES validation; and
 - complete versus partial stream validation; and
+- complete-profile reference-target integrity and partial dangling references;
 - explicit AEON document projection and header-plane validation; and
-- optional record-local origin and span validation; and
+- optional record-local origin and non-empty span validation; and
 - WTC anchor/reference preservation and consumer-authority boundaries.
+
+Syntax vectors also distinguish canonical empty-stream EOF, tolerant Unicode
+escape spelling, bare CR, raw LF framing, and exact field-name segment grammar.
+Source-backed digest, byte-bound, and UTF-8 boundary audits require the external
+artifact and are therefore outside the local Telex vector operations.
 
 Portable tests assert stable error or diagnostic codes rather than matching
 implementation-specific prose. Semantic `diagnostic_codes` are compared as a

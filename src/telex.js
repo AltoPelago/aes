@@ -456,6 +456,11 @@ export function validateTelexRecords(records, options = {}) {
   const headerEvents = events.filter(({ addressField }) => addressField === 'header');
   if (profile === COMPLETE_AES_PROFILE) {
     validateCompleteStream(bodyEvents, diagnostics);
+    validateReferenceTargets(
+      [...bodyEvents, ...(projection === AEON_DOCUMENT_PROJECTION ? headerEvents : [])],
+      bodyEvents,
+      diagnostics,
+    );
   }
   if (projection === AEON_DOCUMENT_PROJECTION) {
     validateCompleteStream(headerEvents, diagnostics);
@@ -531,6 +536,7 @@ function validateEventValue(event, index, diagnostics) {
   if (event.kind === 'clone-reference' || event.kind === 'pointer-reference') {
     try {
       parseCanonicalDataPath(event.value);
+      if (event.value === '$') throw new TypeError('The root is not an event path');
     } catch (error) {
       diagnostics.push(diagnostic(
         'AES_INVALID_REFERENCE',
@@ -572,12 +578,36 @@ function validateOptionalCoreFields(event, index, diagnostics) {
     ));
   }
   const match = event.span.match(/^(0|[1-9][0-9]*):(0|[1-9][0-9]*)$/u);
-  if (match === null || BigInt(match[1]) > BigInt(match[2])) {
+  if (match === null || BigInt(match[1]) >= BigInt(match[2])) {
     diagnostics.push(diagnostic(
       'AES_INVALID_SPAN',
-      "Span must be canonical 'start-byte:end-byte' with start-byte <= end-byte",
+      "Span must be canonical 'start-byte:end-byte' with start-byte < end-byte",
       { ...context, field: 'span' },
     ));
+  }
+}
+
+function validateReferenceTargets(referenceEvents, bodyEvents, diagnostics) {
+  const bodyPaths = new Set(
+    bodyEvents
+      .filter(({ pathDetails }) => pathDetails !== undefined)
+      .map(({ address }) => address),
+  );
+  for (const { event, index, address } of referenceEvents) {
+    if (event.kind !== 'clone-reference' && event.kind !== 'pointer-reference') continue;
+    if (typeof event.value !== 'string' || event.value === '$') continue;
+    try {
+      parseCanonicalDataPath(event.value);
+    } catch {
+      continue;
+    }
+    if (!bodyPaths.has(event.value)) {
+      diagnostics.push(diagnostic(
+        'AES_MISSING_REFERENCE_TARGET',
+        `Missing reference target '${event.value}'`,
+        { record: index, path: address, field: 'value', requiredPath: event.value },
+      ));
+    }
   }
 }
 

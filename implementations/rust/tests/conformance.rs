@@ -42,7 +42,7 @@ fn passes_draft_0_telex_vectors() {
         }
     }
 
-    assert_eq!(count, 49, "unexpected Draft 0 vector count");
+    assert_eq!(count, 60, "unexpected Draft 0 vector count");
 }
 
 fn run_vector(id: &str, vector: &Value) {

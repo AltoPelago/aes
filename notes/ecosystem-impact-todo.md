@@ -141,7 +141,8 @@ identity locations. Clone materialization clears identities copied from the
 source subtree while retaining the destination binding identity. Semantic JSON
 finalization intentionally omits identities and is documented as a lossy
 materialization. The TypeScript and Tonics full typecheck/test baselines pass;
-portable flat-event projection and the wider consumer audit remain open.
+portable flat-event projection is implemented in all four language adapters,
+while the wider consumer audit remains open.
 
 ### 1.2 Node projection and paths
 
@@ -159,14 +160,18 @@ portable flat-event projection and the wider consumer audit remain open.
 
 #### Required ecosystem work
 
-- [ ] Update TypeScript, Rust, Python, and PHP AEON-to-AES adapters to expand a
+- [x] Update TypeScript, Rust, Python, and PHP AEON-to-AES adapters to expand a
   `NodeLiteral` into an outer `node`, a `node-head`, and recursively flattened
   content events.
   - [x] TypeScript: added the explicit portable projection, recursive node-path
     expansion, node-boundary reference translation, and CLI/CTS coverage.
   - [x] Rust: added the explicit portable projection, recursive node-path
     expansion, node-boundary reference translation, and CLI/CTS coverage.
-  - [ ] Python and PHP remain on the legacy node event shape.
+  - [x] Python: added the explicit portable projection, recursive node-path
+    expansion, node-boundary reference translation, and CLI/CTS coverage.
+  - [x] PHP: added the explicit portable projection, recursive node-path
+    expansion, node-boundary reference translation, and CLI/CTS coverage while
+    retaining the existing event shape behind an explicit legacy JSON adapter.
 - [x] Define AEON source-path to portable event-path translation for node
   descendants; the old first child path must never be silently reinterpreted
   as the new node-head path.
@@ -200,14 +205,20 @@ portable flat-event projection and the wider consumer audit remain open.
   members, indexed values, node heads, and node content.
 - [x] Leave attribute ownership and scope interpretation to SANSA and
   downstream consumers.
-- [ ] Replace embedded attribute maps in TypeScript, Rust, Python, and PHP AES
+- [x] Replace embedded attribute maps in TypeScript, Rust, Python, and PHP AES
   adapters and transport surfaces with flat projection or an explicit legacy
   compatibility adapter.
   - [x] TypeScript: the explicit portable projection emits binding,
     anonymous-child, nested, and node-head attributes as ordinary flat events.
   - [x] Rust: the explicit portable projection emits binding, anonymous-child,
     nested, and node-head attributes as ordinary flat events in source preorder.
-  - [ ] Python and PHP portable projections remain to be updated.
+  - [x] Python: the explicit portable projection emits binding,
+    anonymous-child, nested, and node-head attributes as ordinary flat events
+    in source preorder.
+  - [x] PHP: the explicit portable projection emits binding, anonymous-child,
+    nested, and node-head attributes as ordinary flat events in source preorder;
+    the inspect transport keeps the prior nested form as an explicit legacy
+    compatibility adapter.
 - [ ] Verify prefix-completeness and container-compatibility rules for
   attribute paths without synthesizing phantom parent bindings.
 - [ ] Update SANSA, SO, ASP, AES-DB, validators, SDKs, and editing tools that
@@ -221,6 +232,9 @@ portable flat-event projection and the wider consumer audit remain open.
   propagate container generic arguments onto descendants.
 - [x] Use separate `clone-reference` and `pointer-reference` kinds with one
   canonical target-path payload shape.
+- [x] Under `aes.complete.v0`, require each reference target to exist exactly
+  once in the body plane; under `aes.partial.v0`, validate target syntax without
+  requiring local presence. Reference cycles remain a downstream concern.
 - [x] Normalize trimtick content before AES and transport it as `kind=string`;
   delimiter width and indentation are source mechanics.
 - [x] Add `wtc` as a distinct temporal kind.
@@ -264,8 +278,13 @@ portable flat-event projection and the wider consumer audit remain open.
 - [x] Define that offsets include an accepted UTF-8 BOM and always measure
   against the exact, unnormalized source resource.
 - [x] Add shared Telex vectors for origin-only records, valid origin-plus-span,
-  rejected span-only records, malformed spans, and non-canonical origins.
-- [ ] Require span endpoints to fall on UTF-8 scalar boundaries.
+  rejected span-only records, malformed and zero-width spans, and non-canonical
+  origins.
+- [x] Define UTF-8 scalar-boundary and source-length checks as source-backed
+  audit rules rather than event-local validation; digest disagreement uses
+  `AES_ORIGIN_MISMATCH`.
+- [ ] Implement source-backed provenance audits over exact source artifacts in
+  each language and add non-ASCII boundary, range, and digest-mismatch vectors.
 - [ ] Derive line and column only when the identified source bytes are
   available.
 - [ ] TypeScript: correct or replace the lexer claim that its UTF-16 string
@@ -303,11 +322,15 @@ portable flat-event projection and the wider consumer audit remain open.
   header completeness.
 - [ ] Add shared fixtures for structured headers, shorthand headers, header
   conflicts, and body-only streams.
-- [ ] TypeScript and PHP: stop exposing synthetic header events in the default
-  public AES body stream; retain the parsed header side channel and add an
-  explicit adapter for `aeon.document.v0`.
-- [ ] Rust and Python: retain body-only public events and add the same explicit
-  document-projection adapter.
+- [x] TypeScript, Rust, and Python: `inspect --json --portable-aes` now exposes
+  the portable projection as a body-only event stream. TypeScript excludes its
+  synthetic `aeon:*` events; Rust and Python retain parsed headers outside the
+  event stream.
+- [ ] TypeScript, Rust, and Python: add an explicit `aeon.document.v0` adapter
+  that projects the retained header into ordered `header` records before the
+  portable body events.
+- [ ] Audit remaining TypeScript public AES surfaces for synthetic header
+  leakage, and update PHP's default body stream and explicit document adapter.
 - [ ] Update finalizers and SDKs so existing payload/header/full views consume
   the two planes deliberately rather than filtering records by key prefix.
 - [ ] Correct the AEON integrity appendix statement that convention headers are

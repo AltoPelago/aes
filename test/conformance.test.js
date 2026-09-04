@@ -65,7 +65,11 @@ test('portable AES vocabulary matches the reference validator', () => {
 
   const implementedCodes = new Set([...referenceSource.matchAll(/['"](AES_[A-Z_]+)['"]/gu)]
     .map((match) => match[1]));
-  const documentedCodes = new Set(portableSpec.match(/AES_[A-Z_]+/gu) ?? []);
+  const documentedCodes = new Set(tableFirstColumn(section(
+    portableSpec,
+    '### 12.1 Local diagnostics',
+    '### 12.2 Source-backed audit diagnostics',
+  )));
   assert.deepEqual(documentedCodes, implementedCodes);
 });
 
@@ -106,7 +110,7 @@ function runParseVector(vector) {
   } catch (error) {
     assert.equal(vector.expected.ok, false, `unexpected parse error: ${error.message}`);
     assert.ok(error instanceof TelexSyntaxError);
-    assert.deepEqual({ code: error.code, line: error.line }, vector.expected.error);
+    assert.deepEqual({ code: error.code, line: error.line ?? null }, vector.expected.error);
   }
 }
 

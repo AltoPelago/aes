@@ -652,6 +652,17 @@ pub fn validate_telex_records_with_projection(
         .collect::<Vec<_>>();
     if profile == COMPLETE_AES_PROFILE {
         validate_complete_stream(&body_events, &mut diagnostics);
+        let reference_events = body_events
+            .iter()
+            .chain(
+                (projection == Some(AEON_DOCUMENT_PROJECTION))
+                    .then_some(header_events.iter())
+                    .into_iter()
+                    .flatten(),
+            )
+            .copied()
+            .collect::<Vec<_>>();
+        validate_reference_targets(&reference_events, &body_events, &mut diagnostics);
     }
     if projection == Some(AEON_DOCUMENT_PROJECTION) {
         validate_complete_stream(&header_events, &mut diagnostics);
@@ -763,14 +774,19 @@ fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec
             .with_field("value"),
         );
     }
-    if ["clone-reference", "pointer-reference"].contains(&kind)
-        && let Err(message) = parse_canonical_data_path(value)
-    {
-        diagnostics.push(
-            Diagnostic::new("AES_INVALID_REFERENCE", message)
-                .at_record(index, path)
-                .with_field("value"),
-        );
+    if ["clone-reference", "pointer-reference"].contains(&kind) {
+        let invalid = if value == "$" {
+            Some(String::from("The root is not an event path"))
+        } else {
+            parse_canonical_data_path(value).err()
+        };
+        if let Some(message) = invalid {
+            diagnostics.push(
+                Diagnostic::new("AES_INVALID_REFERENCE", message)
+                    .at_record(index, path)
+                    .with_field("value"),
+            );
+        }
     }
 }
 
@@ -815,7 +831,7 @@ fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut
             diagnostics.push(
                 Diagnostic::new(
                     "AES_INVALID_SPAN",
-                    "Span must be canonical 'start-byte:end-byte' with start-byte <= end-byte",
+                    "Span must be canonical 'start-byte:end-byte' with start-byte < end-byte",
                 )
                 .at_record(index, path)
                 .with_field("span"),
@@ -921,6 +937,41 @@ fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Ve
         if kind == Some("node-head") && (*segment != Segment::Index || parent_kind != Some("node"))
         {
             diagnostics.push(invalid_node_head(candidate));
+        }
+    }
+}
+
+fn validate_reference_targets(
+    reference_events: &[&EventCandidate<'_>],
+    body_events: &[&EventCandidate<'_>],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let body_paths = body_events
+        .iter()
+        .filter(|candidate| candidate.path_details.is_some())
+        .filter_map(|candidate| candidate.address)
+        .collect::<HashSet<_>>();
+    for candidate in reference_events {
+        let kind = candidate.event.get("kind");
+        if ![Some("clone-reference"), Some("pointer-reference")].contains(&kind) {
+            continue;
+        }
+        let Some(target) = candidate.event.get("value") else {
+            continue;
+        };
+        if target == "$" || parse_canonical_data_path(target).is_err() {
+            continue;
+        }
+        if !body_paths.contains(target) {
+            diagnostics.push(
+                Diagnostic::new(
+                    "AES_MISSING_REFERENCE_TARGET",
+                    format!("Missing reference target '{target}'"),
+                )
+                .at_record(candidate.index, candidate.address)
+                .with_field("value")
+                .with_required_path(target),
+            );
         }
     }
 }
@@ -1245,7 +1296,7 @@ fn valid_span(span: &str) -> bool {
     if end.contains(':') || !canonical_unsigned(start) || !canonical_unsigned(end) {
         return false;
     }
-    start.len() < end.len() || (start.len() == end.len() && start <= end)
+    start.len() < end.len() || (start.len() == end.len() && start < end)
 }
 
 fn valid_origin(origin: &str) -> bool {

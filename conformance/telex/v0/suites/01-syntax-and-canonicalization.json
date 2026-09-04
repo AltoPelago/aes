@@ -316,6 +316,105 @@
         "telex": "telex.aes=0\n\npath=$.civilLocal\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30&local\n\npath=$.offsetNamed\nkind=wtc\ndatatype=wtc\nvalue=2025-01-01T09:30+11:00&Australia/Melbourne\n\npath=$.utcGeo\nkind=wtc\ndatatype=wtc\nvalue=2034-12-31T22:00Z&-36.7590183/144.2826718/213\n"
       },
       "tags": ["canonicalization", "wtc", "temporal", "preservation"]
+    },
+    {
+      "id": "telex-syntax-018-empty-without-final-lf",
+      "description": "A zero-record stream without its final LF is decodable but non-canonical",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0"
+      },
+      "expected": {
+        "ok": true,
+        "version": "0",
+        "profile": "aes.complete.v0",
+        "profile_explicit": false,
+        "projection": null,
+        "projection_explicit": false,
+        "canonical": false,
+        "records": []
+      },
+      "tags": ["syntax", "empty", "eof", "non-canonical"]
+    },
+    {
+      "id": "telex-syntax-019-empty-with-blank-line",
+      "description": "A zero-record stream with a trailing blank line is decodable but non-canonical",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\n"
+      },
+      "expected": {
+        "ok": true,
+        "version": "0",
+        "profile": "aes.complete.v0",
+        "profile_explicit": false,
+        "projection": null,
+        "projection_explicit": false,
+        "canonical": false,
+        "records": []
+      },
+      "tags": ["syntax", "empty", "separator", "non-canonical"]
+    },
+    {
+      "id": "telex-syntax-020-canonicalize-unicode-escape-case-and-padding",
+      "description": "Lowercase and padded Unicode escapes decode but canonicalize to shortest uppercase spelling",
+      "operation": "canonicalize",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nvalue=\\u{1f}\\u{000041}\n"
+      },
+      "expected": {
+        "ok": true,
+        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nvalue=\\u{1F}A\n"
+      },
+      "tags": ["canonicalization", "escaping", "unicode", "case", "padding"]
+    },
+    {
+      "id": "telex-syntax-021-leading-digit-extension-segment",
+      "description": "Every dotted field-name segment begins with a lowercase ASCII letter",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nx.42base.flag=value\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_FIELD_NAME",
+          "line": 5
+        }
+      },
+      "tags": ["syntax", "field-name", "extension", "failure"]
+    },
+    {
+      "id": "telex-syntax-022-bare-carriage-return",
+      "description": "A bare carriage return is not a Telex line ending or payload character",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\r"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_BARE_CR",
+          "line": null
+        }
+      },
+      "tags": ["syntax", "line-ending", "control", "failure"]
+    },
+    {
+      "id": "telex-syntax-023-raw-line-feed-splits-payload",
+      "description": "A raw LF ends the field and following payload text must itself be a field line",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.a\nkind=string\nvalue=first\nsecond\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_FIELD_LINE",
+          "line": 6
+        }
+      },
+      "tags": ["syntax", "framing", "line-feed", "failure"]
     }
   ]
 }

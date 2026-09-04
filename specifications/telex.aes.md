@@ -127,8 +127,16 @@ Omitting profile selects `aes.complete.v0`; omitting projection selects the
 ordinary body-only stream.
 
 The stream header is followed by a blank line when at least one record follows.
-Future Telex versions use another preamble value rather than an inferred feature
-set.
+A canonical zero-record stream ends with exactly one LF immediately after its
+last stream-header line. Therefore `telex.aes=0\n` is the canonical empty
+default stream; an explicit profile or projection, when present, becomes the
+last line before that LF. There is no trailing blank line.
+
+A tolerant decoder may accept EOF without the final LF or one or more blank
+lines after zero-record metadata, but marks either form non-canonical. Header-
+plane records are records and therefore require the ordinary blank separator.
+Future Telex versions use another preamble value rather than an inferred
+feature set.
 
 Profile and projection identifiers use Telex payload escaping. Draft 0 permits
 at most one declaration of each and rejects an empty identifier. A syntax
@@ -145,9 +153,23 @@ Each stanza encodes one portable AES record without adding a record-type field.
 The first `=` on a line separates the field name from its payload; later `=`
 characters belong to the payload and need no escaping.
 
-Field names use lowercase ASCII letters, digits, `-`, and `.`. A field name and
-each dotted segment begin with a letter. Empty payloads are valid. Empty field
-names, duplicate fields in one record, and lines without `=` are invalid.
+Field names use this ASCII grammar:
+
+```text
+segment = [a-z][a-z0-9-]*
+field   = segment ("." segment)*
+```
+
+Consequently, every dotted segment begins with a lowercase ASCII letter;
+`x.owner.flag` and `x.base42.flag` are valid, while `x.42base.flag` is not.
+Empty payloads are valid. Empty field names, duplicate fields in one record,
+and lines without `=` are invalid.
+
+There is no separate header/body delimiter among records. Each stanza selects
+its plane with exactly one `header` or `path` field. Ordinary blank stanza
+separators apply within and between planes. Semantic validation forbids a
+`header` record after the first `path` record; an empty header plane has no
+marker.
 
 There are no comments. Comments would introduce a second information channel
 and complicate canonicalization.
@@ -166,11 +188,16 @@ Payloads are single logical lines. Telex uses this escape vocabulary:
 | `\u{H...}` | Unicode scalar written as 1-6 uppercase hexadecimal digits |
 
 An unescaped C0 control or DEL is invalid. A surrogate, a value above
-`U+10FFFF`, an unknown escape, and a lowercase or padded canonical Unicode
-escape are invalid in canonical input.
+`U+10FFFF`, and an unknown or malformed escape are invalid.
 
-Canonical encoders use short escapes where available, escape other C0 controls
-and DEL with `\u{...}`, and emit all other Unicode scalars directly.
+A canonical encoder emits backslash as `\\`; emits null, tab, LF, and CR as
+`\0`, `\t`, `\n`, and `\r`; emits every other C0 control and DEL as the shortest
+`\u{H...}` form with uppercase hexadecimal digits and no leading zeroes; and
+emits every other Unicode scalar directly. Thus U+000B becomes `\u{B}`, U+007F
+becomes `\u{7F}`, and U+0041 becomes `A`.
+
+Lowercase or padded Unicode escapes are decodable but non-canonical. They are
+not malformed merely because their spelling is non-canonical.
 
 This escaping is Telex-specific. It is not JSON, JavaScript, Rust, or AEON
 source escaping.
@@ -198,6 +225,13 @@ not compared for conformance.
 | `TELEX_UNTERMINATED_UNICODE_ESCAPE` | Unicode escape has no closing brace |
 | `TELEX_INVALID_UNICODE_ESCAPE` | Unicode escape digits are malformed |
 | `TELEX_INVALID_UNICODE_SCALAR` | payload or escape is not a Unicode scalar |
+
+A bare CR uses `TELEX_BARE_CR`. An LF ends the current physical line, so
+following payload text without `=` is a new malformed line and uses
+`TELEX_INVALID_FIELD_LINE`. Other unescaped C0 controls in a payload use
+`TELEX_UNESCAPED_CONTROL`. Telex has no generic trailing-character error:
+everything after the first `=` belongs to the payload and may instead fail
+later AES field validation.
 
 ## 5. Mapping the portable AES contract
 
@@ -255,8 +289,12 @@ span
 ```
 
 A tolerant decoder may accept non-canonical field order, multiple stanza
-separators, CRLF, and lowercase hexadecimal in Unicode escapes. It exposes that
-the input was non-canonical when canonical bytes matter.
+separators, CRLF, and lowercase or padded hexadecimal in Unicode escapes. It
+exposes that the input was non-canonical when canonical bytes matter.
+`TELEX_INVALID_UNICODE_ESCAPE` is reserved for an undecodable escape; a
+canonical verifier rejects an otherwise decodable spelling through the
+canonicality result or comparison with canonical re-encoding, not through a
+lowercase-specific syntax diagnostic.
 
 Canonicalization changes only Telex representation. It does not reorder AES
 records or rewrite their decoded payload strings, including WTC anchor and

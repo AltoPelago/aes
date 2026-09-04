@@ -89,9 +89,17 @@ the owner's `.@` address space. Nested attributes and structural descendants
 are flattened recursively in declared order. Attribute scope and lookup remain
 downstream concerns.
 
-If both an embedded attribute and an already-flat legacy record map to the same
-portable address, the adapter reports a collision and fails. It does not choose
-one value.
+If two distinct legacy occurrences—including an embedded attribute and an
+already-flat record—map to the same portable address, the adapter reports
+`AES_COMPAT_ADDRESS_COLLISION` and fails. Equal visible payloads do not make the
+occurrences idempotent: identity, provenance, order, or assignment history may
+still differ. A named source contract may designate one of two redundant views
+as authoritative only when both views represent the same source occurrence;
+that is schema mapping, not value-based deduplication.
+
+If duplicates instead reach portable validation, `aes.complete.v0` reports
+`AES_DUPLICATE_PATH`. Intentional repeated addresses remain distinct ordered
+records under `aes.partial.v0`.
 
 ### 3.3 Identity
 
@@ -149,7 +157,8 @@ its named legacy target contract.
 
 At minimum, a down-conversion adapter MUST reject:
 
-- a node with zero or multiple heads when the target requires one;
+- a node with zero or multiple heads when the target requires one
+  (`AES_COMPAT_UNREPRESENTABLE`);
 - a direct reference to a synthetic `node-head` occurrence;
 - a partial stream whose missing context is needed to rebuild legacy nesting;
 - identity, extension, header, or provenance data unsupported by the target,
@@ -237,7 +246,7 @@ Compatibility adapters use stable codes; prose is not normative:
 | `AES_COMPAT_UNSUPPORTED_CONTRACT` | named source or target contract is unsupported |
 | `AES_COMPAT_AMBIGUOUS_PATH` | structural context cannot establish path meaning |
 | `AES_COMPAT_ADDRESS_COLLISION` | distinct source occurrences map to one target address |
-| `AES_COMPAT_UNREPRESENTABLE` | a source occurrence has no exact target representation |
+| `AES_COMPAT_UNREPRESENTABLE` | a source occurrence has no exact target representation, including zero or multiple heads for a single-head target |
 | `AES_COMPAT_LOSS_REQUIRES_OPT_IN` | conversion would discard data without authorization |
 | `AES_COMPAT_SOURCE_REQUIRED` | exact source bytes are required for requested provenance conversion |
 | `AES_COMPAT_READER_NOT_READY` | a required reader has not acknowledged the selected context |
@@ -257,6 +266,7 @@ Shared compatibility vectors cover at least:
 - body data that resembles a legacy synthetic header;
 - ASCII, multibyte, combining, and astral source ranges;
 - unsupported value kinds and direct node-head references;
+- zero- and multiple-head down-conversion into single-head targets;
 - partial-stream down-conversion without required ancestry;
 - rejection of untagged input and unknown contract identifiers;
 - conversion reports for every authorized loss; and
