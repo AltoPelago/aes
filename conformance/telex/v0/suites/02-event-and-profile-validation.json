@@ -264,6 +264,34 @@
         "diagnostic_codes": ["AES_UNKNOWN_KIND"]
       },
       "tags": ["validation", "event-shape", "kind", "failure"]
+    },
+    {
+      "id": "telex-profile-019-quoted-attribute-path",
+      "description": "Quoted members and attribute owners participate in the same complete path structure",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.a\nkind=object\n\npath=$.a.@.[\"x.y\"]\nkind=object\n\npath=$.a.@.[\"x.y\"].[\"deep key\"]\nkind=string\nvalue=yes\n"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.telex.v0",
+        "diagnostic_codes": []
+      },
+      "tags": ["validation", "complete", "attributes", "quoted-member"]
+    },
+    {
+      "id": "telex-profile-020-unnecessarily-quoted-member",
+      "description": "A member that is legal in bare form must use that canonical form",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.[\"a\"]\nkind=number\nvalue=1\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.raw.v0",
+        "diagnostic_codes": ["AES_INVALID_PATH"]
+      },
+      "tags": ["validation", "path", "quoted-member", "failure"]
     }
   ]
 }

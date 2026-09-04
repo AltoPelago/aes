@@ -207,6 +207,32 @@
         }
       },
       "tags": ["syntax", "failure", "escaping"]
+    },
+    {
+      "id": "telex-syntax-012-canonicalize-explicit-profile",
+      "description": "Canonicalization retains an explicitly declared profile",
+      "operation": "canonicalize",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\nkind=number\npath=$.a.b\nvalue=1\n"
+      },
+      "expected": {
+        "ok": true,
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.a.b\nkind=number\nvalue=1\n"
+      },
+      "tags": ["canonicalization", "profile", "raw"]
+    },
+    {
+      "id": "telex-syntax-013-canonicalization-preserves-event-order",
+      "description": "Canonicalization orders fields but never sorts events by path",
+      "operation": "canonicalize",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\nkind=number\npath=$.z\nvalue=1\n\nkind=number\npath=$.a\nvalue=2\n"
+      },
+      "expected": {
+        "ok": true,
+        "telex": "telex.aes=0\nprofile=aes.raw.v0\n\npath=$.z\nkind=number\nvalue=1\n\npath=$.a\nkind=number\nvalue=2\n"
+      },
+      "tags": ["canonicalization", "event-order", "raw"]
     }
   ]
 }

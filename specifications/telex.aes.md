@@ -642,8 +642,9 @@ prose. Transport-specific media types and external registration are outside the
 Draft 0 format decision gates.
 
 The repository-local `conformance/telex/v0` manifest is the mutable Draft 0
-development snapshot. Passing it in the JavaScript reference implementation is
-necessary but does not satisfy the independent-implementation requirement.
+development snapshot. The JavaScript and Rust reference implementations run it
+independently. Draft 1 still requires both to pass the eventual frozen snapshot,
+not merely this mutable development copy.
 
 ## 11. Relationship to the Aeonic Semantic Language
 

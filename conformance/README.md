@@ -29,7 +29,8 @@ each test:
 - `canonicalize`: return canonical Telex text without reordering events; or
 - `validate`: return the effective profile and semantic diagnostic codes.
 
-These vectors remain development snapshots while the format is Draft 0. After
-the specification stabilizes, promote an immutable snapshot into the shared
-`aeonite-cts` repository and require a second independent implementation before
-declaring Draft 1.
+These vectors remain development snapshots while the format is Draft 0. The
+JavaScript and Rust implementations both consume the same vectors independently.
+After the specification stabilizes, promote an immutable snapshot into the
+shared `aeonite-cts` repository and rerun both implementations against that
+frozen snapshot before declaring Draft 1.

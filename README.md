@@ -45,6 +45,8 @@ This is a spec-first bootstrap. Nothing in this repository is normative yet.
   illustrative stream, not a frozen conformance vector.
 - [`conformance/`](conformance/README.md) contains language-neutral Draft 0
   vectors for syntax, canonicalization, and AES profile validation.
+- [`implementations/rust/`](implementations/rust/README.md) is an independent,
+  dependency-free Rust implementation of the same Draft 0 contract.
 
 Run the syntax tests with:
 
@@ -56,6 +58,12 @@ Run only the portable vector harness with:
 
 ```bash
 npm run test:conformance
+```
+
+Run the vectors through the Rust implementation with:
+
+```bash
+npm run test:conformance:rust
 ```
 
 ## Boundaries

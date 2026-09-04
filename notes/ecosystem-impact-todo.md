@@ -242,4 +242,6 @@ component already conforms.
   implementations before Draft 1.
 - [x] Add repository-local Draft 0 Telex vectors and run them against the
   JavaScript reference implementation before promotion into shared CTS.
+- [x] Add an independent Rust Telex implementation and run the same mutable
+  Draft 0 vectors against both implementations.
 - [ ] Review every completed decision gate for additions to this checklist.

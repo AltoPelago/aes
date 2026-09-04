@@ -6,7 +6,8 @@
   "description": "AES specifications and experimental Telex syntax codec",
   "scripts": {
     "test": "node --test",
-    "test:conformance": "node --test test/conformance.test.js"
+    "test:conformance": "node --test test/conformance.test.js",
+    "test:conformance:rust": "cargo test --locked --manifest-path implementations/rust/Cargo.toml"
   },
   "license": "MIT"
 }

@@ -1,6 +1,7 @@
 const VERSION_LINE = 'telex.aes=0';
 const PROFILE_FIELD = 'profile';
 const FIELD_NAME = /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/;
+const BARE_PATH_MEMBER = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const CORE_FIELD_ORDER = new Map([
   'path',
   'kind',
@@ -630,7 +631,11 @@ function readMemberEnd(path, cursor) {
     } catch {
       throw new TypeError(`Invalid quoted canonical member in path: ${path}`);
     }
-    if (typeof decoded !== 'string' || decoded.length === 0 || JSON.stringify(decoded) !== encoded) {
+    if (typeof decoded !== 'string'
+      || decoded.length === 0
+      || BARE_PATH_MEMBER.test(decoded)
+      || hasLoneSurrogate(decoded)
+      || JSON.stringify(decoded) !== encoded) {
       throw new TypeError(`Non-canonical quoted member in path: ${path}`);
     }
     return quoteEnd + 2;
@@ -639,6 +644,20 @@ function readMemberEnd(path, cursor) {
   const member = path.slice(cursor).match(/^[A-Za-z_][A-Za-z0-9_]*/u);
   if (!member) throw new TypeError(`Invalid canonical member in path: ${path}`);
   return cursor + member[0].length;
+}
+
+function hasLoneSurrogate(value) {
+  for (let index = 0; index < value.length; index += 1) {
+    const unit = value.charCodeAt(index);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (next < 0xdc00 || next > 0xdfff) return true;
+      index += 1;
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function decodePayload(payload, lineNumber) {
