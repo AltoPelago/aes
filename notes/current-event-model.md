@@ -72,6 +72,14 @@ AES emission, so its decoded and trimmed result is transported as an ordinary
 `string`; delimiter width and indentation remain source concerns. World time
 context is retained as the distinct `wtc` kind.
 
+Anonymous typed values are flattened into the event at their indexed path. The
+anonymous head's datatype and structural identity become the same `datatype`
+and `identity` fields used by named bindings; there is no `typed-value` wrapper
+kind. Node values are projected one structural level further: the outer `node`
+event is a value-less ordered container and each `node-head` descendant carries
+its tag. Current AEON produces one head at index zero, while the AES shape does
+not preclude future empty or multi-headed node profiles.
+
 ## Recommended boundary
 
 The working recommendation is:

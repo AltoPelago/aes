@@ -53,6 +53,17 @@ test('keeps clone and pointer references distinct through kind', () => {
   assert.deepEqual(parseTelex(encodeTelex(records)).records, records);
 });
 
+test('keeps node containers, heads, and content as separate flat events', () => {
+  const records = [
+    { path: '$.a', kind: 'node', datatype: 'node', identity: 'A' },
+    { path: '$.a.@.x', kind: 'number', value: '1' },
+    { path: '$.a[0]', kind: 'node-head', datatype: 'node<string>', identity: 'T', value: 'tag' },
+    { path: '$.a[0].@.x', kind: 'number', value: '2' },
+    { path: '$.a[0][0]', kind: 'string', value: 'hello' },
+  ];
+  assert.deepEqual(parseTelex(encodeTelex(records)).records, records);
+});
+
 test('accepts tolerant syntax and exposes that it is non-canonical', () => {
   const input = 'telex.aes=0\r\n\r\nkind=string\r\npath=$.x\r\nvalue=\\u{000041}\r\n';
   const parsed = parseTelex(input);

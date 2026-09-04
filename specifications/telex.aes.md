@@ -238,13 +238,14 @@ The portable value-kind vocabulary and its `value` payloads are:
 | `object` | absent |
 | `list` | absent |
 | `tuple` | absent |
-| `node` | node tag |
+| `node` | absent |
+| `node-head` | node tag |
 | `clone-reference` | canonical target path |
 | `pointer-reference` | canonical target path |
 
-`value` is required for every kind except `object`, `list`, and `tuple`, for
-which it is absent. Payloads are strings at the Telex layer even when their
-kind gives them numeric, temporal, or other semantics.
+`value` is required for every kind except `object`, `list`, `tuple`, and
+`node`, for which it is absent. Payloads are strings at the Telex layer even
+when their kind gives them numeric, temporal, or other semantics.
 
 AEON source spelling is normalized before the event enters AES. In particular,
 quoted strings, backtick strings, and trimtick strings all use `kind=string`.
@@ -262,7 +263,7 @@ item follows as an event at its own descendant canonical path. The same rule
 applies recursively to object members, list and tuple elements, node children,
 and values reached through attribute address spaces.
 
-A node uses `value` for its tag. A reference uses `value` for its canonical
+A node head uses `value` for its tag. A reference uses `value` for its canonical
 target path. Nulls use `value` for their recognized sentinel or decoded custom
 reason. No kind introduces a kind-specific field name.
 
@@ -286,7 +287,95 @@ resolve or materialize it.
 The table defines the portable AES value representation. A generic Telex syntax
 parser need not validate it, but an AES event-shape validator must.
 
-### 5.5 Flat structure and attributes
+### 5.5 Anonymous heads and structural identity
+
+An anonymous typed or attributed value does not introduce a wrapper event or a
+special value kind. Its datatype, structural identity, and value kind belong to
+the event at its indexed path.
+
+For example:
+
+```aeon
+values:list = [
+  \item-1\@{source:string = "user"}:int = 3
+]
+```
+
+projects as:
+
+```text
+path=$.values
+kind=list
+datatype=list
+
+path=$.values[0]
+kind=number
+datatype=int
+identity=item-1
+value=3
+
+path=$.values[0].@.source
+kind=string
+datatype=string
+value=user
+```
+
+The `identity` payload omits the AEON backslash delimiters. It is occurrence
+metadata and does not alter the event path or stream order. Telex does not
+invent an identity when none was supplied. Document-level uniqueness is an AES
+semantic constraint rather than Telex framing syntax.
+
+### 5.6 Nodes
+
+A node is an ordered structural container. Its node heads are ordinary flat
+descendant events, addressed by index. A `node-head` carries the tag in `value`
+and owns that head's ordered content values.
+
+Current AEON syntax produces one head at index zero:
+
+```aeon
+a:node = <tag("hello", 2)>
+```
+
+```text
+path=$.a
+kind=node
+datatype=node
+
+path=$.a[0]
+kind=node-head
+value=tag
+
+path=$.a[0][0]
+kind=string
+value=hello
+
+path=$.a[0][1]
+kind=number
+value=2
+```
+
+Binding-head metadata remains on the `node` event. Metadata written on the AEON
+node head belongs to its `node-head` event, so both heads remain independently
+representable without a new namespace:
+
+```text
+$.a.@.x
+$.a[0].@.x
+```
+
+Telex does not impose a cardinality of exactly one node head. The flat model can
+represent an empty node or multiple ordered heads without changing its path or
+event grammar. Whether a source language or negotiated AES profile permits
+zero, one, or many heads is a semantic constraint. This preserves room for
+future forms equivalent to `<>` and `<<tag>, <tag>>` while current AEON remains
+single-headed.
+
+Nested nodes follow directly from the same rule. For
+`a = <tag(<tag>, <tag>)>`, the inner node containers occur at `$.a[0][0]` and
+`$.a[0][1]`; their heads occur at `$.a[0][0][0]` and `$.a[0][1][0]`.
+
+### 5.7 Flat structure and attributes
 
 AES has one flat event model. It does not embed attribute collections inside an
 owning event and Telex does not have an attribute-specific payload grammar.
@@ -318,7 +407,7 @@ indexed elements, and node children.
 Telex preserves event order exactly. It does not derive a new order from path
 structure and it never groups, sorts, or nests attribute-space events.
 
-### 5.6 Source lexemes
+### 5.8 Source lexemes
 
 AES does not carry the exact original source token or a `lexeme` field.
 
@@ -401,15 +490,13 @@ access, datatype execution, or source-language evaluation.
 The following must be settled with fixtures and at least two implementations:
 
 1. What is the portable source-span coordinate system?
-2. How are anonymous typed values and structural identities represented on
-   their flat events?
-3. Which producer-side ordering constraints apply beyond Telex's requirement to
+2. Which producer-side ordering constraints apply beyond Telex's requirement to
    preserve the supplied event order exactly?
-4. Does a transport stream require prefix completeness, or may a declared raw
+3. Does a transport stream require prefix completeness, or may a declared raw
    event profile carry orphaned paths?
-5. Which unknown-field behavior is safe for standalone files and negotiated
+4. Which unknown-field behavior is safe for standalone files and negotiated
    protocols?
-6. What media type and profile identifiers are registered for Telex?
+5. What media type and profile identifiers are registered for Telex?
 
 Draft 1 should not be declared until the answers exist as conformance vectors,
 not only prose.
