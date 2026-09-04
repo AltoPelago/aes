@@ -7,7 +7,9 @@ telex/v0/telex-cts.v0.json
 ```
 
 JSON is only the language-neutral manifest envelope. Each `input.telex` value
-contains the actual Telex representation under test.
+contains the actual Telex representation under test. The manifest and each
+suite bind those vectors to portable contract `aes.events.v0`; `format_version`
+continues to identify Telex encoding version `0` independently.
 
 Event and profile expectations derive from
 `specifications/aes.events.md`. Telex syntax and canonical-byte expectations

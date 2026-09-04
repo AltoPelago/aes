@@ -10,6 +10,7 @@ fn passes_draft_0_telex_vectors() {
     let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../conformance/telex/v0/telex-cts.v0.json");
     let manifest = read_json(&manifest_path);
+    assert_eq!(manifest["meta"]["event_contract"], "aes.events.v0");
     let suites = manifest["suites"]
         .as_array()
         .expect("manifest suites must be an array");
@@ -26,6 +27,10 @@ fn passes_draft_0_telex_vectors() {
             .join(relative);
         let suite = read_json(&suite_path);
         assert_eq!(suite["id"], suite_ref["id"], "suite id mismatch");
+        assert_eq!(
+            suite["meta"]["event_contract"], manifest["meta"]["event_contract"],
+            "suite event contract mismatch"
+        );
         for vector in suite["tests"]
             .as_array()
             .expect("suite tests must be an array")

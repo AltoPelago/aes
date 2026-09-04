@@ -164,7 +164,9 @@ portable flat-event projection and the wider consumer audit remain open.
   content events.
   - [x] TypeScript: added the explicit portable projection, recursive node-path
     expansion, node-boundary reference translation, and CLI/CTS coverage.
-  - [ ] Rust, Python, and PHP remain on the legacy node event shape.
+  - [x] Rust: added the explicit portable projection, recursive node-path
+    expansion, node-boundary reference translation, and CLI/CTS coverage.
+  - [ ] Python and PHP remain on the legacy node event shape.
 - [x] Define AEON source-path to portable event-path translation for node
   descendants; the old first child path must never be silently reinterpreted
   as the new node-head path.
@@ -203,7 +205,9 @@ portable flat-event projection and the wider consumer audit remain open.
   compatibility adapter.
   - [x] TypeScript: the explicit portable projection emits binding,
     anonymous-child, nested, and node-head attributes as ordinary flat events.
-  - [ ] Rust, Python, and PHP portable projections remain to be updated.
+  - [x] Rust: the explicit portable projection emits binding, anonymous-child,
+    nested, and node-head attributes as ordinary flat events in source preorder.
+  - [ ] Python and PHP portable projections remain to be updated.
 - [ ] Verify prefix-completeness and container-compatibility rules for
   attribute paths without synthesizing phantom parent bindings.
 - [ ] Update SANSA, SO, ASP, AES-DB, validators, SDKs, and editing tools that

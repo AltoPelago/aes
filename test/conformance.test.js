@@ -13,17 +13,21 @@ const manifestUrl = new URL('../conformance/telex/v0/telex-cts.v0.json', import.
 const manifest = readJson(manifestUrl);
 const seenIds = new Set();
 const portableSpec = readFileSync(new URL('../specifications/aes.events.md', import.meta.url), 'utf8');
+const portableContract = portableSpec.match(/^Contract identifier: `([^`]+)`$/mu)?.[1];
 const referenceSource = readFileSync(new URL('../src/telex.js', import.meta.url), 'utf8');
 
 test('Telex conformance manifest has resolvable suites and unique vector IDs', () => {
   assert.equal(manifest.meta.format, 'telex.aes');
   assert.equal(manifest.meta.format_version, '0');
+  assert.notEqual(portableContract, undefined);
+  assert.equal(manifest.meta.event_contract, portableContract);
   assert.ok(Array.isArray(manifest.suites));
   assert.ok(manifest.suites.length > 0);
 
   for (const suiteRef of manifest.suites) {
     const suite = readJson(new URL(suiteRef.file, manifestUrl));
     assert.equal(suite.id, suiteRef.id);
+    assert.equal(suite.meta.event_contract, manifest.meta.event_contract);
     assert.ok(Array.isArray(suite.tests));
     for (const vector of suite.tests) {
       assert.equal(typeof vector.id, 'string');

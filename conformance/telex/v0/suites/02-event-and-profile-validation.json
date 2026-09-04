@@ -3,6 +3,7 @@
     "suite_id": "event-and-profile-validation",
     "lane": "aes-telex",
     "format_version": "0",
+    "event_contract": "aes.events.v0",
     "sut_protocol": "cts.protocol.v1",
     "spec_refs": [
       "specifications/aes.events.md#3-record-shape",
