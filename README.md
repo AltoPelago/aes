@@ -34,6 +34,9 @@ This is a spec-first bootstrap. Nothing in this repository is normative yet.
 
 - [Portable AES Event Contract Draft 0](specifications/aes.events.md) owns the
   transport-neutral record, profile, projection, and fidelity rules.
+- [Portable AES Compatibility Contract Draft 0](specifications/aes.compatibility.md)
+  defines explicit legacy adapters, durable read views, and the
+  reader-before-writer deployment barrier.
 - [Telex Draft 0](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
 - [Current event-model inventory](notes/current-event-model.md) records the

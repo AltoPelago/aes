@@ -2,6 +2,8 @@
 
 Status: exploratory draft
 
+Contract identifier: `aes.events.v0`
+
 Profiles: `aes.complete.v0`, `aes.partial.v0`
 
 This document is transport-neutral. It defines the portable Assignment Event
@@ -34,16 +36,22 @@ Language owns operations over recognized values.
 
 ## 2. Stream model and context
 
-An AES stream is an ordered sequence of records plus two independent context
-axes:
+An AES stream is an ordered sequence of records under the `aes.events.v0`
+contract plus two independent context axes:
 
 - `profile` selects validation and completeness claims;
 - `projection` selects which source surface is represented.
 
-When no profile is stated, `aes.complete.v0` applies. A stream that relaxes
-cross-record completeness must explicitly select `aes.partial.v0` or another
-profile. When no projection is stated, the stream contains ordinary body events
-only.
+After a carrier has established `aes.events.v0`, omitting the profile selects
+`aes.complete.v0`. A stream that relaxes cross-record completeness must
+explicitly select `aes.partial.v0` or another profile. Omitting the projection
+selects the ordinary body-only stream.
+
+The defaults do not identify the contract. An untagged legacy JSON record or
+array is not portable AES merely because it resembles this record shape. Every
+encoding, API, or storage surface binds its records to `aes.events.v0` before
+interpreting them; legacy conversion follows the separate
+[`aes.compatibility.md`](./aes.compatibility.md) contract.
 
 An encoding may place these identifiers in a stream header, protocol envelope,
 media-type parameter, or equivalent transport metadata. They are stream

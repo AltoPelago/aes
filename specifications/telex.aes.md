@@ -104,6 +104,11 @@ The first line is exactly:
 telex.aes=0
 ```
 
+This preamble establishes both Telex encoding version `0` and its static
+mapping to portable event contract `aes.events.v0`. A Telex reader does not
+need a second contract declaration. Future Telex versions state their event
+contract mapping in their own specification.
+
 The preamble may be followed by one profile declaration:
 
 ```text
@@ -116,8 +121,8 @@ and one optional projection declaration:
 projection=aeon.document.v0
 ```
 
-`profile` and `projection` are the independent context axes defined by the AES
-event contract. A canonical stream places `profile` before `projection`.
+`profile` and `projection` are the independent context axes defined by
+`aes.events.v0`. A canonical stream places `profile` before `projection`.
 Omitting profile selects `aes.complete.v0`; omitting projection selects the
 ordinary body-only stream.
 

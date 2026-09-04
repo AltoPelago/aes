@@ -39,12 +39,12 @@ surfaces until these gates are complete.
 - [x] Make `origin` and `span` optional record-local provenance. Draft 0 uses
   `origin=sha256:<64 lowercase hex>` over exact source bytes, and rejects a
   `span` that has no `origin`.
-- [x] Use encoding-neutral `aes.complete.v0` and `aes.partial.v0` profile
-  discriminators so legacy and revised AES records cannot be confused; keep
-  `telex.aes=0` as the independent wire-format version.
+- [x] Identify the portable event model as `aes.events.v0`; use the independent,
+  encoding-neutral `aes.complete.v0` and `aes.partial.v0` completeness profiles;
+  and keep `telex.aes=0` as the wire-format version that maps to the contract.
 - [ ] Land shared CTS coverage for the agreed contract before implementations
   claim support.
-- [ ] Define reader-first compatibility rules before any producer emits the
+- [x] Define reader-first compatibility rules before any producer emits the
   revised shape into durable stores or cross-service interfaces.
 
 ### Latest contract consistency audit
@@ -56,9 +56,10 @@ Repository tests verify that every referenced specification heading resolves
 and that the documented core fields, value kinds, and semantic diagnostic codes
 remain aligned with the JavaScript reference validator.
 
-The remaining unchecked release gates are shared CTS promotion and reader-first
-compatibility work. They are rollout gates, not unresolved Draft 0 event-shape
-decisions.
+The remaining unchecked release gate is shared CTS promotion. Reader-first
+conversion, persistence, capability, and writer-activation rules are now
+defined in `specifications/aes.compatibility.md`; their ecosystem implementation
+and acceptance work remains open below.
 
 ## 1. Contract changes
 
@@ -200,6 +201,9 @@ portable flat-event projection and the wider consumer audit remain open.
 - [ ] Replace embedded attribute maps in TypeScript, Rust, Python, and PHP AES
   adapters and transport surfaces with flat projection or an explicit legacy
   compatibility adapter.
+  - [x] TypeScript: the explicit portable projection emits binding,
+    anonymous-child, nested, and node-head attributes as ordinary flat events.
+  - [ ] Rust, Python, and PHP portable projections remain to be updated.
 - [ ] Verify prefix-completeness and container-compatibility rules for
   attribute paths without synthesizing phantom parent bindings.
 - [ ] Update SANSA, SO, ASP, AES-DB, validators, SDKs, and editing tools that
@@ -354,14 +358,18 @@ portable flat-event projection and the wider consumer audit remain open.
 
 ## 3. Compatibility and stored-data migration
 
-- [ ] Define a versioned compatibility projection from legacy
+- [x] Define a versioned compatibility projection from legacy
   `kind=node,value=tag` records to an outer `node` plus indexed `node-head`.
-- [ ] Define compatibility behavior for stored events created before stable
-  structural identity was required.
-- [ ] Preserve legacy numeric node-child meaning; do not reinterpret it as a
+- [x] Define compatibility behavior for stored events created before stable
+  structural identity was required: preserve a present identity and leave a
+  missing one absent rather than manufacturing it.
+- [x] Preserve legacy numeric node-child meaning; do not reinterpret it as a
   node-head path without an explicit versioned projection.
-- [ ] Decide whether durable history remains in its original contract with a
-  read-time compatibility view or is migrated into a new versioned store.
+- [x] Keep durable history in its original contract by default and expose a
+  versioned read-time compatibility view. An explicitly authorized migration
+  writes a new versioned store after backup, replay, index, and restore proof.
+- [ ] Implement named, versioned legacy-to-portable adapters and conversion
+  reports for every supported implementation-specific source contract.
 - [ ] Rebuild or invalidate AES-DB path, datatype, attribute, reference, and
   ordered-child indexes affected by the revised projection.
 - [ ] Version persisted ASP/AES-DB records whose span units or checksummed
@@ -397,11 +405,13 @@ portable flat-event projection and the wider consumer audit remain open.
   reconstructed portable AES.
 - [ ] Compatibility: legacy readers reject or explicitly adapt revised records
   and revised readers accept supported legacy records without ambiguity.
+- [ ] Compatibility context: untagged JSON is rejected at portable boundaries;
+  every non-Telex carrier binds records explicitly to `aes.events.v0`.
 
 ## 5. Rollout sequence
 
-- [ ] Phase 1 — freeze and publish the transport-neutral event contract and
-  its version discriminator.
+- [ ] Phase 1 — freeze and publish the transport-neutral `aes.events.v0`
+  contract and its version discriminator.
 - [ ] Phase 2 — update `aeonite-specs` and land shared CTS vectors.
 - [ ] Phase 3 — ship compatibility readers/adapters in TypeScript, Rust,
   Python, and PHP while producers retain the legacy shape.
