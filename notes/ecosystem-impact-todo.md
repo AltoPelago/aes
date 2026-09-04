@@ -108,8 +108,14 @@ surfaces until these gates are complete.
   transport, candidate reconstruction, AEOS adaptation, and SANSA replacement
   lowering without deriving identity from the target path. Portable mapping for
   expanded node heads and anonymous children remains tracked separately below.
-- [ ] Verify AES-DB records preserve identity independently of persisted record
+- [x] Verify AES-DB records preserve identity independently of persisted record
   paths and physical storage layout.
+  Binding and nested attribute identities now have end-to-end coverage across
+  canonical relocation, compact AEON logs, verified snapshots, recovery and
+  retained checkpoints, suffix replay, compaction, backup, point-in-time
+  restore, and restore into a different filesystem root. The compact profile
+  decoder was corrected so omitted optional datatype metadata no longer blocks
+  replay of identity-bearing records.
 
 The TypeScript local AST/AES audit is complete. Canonical rendering, minizing,
 prettifying, mode conversion, map/node finalization, inspect/map JSON output,
