@@ -533,6 +533,20 @@
         "diagnostic_codes": ["AES_INVALID_REFERENCE"]
       },
       "tags": ["validation", "partial", "reference", "root", "failure"]
+    },
+    {
+      "id": "telex-profile-038-node-value-presence",
+      "description": "A node is value-less while a recognized node-head requires its tag payload",
+      "operation": "validate",
+      "input": {
+        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.legacy\nkind=node\nvalue=tag\n\npath=$.head\nkind=node-head\n"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v0",
+        "diagnostic_codes": ["AES_UNEXPECTED_VALUE", "AES_MISSING_VALUE"]
+      },
+      "tags": ["validation", "partial", "node", "node-head", "value", "failure"]
     }
   ]
 }

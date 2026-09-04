@@ -365,8 +365,10 @@ AES event rules exist as conformance vectors in at least two independent
 implementations.
 
 The repository-local `conformance/telex/v0` manifest is a mutable Draft 0
-development snapshot. JavaScript and Rust consume it independently. Draft 1
-requires both to pass an eventual frozen shared snapshot.
+candidate. It has no snapshot identity; an exact development state is addressed
+by its repository commit. JavaScript and Rust consume it independently. Draft
+1 requires both to pass an immutable snapshot minted once during release and
+published in the shared CTS repository.
 
 Transport media types and external registration are outside the Draft 0 format
 decision gates.

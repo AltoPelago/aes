@@ -188,10 +188,16 @@ while the wider consumer audit remains open.
 - [ ] Give the node tag/head its own source span in ASTs that currently expose
   only the complete node-literal span; emit origin-only provenance until that
   exact range is available.
-- [ ] Update portable kind registries and validators to add `node-head` and make
-  `node` value-less.
-- [ ] Update SANSA structural navigation and parent/container compatibility for
-  `node[head-index][content-index]`.
+- [x] Update portable kind registries and validators to add `node-head` and make
+  `node` value-less. The JavaScript and Rust validators enforce the shared
+  vocabulary and value-presence rules; a shared negative conformance vector
+  locks both sides of the `node`/`node-head` distinction.
+- [x] Update SANSA structural navigation and parent/container compatibility for
+  `node[head-index][content-index]`. The host-neutral resolver retains the
+  adapter's explicit node -> node-head -> content hierarchy, all four language
+  parser surfaces accept the portable `%node-head` filter, and experimental
+  SANSA Resolve snapshot 0.2 locks expansion, parent, attribute, nested-node,
+  and legacy collapsed-path behavior.
 - [ ] Update AEOS datatype and cardinality validation for the AEON requirement
   of exactly one node head.
 - [ ] Update Tonics and other editing tools that address node-head metadata

@@ -10,6 +10,9 @@ fn passes_draft_0_telex_vectors() {
     let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../conformance/telex/v0/telex-cts.v0.json");
     let manifest = read_json(&manifest_path);
+    assert_eq!(manifest["meta"]["status"], "draft");
+    assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
+    assert_eq!(manifest["meta"]["spec_snapshot_id"], Value::Null);
     assert_eq!(manifest["meta"]["event_contract"], "aes.events.v0");
     let suites = manifest["suites"]
         .as_array()
@@ -42,7 +45,7 @@ fn passes_draft_0_telex_vectors() {
         }
     }
 
-    assert_eq!(count, 60, "unexpected Draft 0 vector count");
+    assert_eq!(count, 61, "unexpected Draft 0 vector count");
 }
 
 fn run_vector(id: &str, vector: &Value) {

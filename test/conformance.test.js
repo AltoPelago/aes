@@ -19,6 +19,10 @@ const referenceSource = readFileSync(new URL('../src/telex.js', import.meta.url)
 test('Telex conformance manifest has resolvable suites and unique vector IDs', () => {
   assert.equal(manifest.meta.format, 'telex.aes');
   assert.equal(manifest.meta.format_version, '0');
+  assert.equal(manifest.meta.status, 'draft');
+  assert.match(manifest.meta.version, /-dev$/u);
+  assert.equal(Object.hasOwn(manifest.meta, 'snapshot_id'), false);
+  assert.equal(Object.hasOwn(manifest.meta, 'spec_snapshot_id'), false);
   assert.notEqual(portableContract, undefined);
   assert.equal(manifest.meta.event_contract, portableContract);
   assert.ok(Array.isArray(manifest.suites));

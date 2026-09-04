@@ -44,11 +44,18 @@ each test:
 - `canonicalize`: return canonical Telex text without reordering events; or
 - `validate`: return the effective profile and semantic diagnostic codes.
 
-These vectors remain development snapshots while the format is Draft 0. The
-JavaScript and Rust implementations both consume the same vectors independently.
-After the specification stabilizes, promote an immutable snapshot into the
-shared `aeonite-cts` repository and rerun both implementations against that
-frozen snapshot before declaring Draft 1.
+These vectors are a mutable development candidate while the format is Draft 0.
+The candidate uses a `-dev` version and carries no `snapshot_id` or
+`spec_snapshot_id`. A repository commit identifies an exact development state,
+but external conformance claims must not treat this working path as stable.
+
+The JavaScript and Rust implementations consume the candidate independently.
+After the specification stabilizes, the release process copies the exact suite
+and specifications into immutable artifacts in the shared `aeonite-cts`
+repository, mints their snapshot identifiers once, records content digests, and
+tags the release. Published snapshot identifiers are never reused or moved to
+different content. Both implementations must pass that frozen snapshot before
+Draft 1 is declared.
 
 The Telex vectors test portable record and event-profile behavior. They do not
 assert byte-for-byte reconstruction of an originating AEON document; exact
