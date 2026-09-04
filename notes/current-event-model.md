@@ -60,9 +60,15 @@ The portable profile needs explicit decisions for:
 8. **Ordering:** reconcile lexical binding order with synthetic indexed child
    events and future database-originated events.
 
-Draft 0 does not transport source lexemes. Exact token spelling remains in the
-source and may be recovered through provenance; portable AES retains only the
-recognized value-kind, datatype, and payload distinctions.
+Draft 0 makes three fidelity boundaries explicit. Telex record round trips
+preserve ordered field payloads, including provenance and unknown fields, but
+canonicalization need not preserve tolerant input bytes. Portable AES semantic
+round trips preserve the selected profile's addresses, kinds, canonical
+values, datatypes, identities, significant extensions, and authoritative
+order. Provenance is separately preservation-sensitive but is not semantic
+equality. Exact AEON source reconstruction is outside the guarantee: origin
+and span can locate a separately retained matching artifact but cannot recreate
+discarded lexemes, whitespace, comments, header spelling, BOM, or line endings.
 
 The complete canonical datatype descriptor is carried in one `datatype` field.
 Generic arguments and clarifiers stay on the declaring event and are not

@@ -561,16 +561,67 @@ indexed elements, and node children.
 Telex preserves event order exactly. It does not derive a new order from path
 structure and it never groups, sorts, or nests attribute-space events.
 
-### 5.8 Source lexemes
+### 5.8 Losslessness and source lexemes
 
-AES does not carry the exact original source token or a `lexeme` field.
+The word lossless applies only when its boundary is stated. This specification
+distinguishes portable record fidelity, portable semantic losslessness, and
+exact source fidelity.
 
-`kind`, `datatype`, and `value` preserve the recognized value distinctions.
-Quote choice, escape spelling, numeric separators, and other source-authoring
-details remain in the original source. Source-aware tooling may recover them
-through provenance and spans.
+#### 5.8.1 Portable record fidelity
 
-This boundary prevents canonical Telex bytes from changing merely because two
+For a supported Telex version, encoding and decoding preserve the stream
+profile and projection, record order, every address, and every field payload.
+This includes provenance and syntactically valid unknown fields when a generic
+format tool relays them without claiming semantic conformance.
+
+Canonicalization may change Telex whitespace, field order, separator count,
+line endings, and escape spelling. It is record-lossless because decoding the
+canonical result yields the same header and ordered records; it is not a
+byte-preserving transformation of tolerant input.
+
+#### 5.8.2 Portable semantic losslessness
+
+A projection is semantically lossless only relative to its explicitly selected
+AES event profile and projection. Portable semantic equivalence preserves:
+
+- the `path` or `header` address plane and address;
+- `kind`, canonical `value`, `datatype`, and structural `identity`;
+- every profile-significant extension; and
+- the event order that the selected profile declares authoritative.
+
+`origin` and `span` are provenance rather than inputs to portable semantic
+equivalence. Dropping them loses record and provenance fidelity, even though it
+does not change the portable semantic value. An unknown field prevents a
+semantic-losslessness claim unless the active profile defines its meaning; a
+generic relay can still preserve it with record fidelity.
+
+The default body-only projection can be semantically lossless for the AES body
+without claiming to preserve the complete AEON document. When header semantics
+must survive, the `aeon.document.v0` projection is part of the equivalence
+boundary.
+
+For an AEON-representable stream, a reconstructed canonical AEON document is a
+valid semantic round trip when projecting it again produces an equivalent AES
+stream under the same profile and projection. Equality with the original AEON
+source bytes is not required.
+
+#### 5.8.3 Exact source fidelity
+
+AES does not carry the exact original source token or a `lexeme` field. It
+intentionally discards or normalizes source-authoring choices such as
+whitespace, comments, quote and escape choice, trimtick delimiters and
+indentation, numeric separator spelling, header shorthand, raw AST shape, a
+source BOM, and line endings.
+
+`kind`, `datatype`, and `value` preserve the recognized portable distinctions.
+`origin` and `span` identify source evidence but do not embed it. Exact source
+bytes can be recovered only when the separately retained artifact whose bytes
+match `origin` is available; they cannot be reconstructed from AES records
+alone.
+
+Portable AES is therefore semantically lossless with respect to its selected
+event profile and projection. It is not an exact source-roundtrip format. This
+boundary also prevents canonical Telex bytes from changing merely because two
 sources use different spellings for the same portable AES value.
 
 ### 5.9 Event order

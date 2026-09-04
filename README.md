@@ -11,6 +11,11 @@ text format for exchanging AES events between implementations. `film.aes` will
 later provide a binary encoding of the same event model. Neither format defines
 different event semantics.
 
+AES is semantically lossless relative to a selected event profile and
+projection, not relative to original source bytes. Telex preserves portable
+records and provenance, while exact AEON spelling and layout require the
+separately retained source artifact.
+
 ```text
 AEON and other producers
           |

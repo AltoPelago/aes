@@ -348,9 +348,10 @@ portable flat-event projection and the wider consumer audit remain open.
   source bytes change; do not silently rewrite historical logs.
 - [ ] Verify subtree moves, deletion, replay, snapshots, checkpoints, backup,
   restore, and compaction preserve node-head and identity occurrences.
-- [ ] Define the semantic-losslessness guarantee at the portable boundary.
-  Exact source reconstruction requires retained source/provenance and must not
-  be implied by a semantic event round trip alone.
+- [x] Define semantic losslessness relative to the selected AES profile and
+  projection, separately from full record/provenance fidelity. Exact source
+  reconstruction requires the separately retained artifact identified by
+  provenance and is not implied by a semantic event round trip.
 - [ ] Define separate signature policies for canonical semantic projections
   and exact-order ledger streams.
 - [ ] Ensure hashes and signatures bind the selected portable contract version
