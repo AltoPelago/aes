@@ -4,8 +4,9 @@ Status: working note
 
 Surveyed: 2026-09-04
 
-This note records the starting point for `telex.aes`. It is descriptive, not a
-new source of truth.
+This note records the starting point for `telex.aes`. It is descriptive; the
+transport-neutral source of truth is
+[`../specifications/aes.events.md`](../specifications/aes.events.md).
 
 ## Shared core
 
@@ -118,15 +119,16 @@ ledger retains its original sequence. Signature profiles must explicitly state
 whether they cover a canonical semantic projection or the exact supplied event
 order.
 
-Telex syntax preserves unknown fields, using `x.<owner>.<name>` as the extension
-naming convention. Semantic decoders fail closed unless an active profile
-registers the exact field. The prefix never makes an extension implicitly
-optional, and new required core fields require a new Telex version.
+The portable AES contract uses `x.<owner>.<name>` as the extension naming
+convention. Telex preserves unknown fields, while semantic decoders fail closed
+unless an active profile registers the exact field. The prefix never makes an
+extension implicitly optional, and new required core fields require a new AES
+event-contract version.
 
-The complete, self-contained `aes.complete.v0` profile is the Telex default. An
-omitted profile declaration selects it; streams that relax cross-event
-constraints must explicitly declare `aes.partial.v0` or a future specialized
-profile.
+The complete, self-contained `aes.complete.v0` profile is the AES default.
+Omitting the Telex profile declaration carries that default; streams that relax
+cross-event constraints must explicitly declare `aes.partial.v0` or a future
+specialized profile.
 `aeon.gp.profile.v1` references `aes.complete.v0` explicitly so its projection
 contract remains visible even though Telex would apply the same default.
 The partial profile still requires individually valid AES events; it relaxes
@@ -155,7 +157,7 @@ implementation event / AST
           |
           | explicit adapter
           v
-portable AES event profile
+portable AES event contract
           |
           +---- telex.aes
           |

@@ -12,7 +12,7 @@ change driver, not the subject of this checklist.
 
 In scope are shared contracts, language implementations, validators, query and
 editing systems, operation and persistence layers, compatibility, CTS, and
-rollout. Telex wire syntax, parsing, encoding profiles, and implementation
+rollout. Telex wire syntax, parsing, carriage of AES context, and implementation
 milestones are out of scope and remain in the Telex specification and
 repository-local conformance notes.
 
@@ -28,8 +28,9 @@ surfaces until these gates are complete.
 - [x] Resolve the structural-identity contradiction between the AEON grammar
   and shared CTS. The grammar now permits identity on attribute-entry and node
   heads, and the former negative CTS cases have been replaced.
-- [ ] Publish one transport-neutral portable AES event contract covering path,
-  kind, value, datatype, identity, attributes, ordering, and provenance.
+- [x] Publish one transport-neutral portable AES event contract covering path,
+  kind, value, datatype, identity, attributes, ordering, and provenance in
+  `specifications/aes.events.md`.
 - [x] Define the bidirectional mapping between AEON source paths and portable
   AES event paths, including reference target payloads.
 - [x] Exclude AEON headers from the default body event stream and carry them
@@ -45,6 +46,19 @@ surfaces until these gates are complete.
   claim support.
 - [ ] Define reader-first compatibility rules before any producer emits the
   revised shape into durable stores or cross-service interfaces.
+
+### Latest contract consistency audit
+
+The 2026-09-05 audit extracted transport-neutral semantics into
+`specifications/aes.events.md` and reduced the Telex document to encoding
+concerns. Conformance metadata now points each suite at its owning specification.
+Repository tests verify that every referenced specification heading resolves
+and that the documented core fields, value kinds, and semantic diagnostic codes
+remain aligned with the JavaScript reference validator.
+
+The remaining unchecked release gates are shared CTS promotion and reader-first
+compatibility work. They are rollout gates, not unresolved Draft 0 event-shape
+decisions.
 
 ## 1. Contract changes
 
@@ -147,6 +161,9 @@ portable flat-event projection and the wider consumer audit remain open.
 - [ ] Update TypeScript, Rust, Python, and PHP AEON-to-AES adapters to expand a
   `NodeLiteral` into an outer `node`, a `node-head`, and recursively flattened
   content events.
+  - [x] TypeScript: added the explicit portable projection, recursive node-path
+    expansion, node-boundary reference translation, and CLI/CTS coverage.
+  - [ ] Rust, Python, and PHP remain on the legacy node event shape.
 - [x] Define AEON source-path to portable event-path translation for node
   descendants; the old first child path must never be silently reinterpreted
   as the new node-head path.
@@ -401,13 +418,13 @@ portable flat-event projection and the wider consumer audit remain open.
 
 ## Deferred: Telex-specific work
 
-The following belongs to the Telex specification and repository-local work,
-not this ecosystem sweep:
+The following belongs to the Telex encoding specification and repository-local
+work, not this ecosystem sweep:
 
 - Wire grammar, separators, escaping, BOM handling, and exact serialization.
-- Telex-specific stream headers, extension-field negotiation, and codec
-  versioning.
-- Telex partial/complete validation modes and their names.
+- Telex carriage of AES profile and projection identifiers, stream headers,
+  and codec versioning.
+- Telex syntax-layer handling of unknown and extension fields.
 - JavaScript/Rust Telex codec parity and Draft 0 implementation milestones.
 - Telex fixture promotion except where a fixture becomes a transport-neutral
   AES or shared CTS case.

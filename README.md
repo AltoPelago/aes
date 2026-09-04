@@ -6,9 +6,10 @@ This repository gives AES an independent home. It will contain the portable
 event model, interchange formats, conformance material, and the Aeonic Semantic
 Language used by AES-family technologies.
 
-The first deliverable is [`telex.aes`](specifications/telex.aes.md), a small
-text format for exchanging AES events between implementations. `film.aes` will
-later provide a binary encoding of the same event model. Neither format defines
+The [portable AES event contract](specifications/aes.events.md) defines the
+shared model. [`telex.aes`](specifications/telex.aes.md) is its first encoding:
+a small text format for exchanging records between implementations. `film.aes`
+will later provide a binary encoding of the same model. Neither format defines
 different event semantics.
 
 AES is semantically lossless relative to a selected event profile and
@@ -31,8 +32,10 @@ telex.aes    film.aes
 
 This is a spec-first bootstrap. Nothing in this repository is normative yet.
 
-- [Telex Draft 0](specifications/telex.aes.md) proposes the textual framing and
-  the first portable event profile.
+- [Portable AES Event Contract Draft 0](specifications/aes.events.md) owns the
+  transport-neutral record, profile, projection, and fidelity rules.
+- [Telex Draft 0](specifications/telex.aes.md) owns textual framing, escaping,
+  canonical bytes, and syntax diagnostics.
 - [Current event-model inventory](notes/current-event-model.md) records the
   differences that exist across the current TypeScript, Rust, and Python AEON
   implementations.
@@ -79,6 +82,10 @@ npm run test:conformance:rust
 ## Boundaries
 
 AES is the event model. Telex and Film are encodings of that model.
+
+The portable event contract is authoritative for fields, value kinds, flat
+structure, paths, identity, provenance, ordering, completeness, and projections.
+Encoding specifications reference that contract instead of redefining it.
 
 `telex.aes` is not AEON source syntax, JSON with a new extension, a materialized
 object tree, or a schema language. A decoder should be able to reconstruct a

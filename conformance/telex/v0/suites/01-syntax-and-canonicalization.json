@@ -6,7 +6,7 @@
     "sut_protocol": "cts.protocol.v1",
     "spec_refs": [
       "specifications/telex.aes.md#4-physical-format",
-      "specifications/telex.aes.md#6-canonical-form"
+      "specifications/telex.aes.md#6-canonical-telex"
     ]
   },
   "id": "syntax-and-canonicalization",

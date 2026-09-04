@@ -19,5 +19,5 @@ cargo test --locked --manifest-path implementations/rust/Cargo.toml
 ```
 
 The Rust and JavaScript implementations intentionally do not call each other or
-share codec source. Their common authority is the Telex draft and its portable
-vectors.
+share codec source. Their common authorities are the transport-neutral portable
+AES event contract, the Telex encoding draft, and the shared vectors.

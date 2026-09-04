@@ -5,7 +5,9 @@
     "format_version": "0",
     "sut_protocol": "cts.protocol.v1",
     "spec_refs": [
-      "specifications/telex.aes.md#5-portable-event-profile",
+      "specifications/aes.events.md#3-record-shape",
+      "specifications/aes.events.md#9-completeness-profiles",
+      "specifications/aes.events.md#12-validation-and-diagnostics",
       "specifications/telex.aes.md#7-validation-layers"
     ]
   },

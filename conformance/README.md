@@ -9,6 +9,10 @@ telex/v0/telex-cts.v0.json
 JSON is only the language-neutral manifest envelope. Each `input.telex` value
 contains the actual Telex representation under test.
 
+Event and profile expectations derive from
+`specifications/aes.events.md`. Telex syntax and canonical-byte expectations
+derive from `specifications/telex.aes.md`.
+
 The manifest separates:
 
 - syntax and canonicalization;
