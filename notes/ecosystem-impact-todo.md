@@ -285,12 +285,19 @@ while the wider consumer audit remains open.
   limits contract.
 - [ ] Complete an implementation audit for public and hard-coded resource
   guards in TypeScript, Rust, Python, and PHP.
+  - [x] TypeScript, Rust, and Python AEON parsing/compilation counters are
+    mapped to the normalized limits file and exercised through shared vectors.
+  - [x] PHP is inventoried in `php-aeonic-limits-audit.md`; its closed loader,
+    canonical names, and all 16 AEON compiler counters are implemented. Its
+    future finalization, Telex, and transport surfaces remain open.
+  - [ ] Non-AEON ingress still requires the same audit.
 - [x] Approve and publish the first concrete AltoPelago `1.0.0` limits values
   and the fixed bootstrap policy used to load an AEON-encoded limits file.
 - [ ] Add a shared limits loader, normalized effective-configuration view, and
   deterministic exhaustion diagnostics to every AltoPelago implementation.
-  TypeScript, Rust, and Python now implement the AEON loader/compiler subset;
-  PHP and non-AEON ingress remain to be completed.
+  TypeScript, Rust, Python, and PHP now implement the AEON compiler subset;
+  TypeScript, Rust, and Python also implement finalization, while TypeScript
+  exposes normalized framing values. Other direct AES ingress remains open.
 - [x] Rename or adapt `maxSeparatorDepth` / `max_separator_depth` to the shared
   `max_clarifier_values` counter without creating a second semantic limit.
   TypeScript, Rust, and Python retain the former names only as migration aliases.
@@ -306,8 +313,9 @@ while the wider consumer audit remains open.
   datatype component count. The JavaScript and Rust reference codecs consume
   normalized effective limits; limits-file loading remains a trusted caller concern.
 - [ ] Add shared at-limit and one-over-limit vectors for every published
-  counter. Telex v0 counters are covered by the language-neutral resource-limit
-  suite; AEON and future Film counters remain to be completed.
+  counter. Telex v0, all 16 AEON parsing/compilation counters, reference
+  resolution, materialization, and transport framing are covered by
+  language-neutral suites; future Film counters remain.
 
 ### 1.6 Spans and provenance
 

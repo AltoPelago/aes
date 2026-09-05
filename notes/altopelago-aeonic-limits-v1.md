@@ -158,6 +158,18 @@ encoding.
 | `max_reference_depth` | reference-resolution chain depth |
 | `max_materialized_weight` | cumulative value weight materialized by clone/reference expansion |
 
+Reference depth is zero before dereferencing a clone. A direct clone target has
+depth `1`; each clone encountered while materializing that target adds one.
+
+Materialized weight counts concrete represented leaves produced by clone
+expansion. Scalar values and pointer references each weigh `1`; an AEON node
+head also weighs `1`. Object, list, and tuple wrapper nodes weigh `0`, while
+their values and attribute values contribute recursively. Each clone occurrence
+adds the full weight it materializes to the cumulative document budget. Typed
+wrappers do not add weight beyond their wrapped value. Implementations must use
+saturating arithmetic and reject before materializing an occurrence that would
+make the cumulative weight exceed the configured inclusive limit.
+
 An implementation may enforce a lower immutable safety ceiling where its
 runtime requires one. It must reject a requested value above that ceiling when
 loading configuration rather than silently substituting another value.
@@ -262,11 +274,11 @@ claims support for the concrete common set.
 
 | Area | Existing controls and defaults |
 | --- | --- |
-| AEON Core | TypeScript, Rust, and Python expose the shared structural and AEON-format counters, closed v1 loaders, normalized compiler views, and deterministic exhaustion diagnostics |
+| AEON Core | TypeScript, Rust, Python, and PHP expose the shared structural and AEON-format counters, closed v1 loaders, normalized compiler views, and deterministic exhaustion diagnostics |
 | AEON WASM | input bytes `1 MiB`; attribute, separator/clarifier, and generic depth `1` |
 | AES datatype codec | JavaScript and Rust accept normalized generic depth, generic argument, clarifier, and total-component limits; the published defaults are `1`, `32`, `1`, and `64` |
-| Finalization | materialized weight and reference depth are optional/unbounded when omitted |
-| TypeScript framing transport | frame `16 MiB`, buffer `32 MiB`, inspected header `64 KiB` |
+| Finalization | TypeScript, Rust, and Python consume materialized weight and reference depth from the common limits file; explicit command values override the file |
+| TypeScript framing transport | frame `16 MiB`, buffer `32 MiB`, inspected header `64 KiB`; canonical options are `maxFrameBytes`, `maxBufferBytes`, and `maxHeaderBytes` |
 | Telex | JavaScript and Rust enforce the published input, line, field, event, decoded-payload, path, and datatype limits; both consume normalized caller-selected values |
 
 `max_generic_depth` is narrow in the current AEON parsers: it controls only
@@ -278,18 +290,39 @@ canonicalization accept the consumer-selected generic and clarifier limits.
 AEON v1 already promises portability floors for decoded string length, key
 segment length, numeric literal lexical length, container nesting, list/tuple
 item count, canonical/reference path length, structured-comment length, and an
-event budget when exposed. Several are not consistently enforced as public
-processor options. The concrete set adopts those established floors while
-retaining the existing default value-nesting limit of `256`.
+event budget. TypeScript, Rust, and Python now expose and enforce those counters
+through their normalized limits-file configuration. The concrete set adopts
+those established floors while retaining the existing default value-nesting
+limit of `256`.
 
 The first rollout covers AEON parsing and compilation in TypeScript, Rust, and
 Python plus Telex decoding, encoding, and portable validation in JavaScript and
-Rust. Remaining work includes PHP, finalization-wide configuration,
+Rust. The consolidated experimental next Core CTS includes at-limit and
+one-over vectors for all 16 AEON parsing and compilation counters, corrects
+four superseded released-snapshot limit expectations without modifying that
+snapshot, and passes in all four implementations. The finalization limits CTS covers reference depth and
+materialized weight in those same implementations. The transport limits CTS
+covers frame encoding/decoding, buffering, and header inspection in the current
+TypeScript transport implementation. During that rollout, the duplicate Rust datatype-shape
+guard was corrected to use the shared convention: one generic application has
+depth `0`, and only nested generic applications increment the counter.
+
+The old `maxSeparatorDepth` / `max_separator_depth` and `maxNestingDepth` /
+`max_nesting_depth` surfaces remain compatibility aliases only. New internal
+diagnostics and configuration use `max_clarifier_values` and
+`max_value_nesting_depth`; removing the aliases is a future breaking API change,
+not a second limit migration.
+
+The PHP compiler status and remaining non-compiler gaps are recorded in
+[`php-aeonic-limits-audit.md`](php-aeonic-limits-audit.md).
+
+Remaining work includes PHP finalization and interchange surfaces,
 source-backed provenance audit limits, other direct AES ingress, Film, and
-shared cross-language boundary vectors outside Telex. The audit must continue to find hard-coded
-allocation, recursion, collection, and input guards: every discovered guard is
-either mapped to this contract, documented as a runtime safety ceiling, or
-explicitly classified as belonging to another limits contract.
+future non-TypeScript framing implementations. The audit must continue to
+find hard-coded allocation, recursion, collection, and input guards: every
+discovered guard is either mapped to this contract, documented as a runtime
+safety ceiling, or explicitly classified as belonging to another limits
+contract.
 
 ## 9. Required implementation behavior
 
