@@ -1,6 +1,7 @@
-# `telex.aes` Draft 0
+# `telex.aes` v0
 
-Status: exploratory draft
+Scope: textual framing, escaping, canonical encoding, and decoding of portable
+AES event streams.
 
 Format version: `0`
 
@@ -138,7 +139,7 @@ plane records are records and therefore require the ordinary blank separator.
 Future Telex versions use another preamble value rather than an inferred
 feature set.
 
-Profile and projection identifiers use Telex payload escaping. Draft 0 permits
+Profile and projection identifiers use Telex payload escaping. Telex v0 permits
 at most one declaration of each and rejects an empty identifier. A syntax
 reader preserves an unknown non-empty identifier; semantic validation rejects
 unsupported context.
@@ -225,6 +226,8 @@ not compared for conformance.
 | `TELEX_UNTERMINATED_UNICODE_ESCAPE` | Unicode escape has no closing brace |
 | `TELEX_INVALID_UNICODE_ESCAPE` | Unicode escape digits are malformed |
 | `TELEX_INVALID_UNICODE_SCALAR` | payload or escape is not a Unicode scalar |
+| `TELEX_INVALID_DATATYPE` | compact datatype descriptor cannot be expanded |
+| `TELEX_DATATYPE_LIMIT` | datatype depth or component count exceeds the configured decoder limit |
 
 A bare CR uses `TELEX_BARE_CR`. An LF ends the current physical line, so
 following payload text without `=` is a new malformed line and uses
@@ -239,7 +242,7 @@ Each decoded stanza is one record defined by
 [`aes.events.md`](./aes.events.md). Telex performs no type inference, reference
 resolution, source evaluation, or nested AST reconstruction while parsing.
 
-The standard core field names are:
+The standard physical core field names are:
 
 ```text
 header
@@ -251,6 +254,31 @@ value
 origin
 span
 ```
+
+The physical `datatype` line is the one deliberate compact mapping in Telex. It
+combines the logical AES `datatype`, `generics`, and `clarifiers` fields using
+canonical AEON datatype-descriptor syntax without the leading `:`:
+
+```text
+datatype=csv["."]
+datatype=list<int>
+datatype=null<string>
+datatype=tuple<tuple<int, 2>[16], string>["x", "x"]
+```
+
+A decoder expands each such line into a base-name string and the two ordered
+arrays defined by `aes.events.v0`. A datatype argument becomes a recursive
+descriptor, a numeric generic argument becomes a tagged `NumberLiteral`, and a
+clarifier becomes a tagged `StringLiteral` or `NumberLiteral`. Numeric payloads
+remain strings. An encoder performs the inverse mapping. `generics` and
+`clarifiers` are therefore logical AES fields, not separate Telex lines; using
+either as a physical field name fails with `TELEX_INVALID_DATATYPE`.
+
+A record without `datatype` has neither logical array. A decoded record with
+`datatype` always has both arrays, even when empty. Descriptor array order and
+duplicates are preserved. Unless explicitly configured otherwise, the Telex
+decoder applies the AES v0 maximum generic depth of `1` before accepting a
+record.
 
 Field presence, payload meaning, value kinds, canonical paths, identity,
 provenance, completeness, ordering, and the `aeon.document.v0` control plane
@@ -297,8 +325,10 @@ canonicality result or comparison with canonical re-encoding, not through a
 lowercase-specific syntax diagnostic.
 
 Canonicalization changes only Telex representation. It does not reorder AES
-records or rewrite their decoded payload strings, including WTC anchor and
-reference spelling.
+records or rewrite decoded AES scalar strings, including WTC anchor and
+reference spelling. It does reconstruct the compact `datatype` line from the
+expanded logical fields, using `, ` between ordered array entries and JSON
+double-quoted spelling for string clarifiers.
 
 ## 7. Validation layers
 
@@ -331,7 +361,7 @@ AES semantic diagnostic codes are defined in
 
 ## 8. Unknown fields and versioning
 
-A Draft 0 syntax parser accepts and preserves every syntactically valid field,
+A Telex v0 syntax parser accepts and preserves every syntactically valid field,
 including unknown fields. Canonical output includes them after core fields.
 Telex does not interpret the `x.<owner>.<name>` convention or treat such fields
 as optional.
@@ -353,7 +383,9 @@ Decoders accept caller-supplied limits for at least:
 - fields per record;
 - record count;
 - decoded payload bytes; and
-- canonical path depth when semantic validation is enabled.
+- canonical path depth when semantic validation is enabled;
+- datatype generic depth; and
+- total descriptor, generic-argument, and clarifier components per record.
 
 Syntax decoding performs no reference resolution, schema loading, network
 access, datatype execution, or source-language evaluation.
@@ -364,19 +396,20 @@ Draft 1 should not be declared until the settled Telex syntax and referenced
 AES event rules exist as conformance vectors in at least two independent
 implementations.
 
-The repository-local `conformance/telex/v0` manifest is a mutable Draft 0
+The repository-local `conformance/telex/v0` manifest is a mutable v0
 candidate. It has no snapshot identity; an exact development state is addressed
 by its repository commit. JavaScript and Rust consume it independently. Draft
 1 requires both to pass an immutable snapshot minted once during release and
 published in the shared CTS repository.
 
-Transport media types and external registration are outside the Draft 0 format
+Transport media types and external registration are outside the v0 format
 decision gates.
 
 ## 11. Relationship to AES semantics
 
 Telex is an encoding, not the owner of event or value semantics. It preserves
-the portable strings and ordering defined by the AES contract.
+the portable scalar strings, structured datatype components, and ordering
+defined by the AES contract.
 
 The Aeonic Semantic Language may later compare, convert, measure, or calculate
 with those values. No such operation changes how Telex frames a record.

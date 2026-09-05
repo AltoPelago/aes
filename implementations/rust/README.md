@@ -1,7 +1,14 @@
 # Rust Telex reference implementation
 
-This crate independently implements Draft 0 `telex.aes` parsing,
+This crate independently implements the v0 `telex.aes` candidate's parsing,
 canonicalization, and AES profile validation.
+
+Its decoded records expose a base-name `datatype`, recursive ordered
+`generics`, and ordered tagged `clarifiers`. The codec combines those values
+into one compact Telex `datatype=` line; numeric argument payloads remain
+strings.
+The reference decoder applies the AES v0 default maximum generic depth of `1`
+and rejects deeper descriptors without truncation.
 
 The default stream contains body events only. The optional
 `aeon.document.v0` projection adds flat `header` records in a disjoint address

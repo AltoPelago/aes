@@ -11,7 +11,7 @@
     ]
   },
   "id": "syntax-and-canonicalization",
-  "title": "Telex Draft 0 Syntax and Canonicalization",
+  "title": "Telex v0 Syntax and Canonicalization",
   "tests": [
     {
       "id": "telex-syntax-001-empty-default",
@@ -415,6 +415,102 @@
         }
       },
       "tags": ["syntax", "framing", "line-feed", "failure"]
+    },
+    {
+      "id": "telex-syntax-024-expanded-datatype",
+      "description": "A compact datatype line expands to the three logical AES datatype fields without numeric precision loss",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.value\nkind=TupleLiteral\ndatatype=tuple<tuple<int, 9007199254740993>[16], string>[\"x\", \"x\"]\n"
+      },
+      "expected": {
+        "ok": true,
+        "version": "0",
+        "profile": "aes.complete.v0",
+        "profile_explicit": false,
+        "projection": null,
+        "projection_explicit": false,
+        "canonical": true,
+        "records": [{
+          "path": "$.value",
+          "kind": "TupleLiteral",
+          "datatype": "tuple",
+          "generics": [{
+            "datatype": "tuple",
+            "generics": [
+              { "datatype": "int", "generics": [], "clarifiers": [] },
+              { "kind": "NumberLiteral", "value": "9007199254740993" }
+            ],
+            "clarifiers": [{ "kind": "NumberLiteral", "value": "16" }]
+          }, { "datatype": "string", "generics": [], "clarifiers": [] }],
+          "clarifiers": [
+            { "kind": "StringLiteral", "value": "x" },
+            { "kind": "StringLiteral", "value": "x" }
+          ]
+        }]
+      },
+      "tags": ["syntax", "datatype", "generics", "clarifiers", "precision"]
+    },
+    {
+      "id": "telex-syntax-025-canonicalize-datatype",
+      "description": "Canonicalization reconstructs compact datatype syntax from the expanded logical structure",
+      "operation": "canonicalize",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.value\nkind=SeparatorLiteral\ndatatype=csv[\".\",\".\"]\nvalue=one.two.three\n"
+      },
+      "expected": {
+        "ok": true,
+        "telex": "telex.aes=0\n\npath=$.value\nkind=SeparatorLiteral\ndatatype=csv[\".\", \".\"]\nvalue=one.two.three\n"
+      },
+      "tags": ["canonicalization", "datatype", "clarifiers", "duplicates"]
+    },
+    {
+      "id": "telex-syntax-026-invalid-datatype",
+      "description": "A compact datatype descriptor must be structurally decodable",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.value\nkind=ListNode\ndatatype=list<>\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": ["syntax", "datatype", "failure"]
+    },
+    {
+      "id": "telex-syntax-027-logical-datatype-field-on-wire",
+      "description": "Logical generic and clarifier arrays are encoded only through the compact datatype line",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.value\nkind=ListNode\ngenerics=int\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": ["syntax", "datatype", "mapping", "failure"]
+    },
+    {
+      "id": "telex-syntax-028-default-datatype-depth",
+      "description": "The default Telex decoder rejects generic depth greater than one without truncating the descriptor",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=0\n\npath=$.value\nkind=ListNode\ndatatype=list<list<list<int>>>\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_DATATYPE_LIMIT",
+          "line": 5
+        }
+      },
+      "tags": ["syntax", "datatype", "depth", "resource-limit", "failure"]
     }
   ]
 }

@@ -27,6 +27,8 @@ The manifest separates:
 
 Syntax vectors also distinguish canonical empty-stream EOF, tolerant Unicode
 escape spelling, bare CR, raw LF framing, and exact field-name segment grammar.
+They also verify compact datatype expansion, recursive generics, ordered tagged
+clarifiers, duplicate preservation, and numeric payload precision.
 Source-backed digest, byte-bound, and UTF-8 boundary audits require the external
 artifact and are therefore outside the local Telex vector operations.
 

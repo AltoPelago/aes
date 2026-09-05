@@ -1,9 +1,15 @@
+import {
+  assertDatatypeDescriptor,
+  formatDatatypeDescriptor,
+  parseDatatypeDescriptor,
+} from './datatype.js';
+
 const VERSION_LINE = 'telex.aes=0';
 const PROFILE_FIELD = 'profile';
 const PROJECTION_FIELD = 'projection';
 const FIELD_NAME = /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/;
 const BARE_PATH_MEMBER = /^[A-Za-z_][A-Za-z0-9_]*$/u;
-const CORE_FIELD_ORDER = new Map([
+const TELEX_FIELD_ORDER = new Map([
   'header',
   'path',
   'kind',
@@ -13,7 +19,19 @@ const CORE_FIELD_ORDER = new Map([
   'origin',
   'span',
 ].map((field, index) => [field, index]));
-const CORE_FIELDS = new Set(CORE_FIELD_ORDER.keys());
+const AES_CORE_FIELDS = [
+  'header',
+  'path',
+  'kind',
+  'datatype',
+  'generics',
+  'clarifiers',
+  'identity',
+  'value',
+  'origin',
+  'span',
+];
+const CORE_FIELDS = new Set(AES_CORE_FIELDS);
 const VALUE_KINDS = new Set([
   'StringLiteral',
   'NumberLiteral',
@@ -62,7 +80,7 @@ export class TelexSyntaxError extends Error {
   }
 }
 
-export function parseTelex(input) {
+export function parseTelex(input, options = {}) {
   if (typeof input !== 'string') {
     throw new TypeError('Telex input must be a string');
   }
@@ -156,6 +174,8 @@ export function parseTelex(input) {
 
   const records = [];
   let record = null;
+  let datatypeLine;
+  let datatypeComponentLine;
   let canonical = canonicalLineEndings && hasFinalLf && headerCanonical;
   // Count the required preamble separator so an additional blank is visibly
   // non-canonical.
@@ -167,8 +187,17 @@ export function parseTelex(input) {
     if (line === '') {
       separatorWidth += 1;
       if (record !== null) {
-        records.push(Object.fromEntries(record));
+        const decoded = decodeWireRecord(
+          record,
+          datatypeLine,
+          datatypeComponentLine,
+          options.datatypeLimits,
+        );
+        canonical &&= decoded.canonical && hasCanonicalFieldOrder(Object.fromEntries(record));
+        records.push(decoded.record);
         record = null;
+        datatypeLine = undefined;
+        datatypeComponentLine = undefined;
       }
       continue;
     }
@@ -191,11 +220,21 @@ export function parseTelex(input) {
     const decoded = decodePayload(line.slice(delimiter + 1), lineNumber);
     canonical &&= decoded.canonical;
     record.set(field, decoded.value);
+    if (field === 'datatype') datatypeLine = lineNumber;
+    if (field === 'generics' || field === 'clarifiers') datatypeComponentLine ??= lineNumber;
   }
 
-  if (record !== null) records.push(Object.fromEntries(record));
+  if (record !== null) {
+    const decoded = decodeWireRecord(
+      record,
+      datatypeLine,
+      datatypeComponentLine,
+      options.datatypeLimits,
+    );
+    canonical &&= decoded.canonical && hasCanonicalFieldOrder(Object.fromEntries(record));
+    records.push(decoded.record);
+  }
   if (separatorWidth > 0) canonical = false;
-  canonical &&= records.every(hasCanonicalFieldOrder);
 
   return {
     version: TELEX_VERSION,
@@ -225,7 +264,7 @@ export function encodeTelex(records, options = {}) {
   if (records.length === 0) return `${header}\n`;
 
   const stanzas = records.map((record, recordIndex) => {
-    const entries = record instanceof Map ? [...record.entries()] : Object.entries(record);
+    const entries = encodeWireRecord(record, recordIndex, options.datatypeLimits);
     if (entries.length === 0) {
       throw new TypeError(`Telex record ${recordIndex + 1} must not be empty`);
     }
@@ -233,11 +272,9 @@ export function encodeTelex(records, options = {}) {
       if (!FIELD_NAME.test(field)) {
         throw new TypeError(`Invalid Telex field name: ${field}`);
       }
-      if (typeof value !== 'string') {
-        throw new TypeError(`Telex field ${field} must have a string payload`);
-      }
+      if (typeof value !== 'string') throw new TypeError(`Telex field ${field} must have a string payload`);
     }
-    entries.sort(compareFields);
+    entries.sort(compareTelexFields);
     return entries.map(([field, value]) => `${field}=${encodePayload(value)}`).join('\n');
   });
 
@@ -368,7 +405,7 @@ export function validateTelexRecords(records, options = {}) {
     const context = { record: index, ...(typeof address === 'string' ? { path: address } : {}) };
 
     for (const [field, payload] of Object.entries(event)) {
-      if (typeof payload !== 'string') {
+      if (field !== 'generics' && field !== 'clarifiers' && typeof payload !== 'string') {
         diagnostics.push(diagnostic(
           'AES_INVALID_PAYLOAD',
           `Field '${field}' must have a string payload`,
@@ -447,7 +484,7 @@ export function validateTelexRecords(records, options = {}) {
     }
 
     if (knownKind) validateEventValue(event, index, diagnostics);
-    validateOptionalCoreFields(event, index, diagnostics);
+    validateOptionalCoreFields(event, index, diagnostics, options.datatypeLimits);
 
     events.push({ event, index, addressField, address, pathDetails, knownKind });
   }
@@ -547,7 +584,7 @@ function validateEventValue(event, index, diagnostics) {
   }
 }
 
-function validateOptionalCoreFields(event, index, diagnostics) {
+function validateOptionalCoreFields(event, index, diagnostics, datatypeLimits) {
   const addressField = recordAddressField(event);
   const address = addressField === null ? undefined : event[addressField];
   const context = { record: index, ...(typeof address === 'string' ? { path: address } : {}) };
@@ -557,6 +594,37 @@ function validateOptionalCoreFields(event, index, diagnostics) {
         'AES_EMPTY_FIELD',
         `Field '${field}' must not be empty when present`,
         { ...context, field },
+      ));
+    }
+  }
+
+  const hasDatatype = Object.hasOwn(event, 'datatype');
+  const hasGenerics = Object.hasOwn(event, 'generics');
+  const hasClarifiers = Object.hasOwn(event, 'clarifiers');
+  if (!hasDatatype && (hasGenerics || hasClarifiers)) {
+    diagnostics.push(diagnostic(
+      'AES_DATATYPE_COMPONENTS',
+      "Fields 'generics' and 'clarifiers' require 'datatype'",
+      { ...context, field: hasGenerics ? 'generics' : 'clarifiers' },
+    ));
+  } else if (hasDatatype && (!hasGenerics || !hasClarifiers)) {
+    diagnostics.push(diagnostic(
+      'AES_DATATYPE_COMPONENTS',
+      "A datatype requires explicit 'generics' and 'clarifiers' arrays",
+      { ...context, field: !hasGenerics ? 'generics' : 'clarifiers' },
+    ));
+  } else if (hasDatatype) {
+    try {
+      assertDatatypeDescriptor({
+        datatype: event.datatype,
+        generics: event.generics,
+        clarifiers: event.clarifiers,
+      }, datatypeLimits);
+    } catch (error) {
+      diagnostics.push(diagnostic(
+        error.code ?? 'AES_INVALID_DATATYPE',
+        error.message,
+        { ...context, field: 'datatype' },
       ));
     }
   }
@@ -743,9 +811,9 @@ function diagnostic(code, message, context = {}) {
   return { code, message, ...context };
 }
 
-function compareFields([left], [right]) {
-  const leftRank = CORE_FIELD_ORDER.get(left);
-  const rightRank = CORE_FIELD_ORDER.get(right);
+function compareTelexFields([left], [right]) {
+  const leftRank = TELEX_FIELD_ORDER.get(left);
+  const rightRank = TELEX_FIELD_ORDER.get(right);
   if (leftRank !== undefined || rightRank !== undefined) {
     if (leftRank === undefined) return 1;
     if (rightRank === undefined) return -1;
@@ -756,8 +824,75 @@ function compareFields([left], [right]) {
 
 function hasCanonicalFieldOrder(record) {
   const entries = Object.entries(record);
-  const sorted = [...entries].sort(compareFields);
+  const sorted = [...entries].sort(compareTelexFields);
   return entries.every(([field], index) => field === sorted[index][0]);
+}
+
+function decodeWireRecord(fields, datatypeLine, datatypeComponentLine, datatypeLimits) {
+  const record = {};
+  let canonical = true;
+  for (const [field, value] of fields) {
+    if (field === 'generics' || field === 'clarifiers') {
+      throw new TelexSyntaxError(
+        `Logical AES field '${field}' must be encoded through the Telex datatype line`,
+        datatypeComponentLine,
+        'TELEX_INVALID_DATATYPE',
+      );
+    }
+    if (field !== 'datatype') {
+      record[field] = value;
+      continue;
+    }
+    let descriptor;
+    try {
+      descriptor = parseDatatypeDescriptor(value, datatypeLimits);
+    } catch (error) {
+      throw new TelexSyntaxError(
+        error.message,
+        datatypeLine,
+        error.code ?? 'TELEX_INVALID_DATATYPE',
+      );
+    }
+    canonical &&= formatDatatypeDescriptor(descriptor) === value;
+    record.datatype = descriptor.datatype;
+    record.generics = descriptor.generics;
+    record.clarifiers = descriptor.clarifiers;
+  }
+  return { record, canonical };
+}
+
+function encodeWireRecord(source, recordIndex, datatypeLimits) {
+  if (source === null || typeof source !== 'object' || Array.isArray(source)) {
+    throw new TypeError(`Telex record ${recordIndex + 1} must be an object or Map`);
+  }
+  const logicalEntries = source instanceof Map ? [...source.entries()] : Object.entries(source);
+  const logical = new Map(logicalEntries);
+  const hasDatatype = logical.has('datatype');
+  const hasGenerics = logical.has('generics');
+  const hasClarifiers = logical.has('clarifiers');
+  if (!hasDatatype && (hasGenerics || hasClarifiers)) {
+    throw new TypeError(`Telex record ${recordIndex + 1} has datatype components without datatype`);
+  }
+  if (hasDatatype && (!hasGenerics || !hasClarifiers)) {
+    throw new TypeError(`Telex record ${recordIndex + 1} requires generics and clarifiers arrays with datatype`);
+  }
+
+  let wireDatatype;
+  if (hasDatatype) {
+    const descriptor = {
+      datatype: logical.get('datatype'),
+      generics: logical.get('generics'),
+      clarifiers: logical.get('clarifiers'),
+    };
+    wireDatatype = formatDatatypeDescriptor(descriptor, datatypeLimits);
+  }
+
+  const entries = [];
+  for (const [field, value] of logicalEntries) {
+    if (field === 'generics' || field === 'clarifiers') continue;
+    entries.push([field, field === 'datatype' ? wireDatatype : value]);
+  }
+  return entries;
 }
 
 function canonicalPathPrefixes(path) {

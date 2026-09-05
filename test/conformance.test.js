@@ -15,6 +15,7 @@ const seenIds = new Set();
 const portableSpec = readFileSync(new URL('../specifications/aes.events.md', import.meta.url), 'utf8');
 const portableContract = portableSpec.match(/^Contract identifier: `([^`]+)`$/mu)?.[1];
 const referenceSource = readFileSync(new URL('../src/telex.js', import.meta.url), 'utf8');
+const datatypeSource = readFileSync(new URL('../src/datatype.js', import.meta.url), 'utf8');
 
 test('Telex conformance manifest has resolvable suites and unique vector IDs', () => {
   assert.equal(manifest.meta.format, 'telex.aes');
@@ -56,7 +57,7 @@ test('conformance specification references resolve to published headings', () =>
 });
 
 test('portable AES vocabulary matches the reference validator', () => {
-  const coreBlock = referenceSource.match(/const CORE_FIELD_ORDER = new Map\(\[([\s\S]*?)\]\.map/u)?.[1];
+  const coreBlock = referenceSource.match(/const AES_CORE_FIELDS = \[([\s\S]*?)\];/u)?.[1];
   const kindBlock = referenceSource.match(/const VALUE_KINDS = new Set\(\[([\s\S]*?)\]\);/u)?.[1];
   assert.notEqual(coreBlock, undefined);
   assert.notEqual(kindBlock, undefined);
@@ -67,7 +68,7 @@ test('portable AES vocabulary matches the reference validator', () => {
   assert.deepEqual(documentedCore, quotedValues(coreBlock));
   assert.deepEqual(new Set(documentedKinds), new Set(quotedValues(kindBlock)));
 
-  const implementedCodes = new Set([...referenceSource.matchAll(/['"](AES_[A-Z_]+)['"]/gu)]
+  const implementedCodes = new Set([...`${referenceSource}\n${datatypeSource}`.matchAll(/['"](AES_[A-Z_]+)['"]/gu)]
     .map((match) => match[1]));
   const documentedCodes = new Set(tableFirstColumn(section(
     portableSpec,

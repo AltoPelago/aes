@@ -30,7 +30,7 @@ The publication set now lives under `aeonite-specs/sources/aes/v0/`:
 
 | Document | Lifecycle | Responsibility |
 | --- | --- | --- |
-| AES Draft 0 index and architecture | draft | family boundaries, document map, versioning, and conformance links |
+| AES v0 index and architecture | draft | family boundaries, document map, versioning, and conformance links |
 | Portable AES Event Contract | draft, normative | `aes.events.v0`, records, paths, kinds, profiles, projections, ordering, provenance, fidelity, and diagnostics |
 | Telex AES | draft, normative | `telex.aes=0` textual framing, escaping, canonical bytes, and syntax diagnostics |
 | Portable AES Compatibility Contract | draft, normative | legacy adapters, explicit source contracts, reader-first rollout, and durable-data rules |
@@ -157,7 +157,7 @@ current behavior. Historical snapshot references must remain intact.
 - Canonical AEON path syntax remains AEON/SANSA-owned. AES owns which portable
   event addresses exist and the event-profile structural rules.
 - Datatype meaning remains profile/schema/semantic-language-owned. AES carries
-  the declarative datatype string without inference.
+  the base name, recursive generics, and tagged clarifiers without inference.
 - Header meaning remains convention/consumer-owned. AES only defines the
   optional control-plane projection.
 - Source spans originate with source producers. AES defines portable span and

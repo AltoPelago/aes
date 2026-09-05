@@ -62,19 +62,22 @@ The portable profile needs explicit decisions for:
    events and future database-originated events.
 
 Draft 0 makes three fidelity boundaries explicit. Telex record round trips
-preserve ordered field payloads, including provenance and unknown fields, but
+preserve ordered scalar fields and structured datatype components, including
+provenance and unknown fields, but
 canonicalization need not preserve tolerant input bytes. Portable AES semantic
 round trips preserve the selected profile's addresses, kinds, canonical
-values, datatypes, identities, significant extensions, and authoritative
+values, expanded datatype structures, identities, significant extensions, and authoritative
 order. Provenance is separately preservation-sensitive but is not semantic
 equality. Exact AEON source reconstruction is outside the guarantee: origin
 and span can locate a separately retained matching artifact but cannot recreate
 discarded lexemes, whitespace, comments, header spelling, BOM, or line endings.
 
-The complete canonical datatype descriptor is carried in one `datatype` field.
-Generic arguments and clarifiers stay on the declaring event and are not
-inferred onto descendants. Clone and pointer references use distinct kinds with
-the same canonical target-path payload shape. Trimtick processing occurs before
+The logical record carries a base-name `datatype`, a recursive ordered
+`generics` array, and an ordered tagged-literal `clarifiers` array. Telex
+combines them into one physical `datatype=` line and expands them on decode.
+These components stay on the declaring event and are not inferred onto
+descendants. Clone and pointer references use distinct kinds with the same
+canonical target-path payload shape. Trimtick processing occurs before
 AES emission, so its decoded and trimmed result is transported as an ordinary
 `StringLiteral`; delimiter width and indentation remain source concerns. World
 time context is retained as the distinct `WTCDateTimeLiteral` kind. Its

@@ -1,6 +1,7 @@
-# Portable AES Event Contract Draft 0
+# Portable AES Event Contract v0
 
-Status: exploratory draft
+Scope: transport-neutral AES event records, paths, profiles, projections,
+ordering, provenance, fidelity, and validation.
 
 Contract identifier: `aes.events.v0`
 
@@ -57,9 +58,10 @@ An encoding may place these identifiers in a stream header, protocol envelope,
 media-type parameter, or equivalent transport metadata. They are stream
 context, not event records.
 
-Each portable field name and payload is a Unicode string. An encoding may use a
-more compact physical representation, but decoding must recover the same field
-names, payload strings, stream context, and record order.
+Portable scalar fields are Unicode strings. `generics` and `clarifiers` are
+ordered arrays with the structured values defined below. An encoding may use a
+more compact physical representation, but decoding must recover the same
+logical fields, scalar strings, arrays, stream context, and record order.
 
 ## 3. Record shape
 
@@ -70,7 +72,9 @@ names, payload strings, stream context, and record order.
 | `header` | address-dependent | canonical address in an explicitly selected header plane |
 | `path` | address-dependent | canonical SANSA data address of a body event |
 | `kind` | required | portable value-kind token |
-| `datatype` | optional | complete declared datatype descriptor |
+| `datatype` | optional | declared base datatype name |
+| `generics` | datatype-dependent | ordered generic-argument array |
+| `clarifiers` | datatype-dependent | ordered tagged-clarifier array |
 | `identity` | optional | structural occurrence identity |
 | `value` | kind-dependent | decoded textual payload |
 | `origin` | optional | immutable identity of exact source bytes |
@@ -101,19 +105,61 @@ new event-contract version rather than an extension.
 
 ### 4.1 Datatypes
 
-`datatype` contains the complete canonical datatype descriptor without a
-source-language binding marker. It may include generic arguments and
-clarifiers:
+`datatype` contains only the declared base name, without a source-language
+binding marker. When `datatype` is present, `generics` and `clarifiers` are both
+present as arrays, including when either array is empty. When `datatype` is
+absent, both arrays are absent.
+
+These AEON declarations therefore project as follows:
 
 ```text
-csv["."]
-list<int>
-null<string>
+:csv["."]       -> datatype="csv",  generics=[], clarifiers=[{kind="StringLiteral", value="."}]
+:list<int>      -> datatype="list", generics=[{datatype="int", generics=[], clarifiers=[]}], clarifiers=[]
+:null<string>   -> datatype="null", generics=[{datatype="string", generics=[], clarifiers=[]}], clarifiers=[]
 ```
+
+A datatype generic argument is either a recursively structured datatype
+descriptor or a tagged `NumberLiteral`. A recursive descriptor has exactly the
+same three fields: non-empty `datatype`, ordered `generics`, and ordered
+`clarifiers`. A tagged value has exactly `kind` and `value`. A clarifier is a
+tagged `StringLiteral` or `NumberLiteral`.
+Tagged literal values are canonical strings, including numeric values; an AES
+boundary never converts them to host numeric types.
+
+```text
+datatype = "tuple"
+generics = [
+  { datatype = "int", generics = [], clarifiers = [] },
+  { kind = "NumberLiteral", value = "9007199254740993" }
+]
+clarifiers = [
+  { kind = "StringLiteral", value = "x" },
+  { kind = "NumberLiteral", value = "16" }
+]
+```
+
+Array order is significant and duplicate entries are preserved. An encoding
+may combine the three logical fields, as Telex does, but it must expand them on
+decode and construct the combined form from them on encode. Semantic hashes and
+signatures over AES records bind the expanded logical structure, not an
+encoding-specific combined spelling.
+
+AES v0 implementations guard recursive generic descriptors. Generic depth is
+the number of nested generic arguments that themselves contain generics:
+`list<int>` has depth `0`, `list<list<int>>` has depth `1`, and
+`list<list<list<int>>>` has depth `2`. The default accepted maximum is depth
+`1`. A caller or named profile may explicitly select a higher supported limit,
+but omission always selects `1`. Exceeding the active limit rejects the record;
+it never truncates the generic tree.
+
+This is an event-local portability and resource rule, not a completeness rule.
+Both `aes.complete.v0` and `aes.partial.v0` use the default when no higher limit
+is explicitly selected.
 
 A datatype remains only on the event where it was declared. AES does not infer
 or propagate `int` from `list<int>` onto child events. Datatype interpretation,
-generic constraints, and inherited meaning are downstream concerns.
+generic constraints, clarifier meaning, and inherited meaning are downstream
+concerns.
 
 ### 4.2 Value kinds
 
@@ -229,13 +275,15 @@ anonymous child heads, and node heads.
 ### 5.2 Anonymous values
 
 An anonymous typed, attributed, or identified value does not introduce a
-wrapper event. Its datatype, identity, kind, and value belong to the event at
-its indexed path:
+wrapper event. Its datatype components, identity, kind, and value belong to the
+event at its indexed path:
 
 ```text
 path=$.values[0]
 kind=NumberLiteral
 datatype=int
+generics=[]
+clarifiers=[]
 identity=item-1
 value=3
 ```
@@ -271,6 +319,8 @@ Current AEON produces exactly one head at index zero:
 path=$.a
 kind=NodeLiteral
 datatype=node
+generics=[]
+clarifiers=[]
 
 path=$.a[0]
 kind=NodeHead
@@ -362,7 +412,7 @@ The allowed combinations are:
 | present | present | exact source and byte range known |
 | absent | present | invalid |
 
-Draft 0 defines one origin form:
+AES v0 defines one origin form:
 
 ```text
 sha256:<64 lowercase hexadecimal digits>
@@ -423,8 +473,8 @@ it emits:
 
 Each parent precedes its descendants and each subtree is contiguous. Object
 members and attributes preserve declaration order. List and tuple items, node
-heads, and NodeHead content preserve ascending index order. Paths, datatypes,
-values, and identities are never implicit sort keys.
+heads, and NodeHead content preserve ascending index order. Paths, datatype
+components, values, and identities are never implicit sort keys.
 
 A signature profile states which sequence it covers. A semantic document
 signature may cover a profile-defined canonical projection; a ledger signature
@@ -436,6 +486,10 @@ covers supplied order exactly. AES does not infer a signing mode from content.
 
 `aes.complete.v0` is the default. It claims a self-contained stream that a
 consumer can navigate without external state.
+
+The profile inherits the AES v0 default maximum generic depth of `1`. This
+explicit statement does not make generic depth part of cross-record
+completeness.
 
 Every non-root structural prefix has a material record and each parent kind is
 compatible with its child segment. Parents are never inferred. An attribute
@@ -495,9 +549,9 @@ value=aeon.gp.security.v1
 ```
 
 Structured and shorthand AEON headers normalize to the same records. Header
-records use the ordinary kind, datatype, identity, value, and provenance
-fields. They precede body records, preserve source declaration order, and use
-depth-first preorder for descendants.
+records use the ordinary kind, datatype components, identity, value, and
+provenance fields. They precede body records, preserve source declaration
+order, and use depth-first preorder for descendants.
 
 Header and body addresses are disjoint. When this projection is selected, the
 header plane is complete independently: addresses are unique, all ancestors
@@ -522,9 +576,9 @@ not structured-versus-shorthand spelling or exact source lexemes.
 ### 11.1 Portable record fidelity
 
 For a supported encoding version, encode/decode preserves stream profile and
-projection, record order, every address, and every field payload. This includes
-provenance and syntactically valid unknown fields relayed without semantic
-interpretation.
+projection, record order, every address, every scalar field, and every
+structured datatype component. This includes provenance and syntactically
+valid unknown fields relayed without semantic interpretation.
 
 Encoding canonicalization may alter physical whitespace, field order, line
 endings, and escape spelling. It is record-lossless when decoding the canonical
@@ -537,7 +591,7 @@ A projection is semantically lossless only relative to its selected profile and
 projection. Equivalence preserves:
 
 - address plane and address;
-- kind, canonical value, datatype, and identity;
+- kind, canonical value, expanded datatype components, and identity;
 - every profile-significant extension; and
 - the order the selected profile declares authoritative.
 
@@ -579,7 +633,7 @@ syntax:
    container compatibility, identity uniqueness, and profile rules.
 
 Canonical payload grammars owned by SANSA, AEON Core, the Aeonic type contract,
-or the Aeonic Semantic Language remain separate validation points. Draft 0
+or the Aeonic Semantic Language remain separate validation points. AES v0
 reference validators locally enforce only the payload rules defined here,
 including exact lowercase WTC `local`.
 
@@ -592,7 +646,7 @@ Portable local diagnostics use these stable codes; prose is not normative:
 | `AES_UNSUPPORTED_PROFILE` | selected profile is unsupported |
 | `AES_UNSUPPORTED_PROJECTION` | selected projection is unsupported |
 | `AES_INVALID_EVENT` | host input is not a record |
-| `AES_INVALID_PAYLOAD` | a field payload is not a string |
+| `AES_INVALID_PAYLOAD` | a scalar field payload is not a string |
 | `AES_MISSING_ADDRESS` | record has neither `path` nor `header` |
 | `AES_MULTIPLE_ADDRESSES` | record has both `path` and `header` |
 | `AES_MISSING_FIELD` | required `kind` is absent |
@@ -608,7 +662,11 @@ Portable local diagnostics use these stable codes; prose is not normative:
 | `AES_INVALID_REFERENCE` | reference target is not a canonical body event path |
 | `AES_MISSING_REFERENCE_TARGET` | complete stream omits a syntactically valid reference target |
 | `AES_EMPTY_FIELD` | optional datatype or identity is present but empty |
-| `AES_INVALID_ORIGIN` | origin is not a canonical Draft 0 source digest |
+| `AES_DATATYPE_COMPONENTS` | datatype, generics, and clarifiers do not occur together as required |
+| `AES_INVALID_DATATYPE` | datatype name, generic tree, or tagged clarifier is malformed |
+| `AES_DATATYPE_DEPTH` | logical datatype structure exceeds the active generic-depth limit |
+| `AES_DATATYPE_LIMIT` | logical datatype component count exceeds the configured resource limit |
+| `AES_INVALID_ORIGIN` | origin is not a canonical AES v0 source digest |
 | `AES_SPAN_REQUIRES_ORIGIN` | span occurs without origin |
 | `AES_INVALID_SPAN` | span syntax or ordering is invalid |
 | `AES_DUPLICATE_PATH` | complete plane repeats an address |
@@ -634,9 +692,10 @@ the artifact or splits a UTF-8 scalar boundary.
 Portable AES recognizes and transports value distinctions. It does not define
 all operations over those values.
 
-For example, AES can carry `kind=RadixLiteral`, `datatype=decimal`, and
-`value=010.00`. The Aeonic Semantic Language owns equality, comparison,
-ordering, conversion, measurement, and later arithmetic for that value.
+For example, AES can carry `kind=RadixLiteral`, `datatype=decimal`, empty
+`generics` and `clarifiers`, and `value=010.00`. The Aeonic Semantic Language
+owns equality, comparison, ordering, conversion, measurement, and later
+arithmetic for that value.
 
 ```text
 recognized producer value

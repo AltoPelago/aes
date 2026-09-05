@@ -29,7 +29,7 @@ surfaces until these gates are complete.
   and shared CTS. The grammar now permits identity on attribute-entry and node
   heads, and the former negative CTS cases have been replaced.
 - [x] Publish one transport-neutral portable AES event contract covering path,
-  kind, value, datatype, identity, attributes, ordering, and provenance in
+  kind, value, datatype components, identity, attributes, ordering, and provenance in
   `specifications/aes.events.md`.
 - [x] Define the bidirectional mapping between AEON source paths and portable
   AES event paths, including reference target payloads.
@@ -234,8 +234,14 @@ while the wider consumer audit remains open.
 
 ### 1.4 Datatypes and values
 
-- [x] Carry the complete canonical datatype descriptor, including generic
-  arguments and clarifiers, without the AEON `:`.
+- [x] Split the logical datatype into base-name `datatype`, recursive ordered
+  `generics`, and ordered tagged-literal `clarifiers`; retain numeric argument
+  payloads as strings and preserve duplicates.
+- [x] Keep Telex compact by combining those fields into one canonical
+  `datatype=` line, expanding on decode and recombining on encode.
+- [x] Guard recursive generic decoding with default maximum generic depth `1`;
+  apply it as an event-local AES v0 limit under both complete and partial
+  profiles, with only explicit callers or named profiles able to raise it.
 - [x] Keep a datatype only on the event where it was declared; do not infer or
   propagate container generic arguments onto descendants.
 - [x] Use separate `CloneReference` and `PointerReference` kinds with one
@@ -358,7 +364,7 @@ while the wider consumer audit remains open.
 - [x] `aeonite-specs`: establish the first-class `aes/v0` family, publish the
   transport-neutral event, Telex, compatibility, and semantic-language
   documents, and supersede the implementation-shaped AES appendix.
-- [x] `aeonite-website`: add a first-class AES Draft 0 section, family routing,
+- [x] `aeonite-website`: add a first-class AES v0 section, family routing,
   home-page entry, sitemap/LLM discovery, and publication checks.
 - [ ] `aeonite-specs`: update AEON node, structural-identity, span, reference,
   datatype, and WTC projection requirements.
@@ -371,8 +377,15 @@ while the wider consumer audit remains open.
 
 - [ ] `altopelago/aeon`: update TypeScript, Rust, and Python parsers, ASTs,
   flatteners, materializers, SDKs, CLIs, and JSON/debug projections.
+- [ ] `altopelago/aeon`: update the existing TypeScript, Rust, and Python
+  portable AES projections so they emit base-name `datatype`, recursive
+  `generics`, and tagged `clarifiers` instead of collapsing the AST annotation
+  back into one descriptor string.
 - [ ] `altopelago/aeon-php`: implement the same portable contract and shared
   CTS coverage rather than treating PHP as a later compatibility exercise.
+- [ ] `altopelago/aeon-php`: expose the same recursive datatype structure when
+  its portable projection is added; never decode numeric arguments through a
+  PHP numeric type.
 - [ ] `altopelago/aeon-validator`: update validation and diagnostics for the
   revised event shape and path model.
 - [ ] `altopelago/aeon-tooling`: inventory commands and interchange surfaces
@@ -389,8 +402,8 @@ while the wider consumer audit remains open.
   TypeScript AST-shaped values as the interchange contract.
 - [ ] SO: update candidate construction, validation, stable-order scopes, and
   path-addressed operations for flat attributes and expanded nodes.
-- [ ] ASP: preserve kind, canonical value, datatype, identity, and provenance
-  without rebuilding source lexemes.
+- [ ] ASP: preserve kind, canonical value, all three datatype components,
+  identity, and provenance without rebuilding source lexemes.
 - [ ] ASP: update operations and origin handling for expanded paths and
   source-backed spans.
 - [ ] AES-DB: reconstruct value-less containers and explicit descendants while
@@ -398,6 +411,8 @@ while the wider consumer audit remains open.
   value-family semantics.
 - [ ] Audit relays, canonicalizers, signing paths, and durable codecs for
   assumptions about the legacy event shape.
+- [ ] Update semantic hashes and signatures to bind expanded datatype structure
+  rather than a Telex-specific combined descriptor string.
 
 ## 3. Compatibility and stored-data migration
 

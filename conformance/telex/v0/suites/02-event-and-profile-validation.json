@@ -13,7 +13,7 @@
     ]
   },
   "id": "event-and-profile-validation",
-  "title": "Telex Draft 0 Event and Profile Validation",
+  "title": "Telex v0 Event and Profile Validation",
   "tests": [
     {
       "id": "telex-profile-001-complete-default",

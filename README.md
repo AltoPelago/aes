@@ -33,15 +33,15 @@ telex.aes    film.aes
 This repository remains the implementation-adjacent AES workspace. Canonical
 publication sources now live under `sources/aes/v0/` in
 [`aeonite-specs`](../../aeonite-org/aeonite-specs/); their declared lifecycle
-and normativity govern published Draft 0. The Markdown documents here are
+and normativity govern published v0. The Markdown documents here are
 working/reference copies and do not override those canonical sources.
 
-- [Portable AES Event Contract Draft 0](specifications/aes.events.md) owns the
+- [Portable AES Event Contract v0](specifications/aes.events.md) owns the
   transport-neutral record, profile, projection, and fidelity rules.
-- [Portable AES Compatibility Contract Draft 0](specifications/aes.compatibility.md)
+- [Portable AES Compatibility Contract v0](specifications/aes.compatibility.md)
   defines explicit legacy adapters, durable read views, and the
   reader-before-writer deployment barrier.
-- [Telex Draft 0](specifications/telex.aes.md) owns textual framing, escaping,
+- [Telex v0](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
 - [Current event-model inventory](notes/current-event-model.md) records the
   differences that exist across the current TypeScript, Rust, and Python AEON
@@ -55,18 +55,21 @@ working/reference copies and do not override those canonical sources.
   explicit stream profile, and its separate `checkTelexCompleteness` helper
   reports missing structural prefixes without claiming full `aes.complete.v0`
   validation. `validateTelex` and `validateTelexRecords` apply the event-local
-  Draft 0 rules and the selected profile's structural checks. AEON headers are
+  v0 rules and the selected profile's structural checks. AEON headers are
   absent by default; `projection=aeon.document.v0` explicitly enables flat
   `header=` control records in a separate address plane. Optional provenance
   uses a record-local `origin=sha256:<digest>` and permits `span` only alongside
-  that origin.
+  that origin. Its decoder expands compact Telex datatype lines into logical
+  `datatype`, `generics`, and `clarifiers` components. Recursive generics are
+  guarded at the AES v0 default maximum depth of `1` unless the caller
+  explicitly selects a higher supported limit.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early
   illustrative stream, not a frozen conformance vector.
-- [`conformance/`](conformance/README.md) contains language-neutral Draft 0
+- [`conformance/`](conformance/README.md) contains language-neutral v0
   vectors for syntax, canonicalization, AES profile validation, and the optional
   AEON document projection.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent,
-  dependency-free Rust implementation of the same Draft 0 contract.
+  dependency-free Rust implementation of the same v0 contract.
 
 Run the syntax tests with:
 

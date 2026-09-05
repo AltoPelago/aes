@@ -15,6 +15,7 @@ import {
   validateTelex,
   validateTelexRecords,
 } from '../src/telex.js';
+import { formatDatatypeDescriptor, parseDatatypeDescriptor } from '../src/datatype.js';
 
 test('round-trips records and canonicalizes core field order', () => {
   const records = [{
@@ -69,13 +70,138 @@ test('keeps clone and pointer references distinct through kind', () => {
 
 test('keeps node containers, heads, and content as separate flat events', () => {
   const records = [
-    { path: '$.a', kind: 'NodeLiteral', datatype: 'node', identity: 'A' },
+    { path: '$.a', kind: 'NodeLiteral', datatype: 'node', generics: [], clarifiers: [], identity: 'A' },
     { path: '$.a.@.x', kind: 'NumberLiteral', value: '1' },
-    { path: '$.a[0]', kind: 'NodeHead', datatype: 'node<string>', identity: 'T', value: 'tag' },
+    {
+      path: '$.a[0]',
+      kind: 'NodeHead',
+      datatype: 'node',
+      generics: [{ datatype: 'string', generics: [], clarifiers: [] }],
+      clarifiers: [],
+      identity: 'T',
+      value: 'tag',
+    },
     { path: '$.a[0].@.x', kind: 'NumberLiteral', value: '2' },
     { path: '$.a[0][0]', kind: 'StringLiteral', value: 'hello' },
   ];
   assert.deepEqual(parseTelex(encodeTelex(records)).records, records);
+});
+
+test('expands and recombines datatype metadata at the Telex boundary', () => {
+  const records = [
+    {
+      path: '$.csv',
+      kind: 'SeparatorLiteral',
+      datatype: 'csv',
+      generics: [],
+      clarifiers: [{ kind: 'StringLiteral', value: '.' }],
+      value: 'one.two.three',
+    },
+    {
+      path: '$.nested',
+      kind: 'ListNode',
+      datatype: 'list',
+      generics: [{
+        datatype: 'tuple',
+        generics: [
+          { datatype: 'int', generics: [], clarifiers: [] },
+          { kind: 'NumberLiteral', value: '9007199254740993' },
+        ],
+        clarifiers: [{ kind: 'NumberLiteral', value: '16' }],
+      }],
+      clarifiers: [],
+    },
+  ];
+  const encoded = encodeTelex(records);
+  assert.match(encoded, /datatype=csv\["\."\]/u);
+  assert.match(encoded, /datatype=list<tuple<int, 9007199254740993>\[16\]>/u);
+  assert.deepEqual(parseTelex(encoded).records, records);
+});
+
+test('datatype descriptor helpers preserve ordered duplicate clarifiers', () => {
+  const descriptor = parseDatatypeDescriptor('grid<tuple<int, 2>>["x", "x", 16]');
+  assert.deepEqual(descriptor.clarifiers, [
+    { kind: 'StringLiteral', value: 'x' },
+    { kind: 'StringLiteral', value: 'x' },
+    { kind: 'NumberLiteral', value: '16' },
+  ]);
+  assert.equal(formatDatatypeDescriptor(descriptor), 'grid<tuple<int, 2>>["x", "x", 16]');
+});
+
+test('bounds recursive datatype decoding', () => {
+  assert.throws(
+    () => parseDatatypeDescriptor('list<list<int>>', { maxDepth: 0 }),
+    /generic depth exceeds configured limit/u,
+  );
+  assert.throws(
+    () => parseDatatypeDescriptor('list<list<list<int>>>'),
+    /generic depth exceeds configured limit/u,
+  );
+  assert.equal(
+    formatDatatypeDescriptor(
+      parseDatatypeDescriptor('list<list<list<int>>>', { maxDepth: 2 }),
+      { maxDepth: 2 },
+    ),
+    'list<list<list<int>>>',
+  );
+  assert.throws(
+    () => parseDatatypeDescriptor('tuple<int, int>', { maxItems: 2 }),
+    /component count exceeds configured limit/u,
+  );
+});
+
+test('requires complete logical datatype components', () => {
+  const missing = validateTelexRecords([{
+    path: '$.value',
+    kind: 'NumberLiteral',
+    datatype: 'int',
+    value: '1',
+  }]);
+  assert.deepEqual(missing.diagnostics.map(({ code }) => code), ['AES_DATATYPE_COMPONENTS']);
+  assert.throws(
+    () => encodeTelex([{
+      path: '$.value',
+      kind: 'NumberLiteral',
+      datatype: 'int',
+      value: '1',
+    }]),
+    /requires generics and clarifiers arrays/u,
+  );
+});
+
+test('rejects malformed logical datatype trees', () => {
+  const result = validateTelexRecords([{
+    path: '$.value',
+    kind: 'NumberLiteral',
+    datatype: 'measure',
+    generics: [{ kind: 'NumberLiteral', value: 'not-a-number' }],
+    clarifiers: [],
+    value: '1',
+  }]);
+  assert.deepEqual(result.diagnostics.map(({ code }) => code), ['AES_INVALID_DATATYPE']);
+});
+
+test('applies the default logical datatype depth limit', () => {
+  const leaf = { datatype: 'int', generics: [], clarifiers: [] };
+  const nested = {
+    datatype: 'list',
+    generics: [{
+      datatype: 'list',
+      generics: [{ datatype: 'list', generics: [leaf], clarifiers: [] }],
+      clarifiers: [],
+    }],
+    clarifiers: [],
+  };
+  const event = {
+    path: '$.value',
+    kind: 'ListNode',
+    ...nested,
+  };
+  assert.deepEqual(
+    validateTelexRecords([event]).diagnostics.map(({ code }) => code),
+    ['AES_DATATYPE_DEPTH'],
+  );
+  assert.doesNotThrow(() => encodeTelex([event], { datatypeLimits: { maxDepth: 3 } }));
 });
 
 test('preserves supplied event order instead of sorting by path', () => {

@@ -1,12 +1,14 @@
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use aes_telex::{TelexRecord, canonicalize_telex, parse_telex, validate_telex};
-use serde_json::{Value, json};
+use aes_telex::{
+    ClarifierKind, DatatypeDescriptor, GenericArgument, TelexRecord, canonicalize_telex,
+    parse_telex, validate_telex,
+};
+use serde_json::{Map, Value, json};
 
 #[test]
-fn passes_draft_0_telex_vectors() {
+fn passes_v0_development_telex_vectors() {
     let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../conformance/telex/v0/telex-cts.v0.json");
     let manifest = read_json(&manifest_path);
@@ -45,7 +47,7 @@ fn passes_draft_0_telex_vectors() {
         }
     }
 
-    assert_eq!(count, 61, "unexpected Draft 0 vector count");
+    assert_eq!(count, 66, "unexpected v0 development vector count");
 }
 
 fn run_vector(id: &str, vector: &Value) {
@@ -139,8 +141,68 @@ fn run_validate_vector(id: &str, vector: &Value) {
 }
 
 fn record_json(record: &TelexRecord) -> Value {
-    let fields = record.fields().iter().cloned().collect::<BTreeMap<_, _>>();
-    json!(fields)
+    let mut fields = record
+        .fields()
+        .iter()
+        .map(|(field, value)| (field.clone(), Value::String(value.clone())))
+        .collect::<Map<_, _>>();
+    if let Some(datatype) = record.datatype() {
+        fields.insert("generics".to_owned(), generics_json(datatype));
+        fields.insert("clarifiers".to_owned(), clarifiers_json(datatype));
+    }
+    Value::Object(fields)
+}
+
+fn datatype_json(datatype: &DatatypeDescriptor) -> Value {
+    json!({
+        "datatype": datatype.datatype,
+        "generics": datatype.generics.iter().map(|argument| match argument {
+            GenericArgument::Datatype(nested) => datatype_json(nested),
+            GenericArgument::NumberLiteral(value) => {
+                json!({ "kind": "NumberLiteral", "value": value })
+            }
+        }).collect::<Vec<_>>(),
+        "clarifiers": datatype.clarifiers.iter().map(|clarifier| json!({
+            "kind": match clarifier.kind {
+                ClarifierKind::StringLiteral => "StringLiteral",
+                ClarifierKind::NumberLiteral => "NumberLiteral",
+            },
+            "value": clarifier.value,
+        })).collect::<Vec<_>>(),
+    })
+}
+
+fn generics_json(datatype: &DatatypeDescriptor) -> Value {
+    Value::Array(
+        datatype
+            .generics
+            .iter()
+            .map(|argument| match argument {
+                GenericArgument::Datatype(nested) => datatype_json(nested),
+                GenericArgument::NumberLiteral(value) => {
+                    json!({ "kind": "NumberLiteral", "value": value })
+                }
+            })
+            .collect(),
+    )
+}
+
+fn clarifiers_json(datatype: &DatatypeDescriptor) -> Value {
+    Value::Array(
+        datatype
+            .clarifiers
+            .iter()
+            .map(|clarifier| {
+                json!({
+                    "kind": match clarifier.kind {
+                        ClarifierKind::StringLiteral => "StringLiteral",
+                        ClarifierKind::NumberLiteral => "NumberLiteral",
+                    },
+                    "value": clarifier.value,
+                })
+            })
+            .collect(),
+    )
 }
 
 fn read_json(path: &Path) -> Value {

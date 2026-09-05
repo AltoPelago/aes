@@ -4,8 +4,22 @@ use std::error::Error;
 use std::fmt;
 
 const VERSION_LINE: &str = "telex.aes=0";
-const CORE_FIELDS: [&str; 8] = [
+const DEFAULT_MAX_DATATYPE_DEPTH: usize = 1;
+const DEFAULT_MAX_DATATYPE_ITEMS: usize = 4096;
+const TELEX_FIELDS: [&str; 8] = [
     "header", "path", "kind", "datatype", "identity", "value", "origin", "span",
+];
+const CORE_FIELDS: [&str; 10] = [
+    "header",
+    "path",
+    "kind",
+    "datatype",
+    "generics",
+    "clarifiers",
+    "identity",
+    "value",
+    "origin",
+    "span",
 ];
 const VALUE_KINDS: [&str; 23] = [
     "StringLiteral",
@@ -41,17 +55,69 @@ pub const AEON_DOCUMENT_PROJECTION: &str = "aeon.document.v0";
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TelexRecord {
     fields: Vec<(String, String)>,
+    datatype: Option<DatatypeDescriptor>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatatypeDescriptor {
+    pub datatype: String,
+    pub generics: Vec<GenericArgument>,
+    pub clarifiers: Vec<DatatypeClarifier>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GenericArgument {
+    Datatype(DatatypeDescriptor),
+    NumberLiteral(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ClarifierKind {
+    StringLiteral,
+    NumberLiteral,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DatatypeClarifier {
+    pub kind: ClarifierKind,
+    pub value: String,
 }
 
 impl TelexRecord {
     #[must_use]
     pub fn new(fields: Vec<(String, String)>) -> Self {
-        Self { fields }
+        let datatype = fields
+            .iter()
+            .find(|(name, _)| name == "datatype")
+            .map(|(_, datatype)| DatatypeDescriptor {
+                datatype: datatype.clone(),
+                generics: Vec::new(),
+                clarifiers: Vec::new(),
+            });
+        Self { fields, datatype }
+    }
+
+    #[must_use]
+    pub fn with_datatype(mut fields: Vec<(String, String)>, datatype: DatatypeDescriptor) -> Self {
+        if let Some((_, name)) = fields.iter_mut().find(|(name, _)| name == "datatype") {
+            *name = datatype.datatype.clone();
+        } else {
+            fields.push(("datatype".to_owned(), datatype.datatype.clone()));
+        }
+        Self {
+            fields,
+            datatype: Some(datatype),
+        }
     }
 
     #[must_use]
     pub fn fields(&self) -> &[(String, String)] {
         &self.fields
+    }
+
+    #[must_use]
+    pub fn datatype(&self) -> Option<&DatatypeDescriptor> {
+        self.datatype.as_ref()
     }
 
     #[must_use]
@@ -304,6 +370,8 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
 
     let mut records = Vec::new();
     let mut record: Option<Vec<(String, String)>> = None;
+    let mut datatype_line = None;
+    let mut datatype_component_line = None;
     let mut canonical = canonical_line_endings && has_final_lf && header_canonical;
     let mut separator_width = 1_usize;
 
@@ -312,7 +380,12 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
         if line.is_empty() {
             separator_width += 1;
             if let Some(fields) = record.take() {
-                records.push(TelexRecord::new(fields));
+                let (decoded, descriptor_canonical) =
+                    decode_wire_record(fields, datatype_line, datatype_component_line)?;
+                canonical &= descriptor_canonical && has_canonical_field_order(&decoded);
+                records.push(decoded);
+                datatype_line = None;
+                datatype_component_line = None;
             }
             continue;
         }
@@ -353,17 +426,25 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
         }
         let decoded = decode_payload(&line[delimiter + 1..], line_number)?;
         canonical &= decoded.canonical;
+        if field == "datatype" {
+            datatype_line = Some(line_number);
+        } else if (field == "generics" || field == "clarifiers")
+            && datatype_component_line.is_none()
+        {
+            datatype_component_line = Some(line_number);
+        }
         fields.push((field.to_owned(), decoded.value));
     }
 
     if let Some(fields) = record {
-        records.push(TelexRecord::new(fields));
+        let (decoded, descriptor_canonical) =
+            decode_wire_record(fields, datatype_line, datatype_component_line)?;
+        canonical &= descriptor_canonical && has_canonical_field_order(&decoded);
+        records.push(decoded);
     }
     if separator_width > 0 {
         canonical = false;
     }
-    canonical &= records.iter().all(has_canonical_field_order);
-
     Ok(ParsedTelex {
         version: TELEX_VERSION.to_owned(),
         profile,
@@ -419,7 +500,7 @@ pub fn encode_telex_with_projection(
                 detail: format!("Telex record {} must not be empty", record_index + 1),
             });
         }
-        let mut fields = record.fields.clone();
+        let mut fields = wire_fields(record).map_err(|detail| TelexEncodeError { detail })?;
         let mut seen = HashSet::new();
         for (field, _) in &fields {
             if !valid_field_name(field) {
@@ -518,6 +599,15 @@ pub fn validate_telex_records_with_projection(
                     .with_field(field),
                 );
             }
+        }
+        if let Some(datatype) = event.datatype()
+            && let Err((code, message)) = validate_datatype_descriptor(datatype)
+        {
+            diagnostics.push(
+                Diagnostic::new(code, message)
+                    .at_record(index, address)
+                    .with_field("datatype"),
+            );
         }
 
         let has_path = event.contains("path");
@@ -1295,6 +1385,387 @@ fn canonical_json_string(value: &str) -> String {
     encoded
 }
 
+fn decode_wire_record(
+    mut fields: Vec<(String, String)>,
+    datatype_line: Option<usize>,
+    datatype_component_line: Option<usize>,
+) -> Result<(TelexRecord, bool), TelexSyntaxError> {
+    if let Some((field, _)) = fields
+        .iter()
+        .find(|(field, _)| field == "generics" || field == "clarifiers")
+    {
+        return Err(TelexSyntaxError::new(
+            "TELEX_INVALID_DATATYPE",
+            format!("Logical AES field '{field}' must be encoded through the Telex datatype line"),
+            datatype_component_line,
+        ));
+    }
+    let Some(index) = fields.iter().position(|(field, _)| field == "datatype") else {
+        return Ok((
+            TelexRecord {
+                fields,
+                datatype: None,
+            },
+            true,
+        ));
+    };
+    let encoded = fields[index].1.clone();
+    let descriptor = parse_datatype_descriptor(&encoded).map_err(|detail| {
+        let code = if detail.contains("exceeds configured limit") {
+            "TELEX_DATATYPE_LIMIT"
+        } else {
+            "TELEX_INVALID_DATATYPE"
+        };
+        TelexSyntaxError::new(code, detail, datatype_line)
+    })?;
+    let canonical = format_datatype_descriptor(&descriptor) == encoded;
+    fields[index].1.clone_from(&descriptor.datatype);
+    Ok((
+        TelexRecord {
+            fields,
+            datatype: Some(descriptor),
+        },
+        canonical,
+    ))
+}
+
+fn wire_fields(record: &TelexRecord) -> Result<Vec<(String, String)>, String> {
+    let mut fields = record.fields.clone();
+    if let Some(descriptor) = &record.datatype {
+        validate_datatype_descriptor(descriptor).map_err(|(_, detail)| detail)?;
+        let encoded = format_datatype_descriptor(descriptor);
+        let Some((_, value)) = fields.iter_mut().find(|(field, _)| field == "datatype") else {
+            return Err("A structured datatype requires the logical datatype field".to_owned());
+        };
+        *value = encoded;
+    }
+    Ok(fields)
+}
+
+fn parse_datatype_descriptor(input: &str) -> Result<DatatypeDescriptor, String> {
+    let mut parser = DatatypeParser {
+        input,
+        cursor: 0,
+        items: 0,
+    };
+    let descriptor = parser.parse_descriptor(0)?;
+    parser.skip_whitespace();
+    if parser.cursor != input.len() {
+        return Err(format!(
+            "Unexpected trailing datatype syntax at datatype offset {}",
+            parser.cursor
+        ));
+    }
+    Ok(descriptor)
+}
+
+fn format_datatype_descriptor(descriptor: &DatatypeDescriptor) -> String {
+    let mut output = descriptor.datatype.clone();
+    if !descriptor.generics.is_empty() {
+        output.push('<');
+        output.push_str(
+            &descriptor
+                .generics
+                .iter()
+                .map(|argument| match argument {
+                    GenericArgument::Datatype(datatype) => format_datatype_descriptor(datatype),
+                    GenericArgument::NumberLiteral(value) => value.clone(),
+                })
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        output.push('>');
+    }
+    if !descriptor.clarifiers.is_empty() {
+        output.push('[');
+        output.push_str(
+            &descriptor
+                .clarifiers
+                .iter()
+                .map(|clarifier| match clarifier.kind {
+                    ClarifierKind::StringLiteral => canonical_json_string(&clarifier.value),
+                    ClarifierKind::NumberLiteral => clarifier.value.clone(),
+                })
+                .collect::<Vec<_>>()
+                .join(", "),
+        );
+        output.push(']');
+    }
+    output
+}
+
+fn validate_datatype_descriptor(
+    descriptor: &DatatypeDescriptor,
+) -> Result<(), (&'static str, String)> {
+    let mut items = 0;
+    validate_datatype_descriptor_at_depth(descriptor, 0, &mut items)
+}
+
+fn validate_datatype_descriptor_at_depth(
+    descriptor: &DatatypeDescriptor,
+    depth: usize,
+    items: &mut usize,
+) -> Result<(), (&'static str, String)> {
+    count_datatype_item(items)?;
+    if !valid_datatype_name(&descriptor.datatype) {
+        return Err((
+            "AES_INVALID_DATATYPE",
+            "Datatype must be an ASCII identifier".to_owned(),
+        ));
+    }
+    if !descriptor.generics.is_empty() && depth > DEFAULT_MAX_DATATYPE_DEPTH {
+        return Err((
+            "AES_DATATYPE_DEPTH",
+            "Datatype generic depth exceeds configured limit".to_owned(),
+        ));
+    }
+    for argument in &descriptor.generics {
+        match argument {
+            GenericArgument::Datatype(nested) => {
+                validate_datatype_descriptor_at_depth(nested, depth + 1, items)?;
+            }
+            GenericArgument::NumberLiteral(value) if !valid_number_syntax(value) => {
+                return Err((
+                    "AES_INVALID_DATATYPE",
+                    "Invalid numeric datatype generic argument".to_owned(),
+                ));
+            }
+            GenericArgument::NumberLiteral(_) => count_datatype_item(items)?,
+        }
+    }
+    for clarifier in &descriptor.clarifiers {
+        count_datatype_item(items)?;
+        if clarifier.kind == ClarifierKind::NumberLiteral && !valid_number_syntax(&clarifier.value)
+        {
+            return Err((
+                "AES_INVALID_DATATYPE",
+                "Invalid numeric datatype clarifier".to_owned(),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn count_datatype_item(items: &mut usize) -> Result<(), (&'static str, String)> {
+    *items += 1;
+    if *items > DEFAULT_MAX_DATATYPE_ITEMS {
+        return Err((
+            "AES_DATATYPE_LIMIT",
+            "Datatype component count exceeds configured limit".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn valid_datatype_name(value: &str) -> bool {
+    let mut bytes = value.bytes();
+    let Some(first) = bytes.next() else {
+        return false;
+    };
+    (first.is_ascii_alphabetic() || first == b'_')
+        && bytes.all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+}
+
+fn valid_number_syntax(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let mut cursor = usize::from(matches!(bytes.first(), Some(b'+' | b'-')));
+    let integer_start = cursor;
+    while bytes.get(cursor).is_some_and(u8::is_ascii_digit) {
+        cursor += 1;
+    }
+    let integer_digits = cursor - integer_start;
+    let mut fraction_digits = 0;
+    if bytes.get(cursor) == Some(&b'.') {
+        cursor += 1;
+        let fraction_start = cursor;
+        while bytes.get(cursor).is_some_and(u8::is_ascii_digit) {
+            cursor += 1;
+        }
+        fraction_digits = cursor - fraction_start;
+    }
+    if integer_digits == 0 && fraction_digits == 0 {
+        return false;
+    }
+    if matches!(bytes.get(cursor), Some(b'e' | b'E')) {
+        cursor += 1;
+        if matches!(bytes.get(cursor), Some(b'+' | b'-')) {
+            cursor += 1;
+        }
+        let exponent_start = cursor;
+        while bytes.get(cursor).is_some_and(u8::is_ascii_digit) {
+            cursor += 1;
+        }
+        if cursor == exponent_start {
+            return false;
+        }
+    }
+    cursor == bytes.len()
+}
+
+struct DatatypeParser<'a> {
+    input: &'a str,
+    cursor: usize,
+    items: usize,
+}
+
+impl DatatypeParser<'_> {
+    fn parse_descriptor(&mut self, depth: usize) -> Result<DatatypeDescriptor, String> {
+        self.count_item()?;
+        self.skip_whitespace();
+        let datatype = self.parse_name()?;
+        self.skip_whitespace();
+        let generics = if self.peek() == Some(b'<') {
+            if depth > DEFAULT_MAX_DATATYPE_DEPTH {
+                return self.fail("Datatype generic depth exceeds configured limit");
+            }
+            self.parse_generics(depth)?
+        } else {
+            Vec::new()
+        };
+        self.skip_whitespace();
+        let clarifiers = if self.peek() == Some(b'[') {
+            self.parse_clarifiers()?
+        } else {
+            Vec::new()
+        };
+        Ok(DatatypeDescriptor {
+            datatype,
+            generics,
+            clarifiers,
+        })
+    }
+
+    fn parse_name(&mut self) -> Result<String, String> {
+        let start = self.cursor;
+        let Some(first) = self.peek() else {
+            return self.fail("Expected datatype name");
+        };
+        if !first.is_ascii_alphabetic() && first != b'_' {
+            return self.fail("Expected datatype name");
+        }
+        self.cursor += 1;
+        while self
+            .peek()
+            .is_some_and(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+        {
+            self.cursor += 1;
+        }
+        Ok(self.input[start..self.cursor].to_owned())
+    }
+
+    fn parse_generics(&mut self, depth: usize) -> Result<Vec<GenericArgument>, String> {
+        self.consume(b'<')?;
+        self.skip_whitespace();
+        if self.peek() == Some(b'>') {
+            return self.fail("Generic argument list must not be empty");
+        }
+        let mut values = Vec::new();
+        loop {
+            self.skip_whitespace();
+            let argument = if self
+                .peek()
+                .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
+            {
+                GenericArgument::Datatype(self.parse_descriptor(depth + 1)?)
+            } else {
+                self.count_item()?;
+                GenericArgument::NumberLiteral(self.parse_number(b",>")?)
+            };
+            values.push(argument);
+            self.skip_whitespace();
+            if self.peek() == Some(b'>') {
+                self.cursor += 1;
+                return Ok(values);
+            }
+            self.consume(b',')?;
+        }
+    }
+
+    fn parse_clarifiers(&mut self) -> Result<Vec<DatatypeClarifier>, String> {
+        self.consume(b'[')?;
+        self.skip_whitespace();
+        if self.peek() == Some(b']') {
+            return self.fail("Clarifier list must not be empty");
+        }
+        let mut values = Vec::new();
+        loop {
+            self.skip_whitespace();
+            self.count_item()?;
+            let clarifier = if self.peek() == Some(b'"') {
+                let (value, end) = decode_json_string(self.input, self.cursor)
+                    .map_err(|_| self.error("Invalid string clarifier"))?;
+                self.cursor = end + 1;
+                DatatypeClarifier {
+                    kind: ClarifierKind::StringLiteral,
+                    value,
+                }
+            } else {
+                DatatypeClarifier {
+                    kind: ClarifierKind::NumberLiteral,
+                    value: self.parse_number(b",]")?,
+                }
+            };
+            values.push(clarifier);
+            self.skip_whitespace();
+            if self.peek() == Some(b']') {
+                self.cursor += 1;
+                return Ok(values);
+            }
+            self.consume(b',')?;
+        }
+    }
+
+    fn parse_number(&mut self, delimiters: &[u8]) -> Result<String, String> {
+        let start = self.cursor;
+        while self
+            .peek()
+            .is_some_and(|byte| !delimiters.contains(&byte) && !byte.is_ascii_whitespace())
+        {
+            self.cursor += 1;
+        }
+        let value = &self.input[start..self.cursor];
+        if !valid_number_syntax(value) {
+            return self.fail("Expected numeric datatype argument");
+        }
+        Ok(value.to_owned())
+    }
+
+    fn consume(&mut self, expected: u8) -> Result<(), String> {
+        self.skip_whitespace();
+        if self.peek() != Some(expected) {
+            return self.fail(&format!("Expected '{}'", char::from(expected)));
+        }
+        self.cursor += 1;
+        Ok(())
+    }
+
+    fn skip_whitespace(&mut self) {
+        while self.peek().is_some_and(|byte| byte.is_ascii_whitespace()) {
+            self.cursor += 1;
+        }
+    }
+
+    fn peek(&self) -> Option<u8> {
+        self.input.as_bytes().get(self.cursor).copied()
+    }
+
+    fn count_item(&mut self) -> Result<(), String> {
+        self.items += 1;
+        if self.items > DEFAULT_MAX_DATATYPE_ITEMS {
+            return self.fail("Datatype component count exceeds configured limit");
+        }
+        Ok(())
+    }
+
+    fn error(&self, message: &str) -> String {
+        format!("{message} at datatype offset {}", self.cursor)
+    }
+
+    fn fail<T>(&self, message: &str) -> Result<T, String> {
+        Err(self.error(message))
+    }
+}
+
 fn valid_span(span: &str) -> bool {
     let Some((start, end)) = span.split_once(':') else {
         return false;
@@ -1338,7 +1809,9 @@ fn compare_fields(left: &str, right: &str) -> Ordering {
 }
 
 fn core_rank(field: &str) -> Option<usize> {
-    CORE_FIELDS.iter().position(|candidate| *candidate == field)
+    TELEX_FIELDS
+        .iter()
+        .position(|candidate| *candidate == field)
 }
 
 fn has_canonical_field_order(record: &TelexRecord) -> bool {

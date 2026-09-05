@@ -1,6 +1,7 @@
-# Portable AES Compatibility Contract Draft 0
+# Portable AES Compatibility Contract v0
 
-Status: exploratory draft
+Scope: explicit legacy adapters, durable read views, and reader-before-writer
+migration for portable AES.
 
 Portable contract: `aes.events.v0`
 
@@ -139,10 +140,12 @@ provenance-lossy.
 
 ### 3.6 Values, ordering, and derived fields
 
-Legacy AST-shaped values are reduced to the portable `kind`, canonical
-`value`, and declared `datatype` fields. Conversion fails when the declared
-source contract cannot establish those fields without implementation-specific
-guessing.
+Legacy AST-shaped values are reduced to portable `kind`, canonical `value`, and
+the declared `datatype`, `generics`, and `clarifiers` fields. A legacy combined
+datatype descriptor is parsed once by the named adapter into the recursive
+portable form; string and numeric clarifiers remain distinct and numeric
+payloads remain strings. Conversion fails when the declared source contract
+cannot establish those fields without implementation-specific guessing.
 
 Derived keys, normalized paths, cached selectors, and nested AST objects are
 not transported. Source order is retained unless the selected source contract
@@ -232,9 +235,10 @@ cohort, monitoring window, and recovery rehearsal. A configuration flag or
 successful unit test alone is not reader readiness.
 
 Signatures and semantic hashes bind the contract identity, selected profile,
-projection, and ordering policy. A converted stream is not verified under a
-legacy signature merely because its semantic values match; signature
-translation requires a separately defined and authorized signing operation.
+projection, ordering policy, and expanded datatype structure. A converted
+stream is not verified under a legacy signature merely because its semantic
+values match; signature translation requires a separately defined and
+authorized signing operation.
 
 ## 8. Compatibility diagnostics
 
