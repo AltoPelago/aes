@@ -285,12 +285,19 @@ while the wider consumer audit remains open.
   limits contract.
 - [ ] Complete an implementation audit for public and hard-coded resource
   guards in TypeScript, Rust, Python, and PHP.
-- [ ] Approve and publish the first concrete AltoPelago limits values and the
-  fixed bootstrap policy used to load an AEON-encoded limits file.
+- [x] Approve and publish the first concrete AltoPelago `1.0.0` limits values
+  and the fixed bootstrap policy used to load an AEON-encoded limits file.
 - [ ] Add a shared limits loader, normalized effective-configuration view, and
   deterministic exhaustion diagnostics to every AltoPelago implementation.
 - [ ] Rename or adapt `maxSeparatorDepth` / `max_separator_depth` to the shared
   `max_clarifier_values` counter without creating a second semantic limit.
+- [ ] Add `max_generic_arguments` and `max_datatype_components` to AEON Core;
+  keep `max_generic_depth` limited to recursive datatype depth.
+- [ ] Add the AEON v1 portability-floor counters for decoded string length, key
+  segment length, numeric-literal lexical length, list and tuple length,
+  canonical/reference path length, and structured-comment payload length.
+- [ ] Remove the TypeScript and Python canonicalizers' hard-coded generic and
+  clarifier limit values; use the effective consumer-selected limits.
 - [ ] Implement all required Telex bounds: input bytes, line bytes, fields per
   event, event count, decoded payload bytes, path depth, generic depth, and
   datatype component count.

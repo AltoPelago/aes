@@ -4,6 +4,11 @@ Status: informative AES-adjacent implementation contract.
 
 Limits identifier: `altopelago.aeonic-limits.v1`
 
+Published limits version: `1.0.0`
+
+Concrete file:
+[`policies/altopelago.aeonic-limits.v1.aeon`](../policies/altopelago.aeonic-limits.v1.aeon)
+
 This document defines the common limits-file shape used by AltoPelago AEON,
 AES, Telex, and later Film implementations. It is not an AES semantic profile,
 an AEON language rule, or a portable conformance claim. Consumers independently
@@ -19,7 +24,7 @@ means that the named limit set was designed, tested, or deployed with those
 profiles. It does not activate a profile, prove conformance, or give the named
 profile authority over the limits.
 
-The initial file shape is:
+The published AltoPelago v1 limit set is:
 
 ```aeon
 limits_id = "altopelago.aeonic-limits.v1"
@@ -28,39 +33,50 @@ limits_version = "1.0.0"
 profile_claims = [
   "aeon.gp.profile.v1"
   "aes.complete.v0"
+  "aes.partial.v0"
 ]
 
 structure = {
   max_attribute_depth = 1
   max_generic_depth = 1
+  max_generic_arguments = 32
   max_clarifier_values = 1
+  max_datatype_components = 64
   max_value_nesting_depth = 256
+  max_path_depth = 1024
+  max_string_codepoints = 1048576
+  max_key_segment_codepoints = 1024
+  max_list_items = 65536
+  max_tuple_items = 65536
+  max_path_characters = 8192
 }
 
 processing = {
   max_events = 100000
-  max_path_depth = 256
   max_reference_depth = 64
-  max_materialized_weight = 100000
-  max_datatype_components = 4096
+  max_materialized_weight = 1000000
 }
 
 formats = {
   aeon = {
     max_input_bytes = 16777216
+    max_numeric_literal_characters = 1024
+    max_structured_comment_characters = 1048576
   }
   telex = {
-    max_input_bytes = 33554432
+    max_input_bytes = 67108864
     max_line_bytes = 1048576
     max_fields_per_event = 64
-    max_decoded_payload_bytes = 16777216
+    max_decoded_payload_bytes = 33554432
   }
 }
-```
 
-The numbers above illustrate the shape; they are not the released AltoPelago
-default set. A concrete limits file becomes an implementation target only when
-its exact values, version, and lifecycle have been approved and published.
+transport = {
+  max_frame_bytes = 16777216
+  max_buffer_bytes = 33554432
+  max_header_bytes = 65536
+}
+```
 
 `limits_id` identifies the named limit-set line. `limits_version` identifies an
 exact immutable revision of that line. Changing any effective value requires a
@@ -100,8 +116,16 @@ values to the same counter.
 | --- | --- |
 | `max_attribute_depth` | nested attribute address-space depth |
 | `max_generic_depth` | recursive datatype generic depth |
+| `max_generic_arguments` | length of one datatype descriptor's `generics` array |
 | `max_clarifier_values` | number of ordered clarifier values on one datatype descriptor |
+| `max_datatype_components` | aggregate descriptors, numeric generic arguments, and clarifier values in one recursive datatype |
 | `max_value_nesting_depth` | nested logical container depth |
+| `max_path_depth` | canonical address structural-step depth |
+| `max_string_codepoints` | decoded string literal length in Unicode code points |
+| `max_key_segment_codepoints` | decoded key-segment length in Unicode code points |
+| `max_list_items` | direct item count in one list |
+| `max_tuple_items` | direct item count in one tuple |
+| `max_path_characters` | canonical or reference path length in Unicode code points |
 
 The generic-depth convention remains: `list<int>` has depth `0`,
 `list<list<int>>` has depth `1`, and `list<list<list<int>>>` has depth `2`.
@@ -112,6 +136,17 @@ structure.
 AEON APIs named `maxSeparatorDepth` or `max_separator_depth` map to it during
 migration; they do not define a second counter.
 
+Generic depth, generic-array length, clarifier-array length, and total datatype
+components are independent counters. Depth bounds recursion; the two array
+limits bound local breadth; the component limit bounds aggregate recursive
+size. The published values are depth `1`, generic arguments `32`, clarifier
+values `1`, and total components `64`.
+
+Path depth and path character length are also independent. The root `$` has
+depth zero. Each member or index adds one; an attribute transition plus its key
+counts as one structural step. Node-head expansion therefore consumes a step
+separately from its content index. Quoting does not alter depth.
+
 ## 3. Shared processing limits
 
 Processing limits apply to logical AES work rather than a particular byte
@@ -120,10 +155,8 @@ encoding.
 | Limit | Counter |
 | --- | --- |
 | `max_events` | accepted or produced assignment-event count |
-| `max_path_depth` | canonical address segment depth |
 | `max_reference_depth` | reference-resolution chain depth |
 | `max_materialized_weight` | cumulative value weight materialized by clone/reference expansion |
-| `max_datatype_components` | descriptor, generic-argument, and clarifier components in one datatype |
 
 An implementation may enforce a lower immutable safety ceiling where its
 runtime requires one. It must reject a requested value above that ceiling when
@@ -135,7 +168,10 @@ Byte, line, frame, and buffering limits remain scoped to their physical format
 or transport. The size of an AEON source is not the size of its Telex encoding,
 and neither determines the size of a future Film representation.
 
-AEON format limits currently include `max_input_bytes`.
+AEON format limits include `max_input_bytes`, raw numeric-literal character
+length, and structured-comment payload character length. The latter two are
+source-format counters; normalized AES values do not retain AEON lexical
+spelling or structured comments.
 
 Telex format limits include:
 
@@ -149,8 +185,10 @@ and datatype-component limits come from the shared sections. Film will add its
 own byte-, frame-, table-, and buffering-specific fields without redefining
 those shared counters.
 
-Transport framing that is independent of an encoding may use its own sibling
-section for `max_frame_bytes`, `max_buffer_bytes`, and `max_header_bytes`.
+Transport framing that is independent of an encoding uses its own sibling
+section. The published values are `16 MiB` for a frame payload, `32 MiB` for
+buffered transport bytes, and `64 KiB` for header inspection. A Telex stream
+may span multiple transport frames.
 
 ## 5. Schema boundary
 
@@ -199,14 +237,28 @@ policy before applying its contents. The bootstrap parser performs no reference
 resolution, schema loading, network access, or document-selected profile
 activation.
 
-The exact bootstrap byte and structural ceilings must be shared by the
-TypeScript, Rust, and Python loaders and documented alongside the first
-published concrete limits file.
+The fixed bootstrap ceilings are:
+
+| Limit | Value |
+| --- | ---: |
+| input bytes | `65536` |
+| projected events | `256` |
+| canonical path depth | `8` |
+| value nesting depth | `8` |
+| attribute depth | `0` |
+| generic depth | `0` |
+| generic arguments | `0` |
+| clarifier values | `0` |
+| datatype components | `1` |
+
+The TypeScript, Rust, and Python loaders must use these exact ceilings.
+Bootstrap loading uses AEON transport mode, rejects headers, disables reference
+and clone resolution, and performs no schema loading or network access.
 
 ## 8. Current implementation inventory
 
-The following controls exist today and must be mapped before a concrete common
-set is released.
+The following controls exist today and must be mapped before an implementation
+claims support for the concrete common set.
 
 | Area | Existing controls and defaults |
 | --- | --- |
@@ -217,11 +269,25 @@ set is released.
 | TypeScript framing transport | frame `16 MiB`, buffer `32 MiB`, inspected header `64 KiB` |
 | Telex | generic and datatype-component guards exist; the other required syntax resource bounds are not yet consistently implemented |
 
-Before release, the implementation audit must also find hard-coded allocation,
-recursion, collection, and input guards that are not currently public options.
-Every discovered guard is either mapped to this contract, documented as a
-runtime safety ceiling, or explicitly classified as belonging to another
-limits contract.
+`max_generic_depth` is narrow in the current AEON parsers: it controls only
+recursive datatype annotations wherever a datatype may occur. It does not
+limit generic-array length, clarifier-array length, datatype component count,
+value nesting, paths, or payload length. TypeScript and Python canonicalization
+currently hard-code generic and clarifier capability values of `8` instead of
+using the consumer's effective limits.
+
+AEON v1 already promises portability floors for decoded string length, key
+segment length, numeric literal lexical length, container nesting, list/tuple
+item count, canonical/reference path length, structured-comment length, and an
+event budget when exposed. Several are not consistently enforced as public
+processor options. The concrete set adopts those established floors while
+retaining the existing default value-nesting limit of `256`.
+
+Before implementations ship support for this limit set, the audit must also
+find hard-coded allocation, recursion, collection, and input guards that are
+not currently public options. Every discovered guard is either mapped to this
+contract, documented as a runtime safety ceiling, or explicitly classified as
+belonging to another limits contract.
 
 ## 9. Required implementation behavior
 

@@ -53,7 +53,8 @@ working/reference copies and do not override those canonical sources.
   the informative, consumer-owned configuration shape used to align structural
   and processing limits across AltoPelago implementations. Format byte limits
   remain local to AEON, Telex, Film, or their enclosing transport, and schema
-  budgets remain separate.
+  budgets remain separate. The concrete `1.0.0` set is
+  [`policies/altopelago.aeonic-limits.v1.aeon`](policies/altopelago.aeonic-limits.v1.aeon).
 - [`src/telex.js`](src/telex.js) is a dependency-free syntax codec. It proves
   that the framing can be parsed and produced with a very small implementation;
   it deliberately does not decide AES value semantics. It preserves an
