@@ -25,8 +25,8 @@ Telex defines only their text framing, escaping, canonical bytes, and syntax
 diagnostics. The future `film.aes` will encode the same records with different
 physical tradeoffs.
 
-This draft is a candidate to discuss and test. Format version `0` is not a
-compatibility promise.
+Format version `0` identifies this published wire contract. An incompatible
+framing or decoding change requires a new Telex format version.
 
 ## 2. Design constraints
 
@@ -403,10 +403,10 @@ it does not let an input stream select or relax those limits.
 Syntax decoding performs no reference resolution, schema loading, network
 access, datatype execution, or source-language evaluation.
 
-## 10. Draft 1 exit criteria
+## 10. Published conformance baseline
 
-Draft 1 should not be declared until the settled Telex syntax and referenced
-AES event rules exist as conformance vectors in at least two independent
+Published Telex v0 requires the settled Telex syntax and referenced AES event
+rules to exist as conformance vectors in at least two independent
 implementations.
 
 The repository-local `conformance/telex/v0` manifest remains a mutable v0
@@ -415,9 +415,10 @@ candidate with no snapshot identity. Stable conformance is split by authority:
 vectors, while `aes-events-cts-v0-snapshot-0.1` owns 38 transport-neutral event
 and profile-validation vectors. Both immutable manifests are published in the
 shared CTS repository with per-suite content digests and pass independently in
-the JavaScript and Rust implementations. This satisfies the conformance
-prerequisite for Draft 1; lifecycle promotion remains a separate publication
-decision.
+the JavaScript and Rust implementations. These snapshots are the stable
+conformance baseline for the published v0 contract. Later compatible additions
+require a new immutable snapshot identifier; incompatible wire changes require
+a new Telex format version.
 
 Transport media types and external registration are outside the v0 format
 decision gates.

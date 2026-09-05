@@ -31,10 +31,12 @@ telex.aes    film.aes
 ## Current status
 
 This repository remains the implementation-adjacent AES workspace. Canonical
-publication sources now live under `sources/aes/v0/` in
-[`aeonite-specs`](../../aeonite-org/aeonite-specs/); their declared lifecycle
-and normativity govern published v0. The Markdown documents here are
-working/reference copies and do not override those canonical sources.
+publication sources live under `sources/aes/v0/` in
+[`aeonite-specs`](../../aeonite-org/aeonite-specs/). The AES v0 index, portable
+event contract, compatibility contract, and Telex encoding are published;
+their declared lifecycle and normativity govern v0. The Aeonic Semantic
+Language remains a proposal. The Markdown documents here are working/reference
+copies and do not override those canonical sources.
 
 - [Portable AES Event Contract v0](specifications/aes.events.md) owns the
   transport-neutral record, profile, projection, and fidelity rules.
@@ -133,13 +135,11 @@ ambiguity.
 
 ## Roadmap
 
-1. Reconcile the portable AES event model with existing implementations.
-2. Fix Telex framing, field vocabulary, escaping, and canonical bytes.
-3. Publish shared positive and negative conformance vectors.
-4. Prove round trips in at least two independent implementations.
-5. Promote `telex.aes` from draft and use its event model to design `film.aes`.
-6. Consolidate the AES, Telex, Film, and later Tape specifications here.
-7. Consolidate shared value behavior as the Aeonic Semantic Language.
+1. Continue compatibility readers and adapters across the existing producers
+   and consumers.
+2. Use the published event model to design `film.aes`.
+3. Consolidate the later Film and Tape specifications here.
+4. Advance shared value behavior through the Aeonic Semantic Language proposal.
 
 ## Design rule
 

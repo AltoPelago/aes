@@ -397,6 +397,9 @@ while the wider consumer audit remains open.
 - [ ] TypeScript, Rust, and Python: add an explicit `aeon.document.v0` adapter
   that projects the retained header into ordered `header` records before the
   portable body events.
+  - [x] TypeScript: `compileToTelex()`/`exportTelex()` and CLI
+    `inspect --telex --include-headers` emit ordered header-plane records before
+    portable body records; body-only remains the default.
 - [ ] Audit remaining TypeScript public AES surfaces for synthetic header
   leakage, and update PHP's default body stream and explicit document adapter.
 - [ ] Update finalizers and SDKs so existing payload/header/full views consume
@@ -428,10 +431,16 @@ while the wider consumer audit remains open.
 
 - [ ] `altopelago/aeon`: update TypeScript, Rust, and Python parsers, ASTs,
   flatteners, materializers, SDKs, CLIs, and JSON/debug projections.
+  - [x] TypeScript: ship the Telex v0 codec through the AES package; add
+    Core event/source export, SDK read/write, AEOS validation, canonicalization,
+    and CLI decode/export surfaces while retaining the legacy in-memory APIs.
+    The published AES Events and Telex snapshot suites pass 38/38 and 50/50.
 - [ ] `altopelago/aeon`: update the existing TypeScript, Rust, and Python
   portable AES projections so they emit base-name `datatype`, recursive
   `generics`, and tagged `clarifiers` instead of collapsing the AST annotation
   back into one descriptor string.
+  - [x] TypeScript: the portable projection now exposes all three fields and
+    Telex recombines them only at the wire boundary.
 - [ ] `altopelago/aeon-php`: implement the same portable contract and shared
   CTS coverage rather than treating PHP as a later compatibility exercise.
 - [ ] `altopelago/aeon-php`: expose the same recursive datatype structure when
@@ -520,9 +529,12 @@ while the wider consumer audit remains open.
 
 ## 5. Rollout sequence
 
-- [ ] Phase 1 — freeze and publish the transport-neutral `aes.events.v0`
+- [x] Phase 1 — freeze and publish the transport-neutral `aes.events.v0`
   contract and its version discriminator.
-- [ ] Phase 2 — update `aeonite-specs` and land shared CTS vectors.
+- [x] Phase 2 — update `aeonite-specs` and land shared CTS vectors.
+- [ ] After the canonical specification revision is committed, advance the
+  `aeonite-website/specs.lock.json` revision and source digest, rebuild the
+  publication artifacts, and deploy the published lifecycle metadata.
 - [ ] Phase 3 — ship compatibility readers/adapters in TypeScript, Rust,
   Python, and PHP while producers retain the legacy shape.
 - [ ] Phase 4 — update SANSA, AEOS, Tonics, validators, SDKs, SO, ASP, AES-DB,
