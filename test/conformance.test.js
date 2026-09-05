@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 
 import {
   TelexSyntaxError,
@@ -9,7 +11,9 @@ import {
   validateTelex,
 } from '../src/telex.js';
 
-const manifestUrl = new URL('../conformance/telex/v0/telex-cts.v0.json', import.meta.url);
+const manifestUrl = process.env.TELEX_CTS_MANIFEST === undefined
+  ? new URL('../conformance/telex/v0/telex-cts.v0.json', import.meta.url)
+  : pathToFileURL(resolve(process.env.TELEX_CTS_MANIFEST));
 const manifest = readJson(manifestUrl);
 const seenIds = new Set();
 const portableSpec = readFileSync(new URL('../specifications/aes.events.md', import.meta.url), 'utf8');
@@ -20,10 +24,15 @@ const datatypeSource = readFileSync(new URL('../src/datatype.js', import.meta.ur
 test('Telex conformance manifest has resolvable suites and unique vector IDs', () => {
   assert.equal(manifest.meta.format, 'telex.aes');
   assert.equal(manifest.meta.format_version, '0');
-  assert.equal(manifest.meta.status, 'draft');
-  assert.match(manifest.meta.version, /-dev$/u);
-  assert.equal(Object.hasOwn(manifest.meta, 'snapshot_id'), false);
-  assert.equal(Object.hasOwn(manifest.meta, 'spec_snapshot_id'), false);
+  if (manifest.meta.status === 'draft') {
+    assert.match(manifest.meta.version, /-dev$/u);
+    assert.equal(Object.hasOwn(manifest.meta, 'snapshot_id'), false);
+    assert.equal(Object.hasOwn(manifest.meta, 'spec_snapshot_id'), false);
+  } else {
+    assert.equal(manifest.meta.status, 'released');
+    assert.match(manifest.meta.snapshot_id, /^telex-cts-v0-snapshot-\d+\.\d+$/u);
+    assert.match(manifest.meta.spec_snapshot_id, /^telex-specs-v0-snapshot-\d+\.\d+$/u);
+  }
   assert.notEqual(portableContract, undefined);
   assert.equal(manifest.meta.event_contract, portableContract);
   assert.ok(Array.isArray(manifest.suites));
@@ -43,6 +52,7 @@ test('Telex conformance manifest has resolvable suites and unique vector IDs', (
 });
 
 test('conformance specification references resolve to published headings', () => {
+  if (manifest.meta.status !== 'draft') return;
   for (const suiteRef of manifest.suites) {
     const suite = readJson(new URL(suiteRef.file, manifestUrl));
     for (const specRef of suite.meta.spec_refs ?? []) {

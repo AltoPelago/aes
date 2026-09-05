@@ -53,18 +53,22 @@ each test:
 - `canonicalize`: return canonical Telex text without reordering events; or
 - `validate`: return the effective profile and semantic diagnostic codes.
 
-These vectors are a mutable development candidate while the format is Draft 0.
-The candidate uses a `-dev` version and carries no `snapshot_id` or
+These 88 integrated vectors remain the mutable development candidate. The
+candidate uses a `-dev` version and carries no `snapshot_id` or
 `spec_snapshot_id`. A repository commit identifies an exact development state,
 but external conformance claims must not treat this working path as stable.
 
-The JavaScript and Rust implementations consume the candidate independently.
-After the specification stabilizes, the release process copies the exact suite
-and specifications into immutable artifacts in the shared `aeonite-cts`
-repository, mints their snapshot identifiers once, records content digests, and
-tags the release. Published snapshot identifiers are never reused or moved to
-different content. Both implementations must pass that frozen snapshot before
-Draft 1 is declared.
+The first stable shared publication separates the owning contracts:
+
+- `aes-events-cts-v0-snapshot-0.1` contains 38 transport-neutral event and
+  profile-validation vectors;
+- `telex-cts-v0-snapshot-0.1` contains 50 Telex syntax, canonicalization, and
+  format-limit vectors.
+
+Both manifests live in `aeonite-cts`, pin a SHA-256 digest for every suite, and
+pass independently in the JavaScript and Rust implementations. Later candidate
+changes stay here or enter a newer shared snapshot; the published identifiers
+and their suite bytes are not changed.
 
 The Telex vectors test portable record and event-profile behavior. They do not
 assert byte-for-byte reconstruction of an originating AEON document; exact

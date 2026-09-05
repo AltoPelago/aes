@@ -75,7 +75,9 @@ working/reference copies and do not override those canonical sources.
   illustrative stream, not a frozen conformance vector.
 - [`conformance/`](conformance/README.md) contains language-neutral v0
   vectors for syntax, canonicalization, AES profile validation, resource-limit
-  boundaries, and the optional AEON document projection.
+  boundaries, and the optional AEON document projection. Stable external
+  targets are published separately as `aes-events-cts-v0-snapshot-0.1` and
+  `telex-cts-v0-snapshot-0.1` in the shared `aeonite-cts` repository.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent,
   dependency-free Rust implementation of the same v0 contract.
 
@@ -95,6 +97,13 @@ Run the vectors through the Rust implementation with:
 
 ```bash
 npm run test:conformance:rust
+```
+
+Run both published shared snapshots in JavaScript and Rust with:
+
+```bash
+npm run test:conformance:shared
+npm run test:conformance:rust:shared
 ```
 
 ## Boundaries

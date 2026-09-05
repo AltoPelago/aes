@@ -7,7 +7,9 @@
   "scripts": {
     "test": "node --test",
     "test:conformance": "node --test test/conformance.test.js",
-    "test:conformance:rust": "cargo test --locked --manifest-path implementations/rust/Cargo.toml"
+    "test:conformance:shared": "TELEX_CTS_MANIFEST=../../aeonite-org/aeonite-cts/cts/telex/v0/telex-cts.v0.snapshot-0.1.json node --test test/conformance.test.js test/aes-events-conformance.test.js",
+    "test:conformance:rust": "cargo test --locked --manifest-path implementations/rust/Cargo.toml",
+    "test:conformance:rust:shared": "TELEX_CTS_MANIFEST=../../../../aeonite-org/aeonite-cts/cts/telex/v0/telex-cts.v0.snapshot-0.1.json AES_EVENTS_CTS_MANIFEST=../../../../aeonite-org/aeonite-cts/cts/aes/v0/aes-events-cts.v0.snapshot-0.1.json cargo test --locked --manifest-path implementations/rust/Cargo.toml"
   },
   "license": "MIT"
 }

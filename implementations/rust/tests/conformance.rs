@@ -2,19 +2,31 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use aes_telex::{
-    ClarifierKind, DatatypeDescriptor, GenericArgument, TelexLimits, TelexRecord,
-    canonicalize_telex_with_limits, parse_telex_with_limits, validate_telex_with_limits,
+    ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument, TelexLimits,
+    TelexRecord, canonicalize_telex_with_limits, parse_telex_with_limits,
+    validate_telex_records_with_projection_and_limits, validate_telex_with_limits,
 };
 use serde_json::{Map, Value, json};
 
 #[test]
-fn passes_v0_development_telex_vectors() {
-    let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../conformance/telex/v0/telex-cts.v0.json");
+fn passes_selected_v0_telex_vectors() {
+    let manifest_path = selected_manifest(
+        "TELEX_CTS_MANIFEST",
+        "../../conformance/telex/v0/telex-cts.v0.json",
+    );
     let manifest = read_json(&manifest_path);
-    assert_eq!(manifest["meta"]["status"], "draft");
-    assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
-    assert_eq!(manifest["meta"]["spec_snapshot_id"], Value::Null);
+    let released = manifest["meta"]["status"] == "released";
+    if released {
+        assert_eq!(manifest["meta"]["snapshot_id"], "telex-cts-v0-snapshot-0.1");
+        assert_eq!(
+            manifest["meta"]["spec_snapshot_id"],
+            "telex-specs-v0-snapshot-0.1"
+        );
+    } else {
+        assert_eq!(manifest["meta"]["status"], "draft");
+        assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
+        assert_eq!(manifest["meta"]["spec_snapshot_id"], Value::Null);
+    }
     assert_eq!(manifest["meta"]["event_contract"], "aes.events.v0");
     let suites = manifest["suites"]
         .as_array()
@@ -47,7 +59,102 @@ fn passes_v0_development_telex_vectors() {
         }
     }
 
-    assert_eq!(count, 88, "unexpected v0 development vector count");
+    assert_eq!(
+        count,
+        if released { 50 } else { 88 },
+        "unexpected v0 vector count"
+    );
+}
+
+#[test]
+fn passes_published_portable_aes_event_vectors() {
+    let manifest_path = selected_manifest(
+        "AES_EVENTS_CTS_MANIFEST",
+        "../../../../aeonite-org/aeonite-cts/cts/aes/v0/aes-events-cts.v0.snapshot-0.1.json",
+    );
+    let manifest = read_json(&manifest_path);
+    assert_eq!(manifest["meta"]["status"], "released");
+    assert_eq!(manifest["meta"]["lane"], "aes-events");
+    assert_eq!(manifest["meta"]["event_contract"], "aes.events.v0");
+    assert_eq!(
+        manifest["meta"]["snapshot_id"],
+        "aes-events-cts-v0-snapshot-0.1"
+    );
+
+    let mut seen = std::collections::HashSet::new();
+    let mut count = 0_usize;
+    for suite_ref in manifest["suites"]
+        .as_array()
+        .expect("manifest suites must be an array")
+    {
+        let suite_path = manifest_path
+            .parent()
+            .expect("manifest must have a parent")
+            .join(
+                suite_ref["file"]
+                    .as_str()
+                    .expect("suite file must be a string"),
+            );
+        let suite = read_json(&suite_path);
+        assert_eq!(suite["id"], suite_ref["id"], "suite id mismatch");
+        for vector in suite["tests"]
+            .as_array()
+            .expect("suite tests must be an array")
+        {
+            let id = vector["id"].as_str().expect("vector id must be a string");
+            assert!(seen.insert(id.to_owned()), "duplicate vector id: {id}");
+            run_aes_event_vector(id, vector);
+            count += 1;
+        }
+    }
+    assert_eq!(count, 38, "unexpected portable AES event vector count");
+}
+
+fn run_aes_event_vector(id: &str, vector: &Value) {
+    assert_eq!(vector["operation"], "validate", "{id}");
+    let records = vector["input"]["records"]
+        .as_array()
+        .expect("records must be an array")
+        .iter()
+        .map(record_from_json)
+        .collect::<Vec<_>>();
+    let profile = vector["input"]["profile"]
+        .as_str()
+        .unwrap_or("aes.complete.v0");
+    let projection = vector["input"]["projection"].as_str();
+    let registered = vector["input"]["registered_fields"]
+        .as_array()
+        .map(|fields| {
+            fields
+                .iter()
+                .map(|field| field.as_str().expect("registered field must be a string"))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let result = validate_telex_records_with_projection_and_limits(
+        &records,
+        profile,
+        projection,
+        &registered,
+        &TelexLimits::default(),
+    );
+    let mut actual_codes = result
+        .diagnostics
+        .iter()
+        .map(|diagnostic| diagnostic.code)
+        .collect::<Vec<_>>();
+    actual_codes.sort_unstable();
+    let mut expected_codes = vector["expected"]["diagnostic_codes"]
+        .as_array()
+        .expect("diagnostic_codes must be an array")
+        .iter()
+        .map(|code| code.as_str().expect("diagnostic code must be a string"))
+        .collect::<Vec<_>>();
+    expected_codes.sort_unstable();
+
+    assert_eq!(result.valid, vector["expected"]["valid"], "{id}");
+    assert_eq!(result.profile, vector["expected"]["profile"], "{id}");
+    assert_eq!(actual_codes, expected_codes, "{id}");
 }
 
 fn run_vector(id: &str, vector: &Value) {
@@ -234,6 +341,101 @@ fn clarifiers_json(datatype: &DatatypeDescriptor) -> Value {
             })
             .collect(),
     )
+}
+
+fn record_from_json(value: &Value) -> TelexRecord {
+    let object = value.as_object().expect("AES record must be an object");
+    let fields = object
+        .iter()
+        .filter(|(name, _)| name.as_str() != "generics" && name.as_str() != "clarifiers")
+        .map(|(name, value)| {
+            (
+                name.clone(),
+                value
+                    .as_str()
+                    .unwrap_or_else(|| panic!("AES record field {name} must be a string"))
+                    .to_owned(),
+            )
+        })
+        .collect::<Vec<_>>();
+    match object.get("datatype").and_then(Value::as_str) {
+        Some(datatype) => TelexRecord::with_datatype(
+            fields,
+            DatatypeDescriptor {
+                datatype: datatype.to_owned(),
+                generics: object
+                    .get("generics")
+                    .and_then(Value::as_array)
+                    .map(|values| values.iter().map(generic_from_json).collect())
+                    .unwrap_or_default(),
+                clarifiers: object
+                    .get("clarifiers")
+                    .and_then(Value::as_array)
+                    .map(|values| values.iter().map(clarifier_from_json).collect())
+                    .unwrap_or_default(),
+            },
+        ),
+        None => TelexRecord::new(fields),
+    }
+}
+
+fn generic_from_json(value: &Value) -> GenericArgument {
+    if value["kind"] == "NumberLiteral" {
+        return GenericArgument::NumberLiteral(
+            value["value"]
+                .as_str()
+                .expect("number generic value must be a string")
+                .to_owned(),
+        );
+    }
+    GenericArgument::Datatype(datatype_from_json(value))
+}
+
+fn datatype_from_json(value: &Value) -> DatatypeDescriptor {
+    DatatypeDescriptor {
+        datatype: value["datatype"]
+            .as_str()
+            .expect("nested datatype name must be a string")
+            .to_owned(),
+        generics: value["generics"]
+            .as_array()
+            .map(|values| values.iter().map(generic_from_json).collect())
+            .unwrap_or_default(),
+        clarifiers: value["clarifiers"]
+            .as_array()
+            .map(|values| values.iter().map(clarifier_from_json).collect())
+            .unwrap_or_default(),
+    }
+}
+
+fn clarifier_from_json(value: &Value) -> DatatypeClarifier {
+    DatatypeClarifier {
+        kind: match value["kind"].as_str() {
+            Some("StringLiteral") => ClarifierKind::StringLiteral,
+            Some("NumberLiteral") => ClarifierKind::NumberLiteral,
+            kind => panic!("unsupported clarifier kind: {kind:?}"),
+        },
+        value: value["value"]
+            .as_str()
+            .expect("clarifier value must be a string")
+            .to_owned(),
+    }
+}
+
+fn selected_manifest(environment_name: &str, default_relative: &str) -> PathBuf {
+    match std::env::var_os(environment_name) {
+        Some(path) => {
+            let path = PathBuf::from(path);
+            if path.is_absolute() {
+                path
+            } else {
+                std::env::current_dir()
+                    .expect("current directory must be available")
+                    .join(path)
+            }
+        }
+        None => PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(default_relative),
+    }
 }
 
 fn read_json(path: &Path) -> Value {

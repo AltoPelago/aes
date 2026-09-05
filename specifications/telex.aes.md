@@ -409,11 +409,15 @@ Draft 1 should not be declared until the settled Telex syntax and referenced
 AES event rules exist as conformance vectors in at least two independent
 implementations.
 
-The repository-local `conformance/telex/v0` manifest is a mutable v0
-candidate. It has no snapshot identity; an exact development state is addressed
-by its repository commit. JavaScript and Rust consume it independently. Draft
-1 requires both to pass an immutable snapshot minted once during release and
-published in the shared CTS repository.
+The repository-local `conformance/telex/v0` manifest remains a mutable v0
+candidate with no snapshot identity. Stable conformance is split by authority:
+`telex-cts-v0-snapshot-0.1` owns 50 syntax, canonicalization, and format-limit
+vectors, while `aes-events-cts-v0-snapshot-0.1` owns 38 transport-neutral event
+and profile-validation vectors. Both immutable manifests are published in the
+shared CTS repository with per-suite content digests and pass independently in
+the JavaScript and Rust implementations. This satisfies the conformance
+prerequisite for Draft 1; lifecycle promotion remains a separate publication
+decision.
 
 Transport media types and external registration are outside the v0 format
 decision gates.

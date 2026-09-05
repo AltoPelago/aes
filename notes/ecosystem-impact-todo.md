@@ -42,8 +42,12 @@ surfaces until these gates are complete.
 - [x] Identify the portable event model as `aes.events.v0`; use the independent,
   encoding-neutral `aes.complete.v0` and `aes.partial.v0` completeness profiles;
   and keep `telex.aes=0` as the wire-format version that maps to the contract.
-- [ ] Land shared CTS coverage for the agreed contract before implementations
-  claim support.
+- [x] Land shared CTS coverage for the agreed contract before implementations
+  claim support. `aes-events-cts-v0-snapshot-0.1` freezes 38 transport-neutral
+  validation vectors and `telex-cts-v0-snapshot-0.1` freezes 50 encoding and
+  format-limit vectors, each with per-suite SHA-256 digests. JavaScript and
+  Rust pass both published targets independently; the AEON-to-AES projection
+  candidate passes 67/67 in TypeScript, Rust, Python, and PHP.
 - [x] Define reader-first compatibility rules before any producer emits the
   revised shape into durable stores or cross-service interfaces.
 
@@ -56,10 +60,10 @@ Repository tests verify that every referenced specification heading resolves
 and that the documented core fields, value kinds, and semantic diagnostic codes
 remain aligned with the JavaScript reference validator.
 
-The remaining unchecked release gate is shared CTS promotion. Reader-first
-conversion, persistence, capability, and writer-activation rules are now
-defined in `specifications/aes.compatibility.md`; their ecosystem implementation
-and acceptance work remains open below.
+All contract-definition and shared-CTS release gates are now complete.
+Reader-first conversion, persistence, capability, and writer-activation rules
+are defined in `specifications/aes.compatibility.md`; their ecosystem
+implementation and acceptance work remains open below.
 
 ## 1. Contract changes
 
@@ -288,8 +292,9 @@ while the wider consumer audit remains open.
   - [x] TypeScript, Rust, and Python AEON parsing/compilation counters are
     mapped to the normalized limits file and exercised through shared vectors.
   - [x] PHP is inventoried in `php-aeonic-limits-audit.md`; its closed loader,
-    canonical names, and all 16 AEON compiler counters are implemented. Its
-    future finalization, Telex, and transport surfaces remain open.
+    canonical names, and all 16 AEON compiler counters are implemented. The
+    complete consolidated Core-next protocol target passes 265/265; future
+    finalization, Telex, and transport surfaces remain open.
   - [ ] Non-AEON ingress still requires the same audit.
 - [x] Approve and publish the first concrete AltoPelago `1.0.0` limits values
   and the fixed bootstrap policy used to load an AEON-encoded limits file.

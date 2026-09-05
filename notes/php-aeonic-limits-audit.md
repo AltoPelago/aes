@@ -18,10 +18,12 @@ and `list<list<int>>` has depth `1`. Generic argument count and total datatype
 component count are enforced independently.
 
 The PHP fixture harness follows the consolidated next manifest and respects its
-explicit test exclusions. The protocol-level `core-limits-cts.v1.next.json`
-lane passes 32/32 through `bin/aeon-php`. PHP must not claim the complete next
-Core snapshot yet: the full protocol runner still exposes pre-existing event
-projection and diagnostic-normalization differences outside this limits work.
+explicit test exclusions. Both protocol targets pass through `bin/aeon-php`:
+`core-limits-cts.v1.next.json` passes 32/32 and the complete consolidated
+`core-cts.v1.next.json` snapshot passes 265/265. Closing the full target also
+aligned standardized diagnostic phase labels and parser-owned paths, made the
+JSON envelope robust to malformed UTF-8 diagnostics, and corrected structured
+header recognition after a leading shebang.
 
 ## Counter inventory
 
@@ -59,7 +61,5 @@ projection and diagnostic-normalization differences outside this limits work.
 
 ## Remaining rollout
 
-1. Resolve the existing PHP event-projection and diagnostic-envelope differences
-   before claiming the complete consolidated `core-cts.v1.next.json` target.
-2. Add finalization, Telex, and transport counters when those PHP surfaces
+1. Add finalization, Telex, and transport counters when those PHP surfaces
    exist; absence must not be advertised as conformance.
