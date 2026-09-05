@@ -262,7 +262,7 @@ claims support for the concrete common set.
 
 | Area | Existing controls and defaults |
 | --- | --- |
-| AEON Core | attribute `1`, separator/clarifier `1`, generic `1`, value nesting `256`; input bytes and events are optional/unbounded when omitted |
+| AEON Core | TypeScript, Rust, and Python expose the shared structural and AEON-format counters, closed v1 loaders, normalized compiler views, and deterministic exhaustion diagnostics |
 | AEON WASM | input bytes `1 MiB`; attribute, separator/clarifier, and generic depth `1` |
 | AES datatype codec | generic depth `1`; datatype components `4096`; JavaScript accepts overrides while Rust currently fixes both values |
 | Finalization | materialized weight and reference depth are optional/unbounded when omitted |
@@ -270,11 +270,10 @@ claims support for the concrete common set.
 | Telex | generic and datatype-component guards exist; the other required syntax resource bounds are not yet consistently implemented |
 
 `max_generic_depth` is narrow in the current AEON parsers: it controls only
-recursive datatype annotations wherever a datatype may occur. It does not
-limit generic-array length, clarifier-array length, datatype component count,
-value nesting, paths, or payload length. TypeScript and Python canonicalization
-currently hard-code generic and clarifier capability values of `8` instead of
-using the consumer's effective limits.
+recursive datatype annotations wherever a datatype may occur. Generic-array
+length, clarifier-array length, total datatype components, value nesting,
+paths, and payload length use their own counters. TypeScript and Python
+canonicalization accept the consumer-selected generic and clarifier limits.
 
 AEON v1 already promises portability floors for decoded string length, key
 segment length, numeric literal lexical length, container nesting, list/tuple
@@ -283,11 +282,13 @@ event budget when exposed. Several are not consistently enforced as public
 processor options. The concrete set adopts those established floors while
 retaining the existing default value-nesting limit of `256`.
 
-Before implementations ship support for this limit set, the audit must also
-find hard-coded allocation, recursion, collection, and input guards that are
-not currently public options. Every discovered guard is either mapped to this
-contract, documented as a runtime safety ceiling, or explicitly classified as
-belonging to another limits contract.
+The first rollout covers AEON parsing and compilation in TypeScript, Rust, and
+Python. Remaining work includes PHP, finalization-wide configuration,
+source-backed provenance audit limits, direct AES ingress, Telex, and shared
+cross-language boundary vectors. The audit must continue to find hard-coded
+allocation, recursion, collection, and input guards: every discovered guard is
+either mapped to this contract, documented as a runtime safety ceiling, or
+explicitly classified as belonging to another limits contract.
 
 ## 9. Required implementation behavior
 
