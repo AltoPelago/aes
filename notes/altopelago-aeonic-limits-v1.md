@@ -67,6 +67,28 @@ exact immutable revision of that line. Changing any effective value requires a
 new version. A consumer should expose both values with its normalized effective
 configuration and in limit-exhaustion diagnostics.
 
+### 1.1 Limit values
+
+Every limit accepts a non-negative integer or one of two distinct custom null
+values. Omitting a field has separate inheritance behavior:
+
+| Value | Meaning |
+| --- | --- |
+| field omitted | inherit the value from the underlying consumer-selected limits file or overlay |
+| non-negative integer | explicit inclusive limit; `0` permits zero and never means unbounded |
+| `!"unBound"` | explicit absence of a policy-level limit; an immutable implementation safety ceiling still applies |
+| `!"useImplementation"` | ignore inherited configured values and use the implementation's documented default |
+
+`!"unBound"` and `!"useImplementation"` are exact, case-sensitive custom null
+reasons. They are not aliases and implementations must not normalize either
+one into the other. Negative integer sentinels such as `-1` are invalid.
+
+A published cross-language limit set should avoid `!"useImplementation"`
+because its effective value may differ between implementations. It should use
+an explicit integer or `!"unBound"` for every applicable field. The reset value
+remains useful in consumer-local configurations that deliberately restore
+runtime behavior.
+
 ## 2. Shared structural limits
 
 Structural limits describe one logical structure and therefore use one value
@@ -164,6 +186,11 @@ Unknown fields fail when loading a v1 limits file unless this contract later
 defines an extension mechanism. Limit exhaustion is an error, never implicit
 truncation, partial success, or a change of semantic profile.
 
+When resolving overlays, an omitted field inherits the next consumer-selected
+value. An explicit integer or `!"unBound"` replaces that value.
+`!"useImplementation"` stops inheritance for the field and selects the
+implementation's documented default.
+
 ## 7. Bootstrap loading
 
 An AEON-encoded limits file cannot control the parser resources required to
@@ -209,4 +236,3 @@ Every AltoPelago implementation consuming this format should:
 5. report the canonical counter name, configured value, and observed value on
    exhaustion; and
 6. maintain shared boundary vectors at, below, and above each limit.
-
