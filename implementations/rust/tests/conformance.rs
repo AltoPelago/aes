@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use aes_telex::{
-    ClarifierKind, DatatypeDescriptor, GenericArgument, TelexRecord, canonicalize_telex,
-    parse_telex, validate_telex,
+    ClarifierKind, DatatypeDescriptor, GenericArgument, TelexLimits, TelexRecord,
+    canonicalize_telex_with_limits, parse_telex_with_limits, validate_telex_with_limits,
 };
 use serde_json::{Map, Value, json};
 
@@ -47,7 +47,7 @@ fn passes_v0_development_telex_vectors() {
         }
     }
 
-    assert_eq!(count, 66, "unexpected v0 development vector count");
+    assert_eq!(count, 88, "unexpected v0 development vector count");
 }
 
 fn run_vector(id: &str, vector: &Value) {
@@ -64,7 +64,8 @@ fn run_parse_vector(id: &str, vector: &Value) {
         .as_str()
         .expect("parse input must be a string");
     let expected = &vector["expected"];
-    match parse_telex(input) {
+    let limits = vector_limits(vector);
+    match parse_telex_with_limits(input, &limits) {
         Ok(parsed) => {
             assert_ne!(expected["ok"], false, "{id}: expected syntax failure");
             let records = parsed.records.iter().map(record_json).collect::<Vec<_>>();
@@ -93,7 +94,8 @@ fn run_canonicalize_vector(id: &str, vector: &Value) {
         .as_str()
         .expect("canonicalize input must be a string");
     let expected = &vector["expected"];
-    match canonicalize_telex(input) {
+    let limits = vector_limits(vector);
+    match canonicalize_telex_with_limits(input, &limits) {
         Ok(telex) => {
             let actual = json!({ "ok": true, "telex": telex });
             assert_eq!(&actual, expected, "{id}");
@@ -119,7 +121,8 @@ fn run_validate_vector(id: &str, vector: &Value) {
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    let result = validate_telex(input, &registered)
+    let limits = vector_limits(vector);
+    let result = validate_telex_with_limits(input, &registered, &limits)
         .unwrap_or_else(|error| panic!("{id}: unexpected syntax error: {error}"));
     let mut actual_codes = result
         .diagnostics
@@ -138,6 +141,34 @@ fn run_validate_vector(id: &str, vector: &Value) {
     assert_eq!(result.valid, vector["expected"]["valid"], "{id}");
     assert_eq!(result.profile, vector["expected"]["profile"], "{id}");
     assert_eq!(actual_codes, expected_codes, "{id}");
+}
+
+fn vector_limits(vector: &Value) -> TelexLimits {
+    let mut limits = TelexLimits::default();
+    let Some(values) = vector["input"]["limits"].as_object() else {
+        return limits;
+    };
+    for (name, value) in values {
+        let value = value
+            .as_u64()
+            .and_then(|value| usize::try_from(value).ok())
+            .expect("limit must be a non-negative platform-sized integer");
+        match name.as_str() {
+            "max_input_bytes" => limits.max_input_bytes = value,
+            "max_line_bytes" => limits.max_line_bytes = value,
+            "max_fields_per_event" => limits.max_fields_per_event = value,
+            "max_events" => limits.max_events = value,
+            "max_decoded_payload_bytes" => limits.max_decoded_payload_bytes = value,
+            "max_path_depth" => limits.max_path_depth = value,
+            "max_path_characters" => limits.max_path_characters = value,
+            "max_generic_depth" => limits.max_generic_depth = value,
+            "max_generic_arguments" => limits.max_generic_arguments = value,
+            "max_clarifier_values" => limits.max_clarifier_values = value,
+            "max_datatype_components" => limits.max_datatype_components = value,
+            _ => panic!("unknown vector limit: {name}"),
+        }
+    }
+    limits
 }
 
 fn record_json(record: &TelexRecord) -> Value {

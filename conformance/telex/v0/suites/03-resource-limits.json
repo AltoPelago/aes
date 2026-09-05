@@ -1,0 +1,193 @@
+{
+  "meta": {
+    "suite_id": "resource-limits",
+    "lane": "aes-telex",
+    "format_version": "0",
+    "event_contract": "aes.events.v0",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/telex.aes.md#9-security-and-resource-bounds",
+      "specifications/aes.events.md#12-validation-and-diagnostics"
+    ]
+  },
+  "id": "resource-limits",
+  "title": "Telex v0 Resource Limits",
+  "tests": [
+    {
+      "id": "telex-limit-001-input-bytes-at-limit",
+      "description": "The complete encoded input may equal max_input_bytes",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_input_bytes": 12 }, "telex": "telex.aes=0\n" },
+      "expected": { "ok": true, "telex": "telex.aes=0\n" },
+      "tags": ["limits", "max-input-bytes", "boundary"]
+    },
+    {
+      "id": "telex-limit-002-input-bytes-one-over",
+      "description": "Input exceeding max_input_bytes is rejected before decoding",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_input_bytes": 11 }, "telex": "telex.aes=0\n" },
+      "expected": { "ok": false, "error": { "code": "TELEX_LIMIT_EXCEEDED", "line": null } },
+      "tags": ["limits", "max-input-bytes", "failure"]
+    },
+    {
+      "id": "telex-limit-003-line-bytes-at-limit",
+      "description": "A physical line may equal max_line_bytes",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_line_bytes": 11 }, "telex": "telex.aes=0\n" },
+      "expected": { "ok": true, "telex": "telex.aes=0\n" },
+      "tags": ["limits", "max-line-bytes", "boundary"]
+    },
+    {
+      "id": "telex-limit-004-line-bytes-one-over",
+      "description": "A physical line exceeding max_line_bytes is rejected",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_line_bytes": 10 }, "telex": "telex.aes=0\n" },
+      "expected": { "ok": false, "error": { "code": "TELEX_LIMIT_EXCEEDED", "line": 1 } },
+      "tags": ["limits", "max-line-bytes", "failure"]
+    },
+    {
+      "id": "telex-limit-005-fields-at-limit",
+      "description": "An event may equal max_fields_per_event",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_fields_per_event": 3 }, "telex": "telex.aes=0\n\npath=$.a\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "ok": true, "telex": "telex.aes=0\n\npath=$.a\nkind=NumberLiteral\nvalue=1\n" },
+      "tags": ["limits", "max-fields-per-event", "boundary"]
+    },
+    {
+      "id": "telex-limit-006-fields-one-over",
+      "description": "An event exceeding max_fields_per_event is rejected",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_fields_per_event": 2 }, "telex": "telex.aes=0\n\npath=$.a\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "ok": false, "error": { "code": "TELEX_LIMIT_EXCEEDED", "line": 5 } },
+      "tags": ["limits", "max-fields-per-event", "failure"]
+    },
+    {
+      "id": "telex-limit-007-events-at-limit",
+      "description": "A stream may equal max_events",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_events": 2 }, "telex": "telex.aes=0\n\npath=$.a\n\npath=$.b\n" },
+      "expected": { "ok": true, "telex": "telex.aes=0\n\npath=$.a\n\npath=$.b\n" },
+      "tags": ["limits", "max-events", "boundary"]
+    },
+    {
+      "id": "telex-limit-008-events-one-over",
+      "description": "A stream exceeding max_events is rejected",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_events": 1 }, "telex": "telex.aes=0\n\npath=$.a\n\npath=$.b\n" },
+      "expected": { "ok": false, "error": { "code": "TELEX_LIMIT_EXCEEDED", "line": 5 } },
+      "tags": ["limits", "max-events", "failure"]
+    },
+    {
+      "id": "telex-limit-009-decoded-payload-at-limit",
+      "description": "Cumulative UTF-8 decoded payload bytes may equal max_decoded_payload_bytes",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_decoded_payload_bytes": 16 }, "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\n" },
+      "expected": { "ok": true, "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\n" },
+      "tags": ["limits", "max-decoded-payload-bytes", "boundary"]
+    },
+    {
+      "id": "telex-limit-010-decoded-payload-one-over",
+      "description": "Cumulative UTF-8 decoded payload bytes exceeding the limit are rejected",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_decoded_payload_bytes": 15 }, "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\n" },
+      "expected": { "ok": false, "error": { "code": "TELEX_LIMIT_EXCEEDED", "line": 4 } },
+      "tags": ["limits", "max-decoded-payload-bytes", "failure"]
+    },
+    {
+      "id": "telex-limit-011-path-depth-at-limit",
+      "description": "A canonical path may equal max_path_depth",
+      "operation": "validate",
+      "input": { "limits": { "max_path_depth": 2 }, "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "valid": true, "profile": "aes.partial.v0", "diagnostic_codes": [] },
+      "tags": ["limits", "max-path-depth", "boundary"]
+    },
+    {
+      "id": "telex-limit-012-path-depth-one-over",
+      "description": "A canonical path exceeding max_path_depth produces a portable diagnostic",
+      "operation": "validate",
+      "input": { "limits": { "max_path_depth": 1 }, "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "valid": false, "profile": "aes.partial.v0", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] },
+      "tags": ["limits", "max-path-depth", "failure"]
+    },
+    {
+      "id": "telex-limit-013-path-characters-at-limit",
+      "description": "A canonical path may equal max_path_characters in Unicode scalars",
+      "operation": "validate",
+      "input": { "limits": { "max_path_characters": 5 }, "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "valid": true, "profile": "aes.partial.v0", "diagnostic_codes": [] },
+      "tags": ["limits", "max-path-characters", "boundary"]
+    },
+    {
+      "id": "telex-limit-014-path-characters-one-over",
+      "description": "A canonical path exceeding max_path_characters produces a portable diagnostic",
+      "operation": "validate",
+      "input": { "limits": { "max_path_characters": 4 }, "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "valid": false, "profile": "aes.partial.v0", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] },
+      "tags": ["limits", "max-path-characters", "failure"]
+    },
+    {
+      "id": "telex-limit-015-generic-depth-at-limit",
+      "description": "Datatype recursion may equal max_generic_depth",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_generic_depth": 1 }, "telex": "telex.aes=0\n\npath=$.a\nkind=ListNode\ndatatype=list<list<int>>\n" },
+      "expected": { "ok": true, "telex": "telex.aes=0\n\npath=$.a\nkind=ListNode\ndatatype=list<list<int>>\n" },
+      "tags": ["limits", "max-generic-depth", "boundary"]
+    },
+    {
+      "id": "telex-limit-016-generic-depth-one-over",
+      "description": "Datatype recursion exceeding max_generic_depth is rejected",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_generic_depth": 0 }, "telex": "telex.aes=0\n\npath=$.a\nkind=ListNode\ndatatype=list<list<int>>\n" },
+      "expected": { "ok": false, "error": { "code": "TELEX_DATATYPE_LIMIT", "line": 5 } },
+      "tags": ["limits", "max-generic-depth", "failure"]
+    },
+    {
+      "id": "telex-limit-017-generic-arguments-at-limit",
+      "description": "A descriptor may equal max_generic_arguments",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_generic_arguments": 2 }, "telex": "telex.aes=0\n\npath=$.a\nkind=TupleLiteral\ndatatype=tuple<int, int>\n" },
+      "expected": { "ok": true, "telex": "telex.aes=0\n\npath=$.a\nkind=TupleLiteral\ndatatype=tuple<int, int>\n" },
+      "tags": ["limits", "max-generic-arguments", "boundary"]
+    },
+    {
+      "id": "telex-limit-018-generic-arguments-one-over",
+      "description": "A descriptor exceeding max_generic_arguments is rejected",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_generic_arguments": 1 }, "telex": "telex.aes=0\n\npath=$.a\nkind=TupleLiteral\ndatatype=tuple<int, int>\n" },
+      "expected": { "ok": false, "error": { "code": "TELEX_DATATYPE_LIMIT", "line": 5 } },
+      "tags": ["limits", "max-generic-arguments", "failure"]
+    },
+    {
+      "id": "telex-limit-019-clarifier-values-at-limit",
+      "description": "A descriptor may equal max_clarifier_values",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_clarifier_values": 2 }, "telex": "telex.aes=0\n\npath=$.a\nkind=SeparatorLiteral\ndatatype=csv[\".\", \".\"]\nvalue=x\n" },
+      "expected": { "ok": true, "telex": "telex.aes=0\n\npath=$.a\nkind=SeparatorLiteral\ndatatype=csv[\".\", \".\"]\nvalue=x\n" },
+      "tags": ["limits", "max-clarifier-values", "boundary"]
+    },
+    {
+      "id": "telex-limit-020-clarifier-values-one-over",
+      "description": "A descriptor exceeding max_clarifier_values is rejected",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_clarifier_values": 1 }, "telex": "telex.aes=0\n\npath=$.a\nkind=SeparatorLiteral\ndatatype=csv[\".\", \".\"]\nvalue=x\n" },
+      "expected": { "ok": false, "error": { "code": "TELEX_DATATYPE_LIMIT", "line": 5 } },
+      "tags": ["limits", "max-clarifier-values", "failure"]
+    },
+    {
+      "id": "telex-limit-021-datatype-components-at-limit",
+      "description": "A descriptor may equal max_datatype_components",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_datatype_components": 3 }, "telex": "telex.aes=0\n\npath=$.a\nkind=TupleLiteral\ndatatype=tuple<int, 2>\n" },
+      "expected": { "ok": true, "telex": "telex.aes=0\n\npath=$.a\nkind=TupleLiteral\ndatatype=tuple<int, 2>\n" },
+      "tags": ["limits", "max-datatype-components", "boundary"]
+    },
+    {
+      "id": "telex-limit-022-datatype-components-one-over",
+      "description": "A descriptor exceeding max_datatype_components is rejected",
+      "operation": "canonicalize",
+      "input": { "limits": { "max_datatype_components": 2 }, "telex": "telex.aes=0\n\npath=$.a\nkind=TupleLiteral\ndatatype=tuple<int, 2>\n" },
+      "expected": { "ok": false, "error": { "code": "TELEX_DATATYPE_LIMIT", "line": 5 } },
+      "tags": ["limits", "max-datatype-components", "failure"]
+    }
+  ]
+}

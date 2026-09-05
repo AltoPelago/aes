@@ -421,6 +421,7 @@
       "description": "A compact datatype line expands to the three logical AES datatype fields without numeric precision loss",
       "operation": "parse",
       "input": {
+        "limits": { "max_clarifier_values": 2 },
         "telex": "telex.aes=0\n\npath=$.value\nkind=TupleLiteral\ndatatype=tuple<tuple<int, 9007199254740993>[16], string>[\"x\", \"x\"]\n"
       },
       "expected": {
@@ -456,6 +457,7 @@
       "description": "Canonicalization reconstructs compact datatype syntax from the expanded logical structure",
       "operation": "canonicalize",
       "input": {
+        "limits": { "max_clarifier_values": 2 },
         "telex": "telex.aes=0\n\npath=$.value\nkind=SeparatorLiteral\ndatatype=csv[\".\",\".\"]\nvalue=one.two.three\n"
       },
       "expected": {

@@ -264,10 +264,10 @@ claims support for the concrete common set.
 | --- | --- |
 | AEON Core | TypeScript, Rust, and Python expose the shared structural and AEON-format counters, closed v1 loaders, normalized compiler views, and deterministic exhaustion diagnostics |
 | AEON WASM | input bytes `1 MiB`; attribute, separator/clarifier, and generic depth `1` |
-| AES datatype codec | generic depth `1`; datatype components `4096`; JavaScript accepts overrides while Rust currently fixes both values |
+| AES datatype codec | JavaScript and Rust accept normalized generic depth, generic argument, clarifier, and total-component limits; the published defaults are `1`, `32`, `1`, and `64` |
 | Finalization | materialized weight and reference depth are optional/unbounded when omitted |
 | TypeScript framing transport | frame `16 MiB`, buffer `32 MiB`, inspected header `64 KiB` |
-| Telex | generic and datatype-component guards exist; the other required syntax resource bounds are not yet consistently implemented |
+| Telex | JavaScript and Rust enforce the published input, line, field, event, decoded-payload, path, and datatype limits; both consume normalized caller-selected values |
 
 `max_generic_depth` is narrow in the current AEON parsers: it controls only
 recursive datatype annotations wherever a datatype may occur. Generic-array
@@ -283,9 +283,10 @@ processor options. The concrete set adopts those established floors while
 retaining the existing default value-nesting limit of `256`.
 
 The first rollout covers AEON parsing and compilation in TypeScript, Rust, and
-Python. Remaining work includes PHP, finalization-wide configuration,
-source-backed provenance audit limits, direct AES ingress, Telex, and shared
-cross-language boundary vectors. The audit must continue to find hard-coded
+Python plus Telex decoding, encoding, and portable validation in JavaScript and
+Rust. Remaining work includes PHP, finalization-wide configuration,
+source-backed provenance audit limits, other direct AES ingress, Film, and
+shared cross-language boundary vectors outside Telex. The audit must continue to find hard-coded
 allocation, recursion, collection, and input guards: every discovered guard is
 either mapped to this contract, documented as a runtime safety ceiling, or
 explicitly classified as belonging to another limits contract.

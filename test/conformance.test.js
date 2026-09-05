@@ -100,7 +100,7 @@ function runVector(vector) {
 
 function runParseVector(vector) {
   try {
-    const parsed = parseTelex(vector.input.telex);
+    const parsed = parseTelex(vector.input.telex, vectorLimitOptions(vector));
     assert.notEqual(vector.expected.ok, false, 'expected syntax failure but parsing succeeded');
     assert.deepEqual({
       ok: true,
@@ -121,19 +121,20 @@ function runParseVector(vector) {
 
 function runCanonicalizeVector(vector) {
   try {
-    const telex = canonicalizeTelex(vector.input.telex);
+    const telex = canonicalizeTelex(vector.input.telex, vectorLimitOptions(vector));
     assert.notEqual(vector.expected.ok, false, 'expected syntax failure but canonicalization succeeded');
     assert.deepEqual({ ok: true, telex }, vector.expected);
   } catch (error) {
     assert.equal(vector.expected.ok, false, `unexpected canonicalization error: ${error.message}`);
     assert.ok(error instanceof TelexSyntaxError);
-    assert.deepEqual({ code: error.code, line: error.line }, vector.expected.error);
+    assert.deepEqual({ code: error.code, line: error.line ?? null }, vector.expected.error);
   }
 }
 
 function runValidateVector(vector) {
   const result = validateTelex(vector.input.telex, {
     registeredFields: vector.input.registered_fields ?? [],
+    ...vectorLimitOptions(vector),
   });
   const actual = {
     valid: result.valid,
@@ -145,6 +146,27 @@ function runValidateVector(vector) {
     diagnostic_codes: [...vector.expected.diagnostic_codes].sort(),
   };
   assert.deepEqual(actual, expected);
+}
+
+function vectorLimitOptions(vector) {
+  if (vector.input.limits === undefined) return {};
+  const names = {
+    max_input_bytes: 'maxInputBytes',
+    max_line_bytes: 'maxLineBytes',
+    max_fields_per_event: 'maxFieldsPerEvent',
+    max_events: 'maxEvents',
+    max_decoded_payload_bytes: 'maxDecodedPayloadBytes',
+    max_path_depth: 'maxPathDepth',
+    max_path_characters: 'maxPathCharacters',
+    max_generic_depth: 'maxGenericDepth',
+    max_generic_arguments: 'maxGenericArguments',
+    max_clarifier_values: 'maxClarifierValues',
+    max_datatype_components: 'maxDatatypeComponents',
+  };
+  return {
+    limits: Object.fromEntries(Object.entries(vector.input.limits)
+      .map(([name, value]) => [names[name], value])),
+  };
 }
 
 function readJson(url) {

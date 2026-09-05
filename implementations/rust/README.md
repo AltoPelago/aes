@@ -7,8 +7,13 @@ Its decoded records expose a base-name `datatype`, recursive ordered
 `generics`, and ordered tagged `clarifiers`. The codec combines those values
 into one compact Telex `datatype=` line; numeric argument payloads remain
 strings.
-The reference decoder applies the AES v0 default maximum generic depth of `1`
-and rejects deeper descriptors without truncation.
+`TelexLimits::default()` exposes the published AltoPelago Telex limits. The
+existing parse, encode, canonicalize, and validate functions use those defaults;
+their `*_with_limits` variants accept an already normalized `TelexLimits`
+value. Limits-file parsing and inheritance remain the caller's trusted
+configuration concern. Bounds cover encoded input and line bytes, fields,
+events, cumulative decoded payload bytes, paths, and all datatype dimensions;
+limits are enforced without truncation.
 
 The default stream contains body events only. The optional
 `aeon.document.v0` projection adds flat `header` records in a disjoint address

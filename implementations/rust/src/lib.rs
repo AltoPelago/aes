@@ -4,8 +4,6 @@ use std::error::Error;
 use std::fmt;
 
 const VERSION_LINE: &str = "telex.aes=0";
-const DEFAULT_MAX_DATATYPE_DEPTH: usize = 1;
-const DEFAULT_MAX_DATATYPE_ITEMS: usize = 4096;
 const TELEX_FIELDS: [&str; 8] = [
     "header", "path", "kind", "datatype", "identity", "value", "origin", "span",
 ];
@@ -51,6 +49,39 @@ pub const TELEX_VERSION: &str = "0";
 pub const COMPLETE_AES_PROFILE: &str = "aes.complete.v0";
 pub const PARTIAL_AES_PROFILE: &str = "aes.partial.v0";
 pub const AEON_DOCUMENT_PROJECTION: &str = "aeon.document.v0";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TelexLimits {
+    pub max_input_bytes: usize,
+    pub max_line_bytes: usize,
+    pub max_fields_per_event: usize,
+    pub max_events: usize,
+    pub max_decoded_payload_bytes: usize,
+    pub max_path_depth: usize,
+    pub max_path_characters: usize,
+    pub max_generic_depth: usize,
+    pub max_generic_arguments: usize,
+    pub max_clarifier_values: usize,
+    pub max_datatype_components: usize,
+}
+
+impl Default for TelexLimits {
+    fn default() -> Self {
+        Self {
+            max_input_bytes: 67_108_864,
+            max_line_bytes: 1_048_576,
+            max_fields_per_event: 64,
+            max_events: 100_000,
+            max_decoded_payload_bytes: 33_554_432,
+            max_path_depth: 1_024,
+            max_path_characters: 8_192,
+            max_generic_depth: 1,
+            max_generic_arguments: 32,
+            max_clarifier_values: 1,
+            max_datatype_components: 64,
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TelexRecord {
@@ -150,6 +181,9 @@ pub struct TelexSyntaxError {
     pub code: &'static str,
     pub line: Option<usize>,
     pub detail: String,
+    pub counter: Option<&'static str>,
+    pub observed: Option<usize>,
+    pub limit: Option<usize>,
 }
 
 impl TelexSyntaxError {
@@ -158,6 +192,20 @@ impl TelexSyntaxError {
             code,
             line,
             detail: detail.into(),
+            counter: None,
+            observed: None,
+            limit: None,
+        }
+    }
+
+    fn limit(counter: &'static str, observed: usize, limit: usize, line: Option<usize>) -> Self {
+        Self {
+            code: "TELEX_LIMIT_EXCEEDED",
+            line,
+            detail: limit_message(counter, observed, limit),
+            counter: Some(counter),
+            observed: Some(observed),
+            limit: Some(limit),
         }
     }
 }
@@ -175,7 +223,33 @@ impl Error for TelexSyntaxError {}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TelexEncodeError {
+    pub code: &'static str,
     pub detail: String,
+    pub counter: Option<&'static str>,
+    pub observed: Option<usize>,
+    pub limit: Option<usize>,
+}
+
+impl TelexEncodeError {
+    fn new(detail: impl Into<String>) -> Self {
+        Self {
+            code: "TELEX_ENCODE_ERROR",
+            detail: detail.into(),
+            counter: None,
+            observed: None,
+            limit: None,
+        }
+    }
+
+    fn limit(counter: &'static str, observed: usize, limit: usize) -> Self {
+        Self {
+            code: "TELEX_LIMIT_EXCEEDED",
+            detail: limit_message(counter, observed, limit),
+            counter: Some(counter),
+            observed: Some(observed),
+            limit: Some(limit),
+        }
+    }
 }
 
 impl fmt::Display for TelexEncodeError {
@@ -186,6 +260,71 @@ impl fmt::Display for TelexEncodeError {
 
 impl Error for TelexEncodeError {}
 
+fn limit_message(counter: &str, observed: usize, limit: usize) -> String {
+    format!("{counter} observed value {observed} exceeds configured limit {limit}")
+}
+
+fn enforce_syntax_limit(
+    counter: &'static str,
+    observed: usize,
+    limit: usize,
+    line: Option<usize>,
+) -> Result<(), TelexSyntaxError> {
+    if observed > limit {
+        return Err(TelexSyntaxError::limit(counter, observed, limit, line));
+    }
+    Ok(())
+}
+
+fn enforce_encode_limit(
+    counter: &'static str,
+    observed: usize,
+    limit: usize,
+) -> Result<(), TelexEncodeError> {
+    if observed > limit {
+        return Err(TelexEncodeError::limit(counter, observed, limit));
+    }
+    Ok(())
+}
+
+fn enforce_physical_limits(input: &str, limits: &TelexLimits) -> Result<(), TelexSyntaxError> {
+    enforce_syntax_limit("max_input_bytes", input.len(), limits.max_input_bytes, None)?;
+    for (index, raw_line) in input.split('\n').enumerate() {
+        let line = raw_line.strip_suffix('\r').unwrap_or(raw_line);
+        enforce_syntax_limit(
+            "max_line_bytes",
+            line.len(),
+            limits.max_line_bytes,
+            Some(index + 1),
+        )?;
+    }
+    Ok(())
+}
+
+fn enforce_encoded_physical_limits(
+    output: &str,
+    limits: &TelexLimits,
+) -> Result<(), TelexEncodeError> {
+    enforce_encode_limit("max_input_bytes", output.len(), limits.max_input_bytes)?;
+    for line in output.split('\n') {
+        enforce_encode_limit("max_line_bytes", line.len(), limits.max_line_bytes)?;
+    }
+    Ok(())
+}
+
+fn add_encoded_payload_bytes(
+    value: &str,
+    limits: &TelexLimits,
+    current: &mut usize,
+) -> Result<(), TelexEncodeError> {
+    *current = current.saturating_add(value.len());
+    enforce_encode_limit(
+        "max_decoded_payload_bytes",
+        *current,
+        limits.max_decoded_payload_bytes,
+    )
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Diagnostic {
     pub code: &'static str,
@@ -195,6 +334,9 @@ pub struct Diagnostic {
     pub field: Option<String>,
     pub first_record: Option<usize>,
     pub required_path: Option<String>,
+    pub counter: Option<&'static str>,
+    pub observed: Option<usize>,
+    pub limit: Option<usize>,
 }
 
 impl Diagnostic {
@@ -207,6 +349,9 @@ impl Diagnostic {
             field: None,
             first_record: None,
             required_path: None,
+            counter: None,
+            observed: None,
+            limit: None,
         }
     }
 
@@ -232,6 +377,17 @@ impl Diagnostic {
     }
 }
 
+fn limit_diagnostic(counter: &'static str, observed: usize, limit: usize) -> Diagnostic {
+    let mut diagnostic = Diagnostic::new(
+        "AES_LIMIT_EXCEEDED",
+        limit_message(counter, observed, limit),
+    );
+    diagnostic.counter = Some(counter);
+    diagnostic.observed = Some(observed);
+    diagnostic.limit = Some(limit);
+    diagnostic
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationResult {
     pub valid: bool,
@@ -240,6 +396,14 @@ pub struct ValidationResult {
 }
 
 pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
+    parse_telex_with_limits(input, &TelexLimits::default())
+}
+
+pub fn parse_telex_with_limits(
+    input: &str,
+    limits: &TelexLimits,
+) -> Result<ParsedTelex, TelexSyntaxError> {
+    enforce_physical_limits(input, limits)?;
     if input.starts_with('\u{feff}') {
         return Err(TelexSyntaxError::new(
             "TELEX_BOM",
@@ -295,6 +459,7 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
     let mut header_canonical = true;
     let mut event_start = 1_usize;
     let mut last_header_rank = None;
+    let mut decoded_payload_bytes = 0_usize;
     while let Some(line) = lines.get(event_start).filter(|line| !line.is_empty()) {
         let Some((field, payload)) = line.split_once('=') else {
             break;
@@ -309,7 +474,8 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
         }
         last_header_rank = Some(rank);
         let line_number = event_start + 1;
-        let decoded = decode_payload(payload, line_number)?;
+        let decoded =
+            decode_payload_bounded(payload, line_number, limits, &mut decoded_payload_bytes)?;
         header_canonical &= decoded.canonical;
         if decoded.value.is_empty() {
             let (code, label) = if field == "profile" {
@@ -380,8 +546,14 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
         if line.is_empty() {
             separator_width += 1;
             if let Some(fields) = record.take() {
+                enforce_syntax_limit(
+                    "max_events",
+                    records.len() + 1,
+                    limits.max_events,
+                    Some(line_number),
+                )?;
                 let (decoded, descriptor_canonical) =
-                    decode_wire_record(fields, datatype_line, datatype_component_line)?;
+                    decode_wire_record(fields, datatype_line, datatype_component_line, limits)?;
                 canonical &= descriptor_canonical && has_canonical_field_order(&decoded);
                 records.push(decoded);
                 datatype_line = None;
@@ -424,7 +596,18 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
                 Some(line_number),
             ));
         }
-        let decoded = decode_payload(&line[delimiter + 1..], line_number)?;
+        enforce_syntax_limit(
+            "max_fields_per_event",
+            fields.len() + 1,
+            limits.max_fields_per_event,
+            Some(line_number),
+        )?;
+        let decoded = decode_payload_bounded(
+            &line[delimiter + 1..],
+            line_number,
+            limits,
+            &mut decoded_payload_bytes,
+        )?;
         canonical &= decoded.canonical;
         if field == "datatype" {
             datatype_line = Some(line_number);
@@ -437,8 +620,14 @@ pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
     }
 
     if let Some(fields) = record {
+        enforce_syntax_limit(
+            "max_events",
+            records.len() + 1,
+            limits.max_events,
+            Some(lines.len()),
+        )?;
         let (decoded, descriptor_canonical) =
-            decode_wire_record(fields, datatype_line, datatype_component_line)?;
+            decode_wire_record(fields, datatype_line, datatype_component_line, limits)?;
         canonical &= descriptor_canonical && has_canonical_field_order(&decoded);
         records.push(decoded);
     }
@@ -460,7 +649,15 @@ pub fn encode_telex(
     records: &[TelexRecord],
     profile: Option<&str>,
 ) -> Result<String, TelexEncodeError> {
-    encode_telex_with_projection(records, profile, None)
+    encode_telex_with_limits(records, profile, &TelexLimits::default())
+}
+
+pub fn encode_telex_with_limits(
+    records: &[TelexRecord],
+    profile: Option<&str>,
+    limits: &TelexLimits,
+) -> Result<String, TelexEncodeError> {
+    encode_telex_with_projection_and_limits(records, profile, None, limits)
 }
 
 pub fn encode_telex_with_projection(
@@ -468,51 +665,72 @@ pub fn encode_telex_with_projection(
     profile: Option<&str>,
     projection: Option<&str>,
 ) -> Result<String, TelexEncodeError> {
+    encode_telex_with_projection_and_limits(records, profile, projection, &TelexLimits::default())
+}
+
+pub fn encode_telex_with_projection_and_limits(
+    records: &[TelexRecord],
+    profile: Option<&str>,
+    projection: Option<&str>,
+    limits: &TelexLimits,
+) -> Result<String, TelexEncodeError> {
+    enforce_encode_limit("max_events", records.len(), limits.max_events)?;
     if profile == Some("") {
-        return Err(TelexEncodeError {
-            detail: "Telex profile must be a non-empty string".to_owned(),
-        });
+        return Err(TelexEncodeError::new(
+            "Telex profile must be a non-empty string",
+        ));
     }
     if projection == Some("") {
-        return Err(TelexEncodeError {
-            detail: "Telex projection must be a non-empty string".to_owned(),
-        });
+        return Err(TelexEncodeError::new(
+            "Telex projection must be a non-empty string",
+        ));
     }
 
     let mut header = VERSION_LINE.to_owned();
+    let mut decoded_payload_bytes = 0_usize;
     if let Some(profile) = profile {
+        add_encoded_payload_bytes(profile, limits, &mut decoded_payload_bytes)?;
         header.push_str("\nprofile=");
         header.push_str(&encode_payload(profile));
     }
     if let Some(projection) = projection {
+        add_encoded_payload_bytes(projection, limits, &mut decoded_payload_bytes)?;
         header.push_str("\nprojection=");
         header.push_str(&encode_payload(projection));
     }
     if records.is_empty() {
         header.push('\n');
+        enforce_encoded_physical_limits(&header, limits)?;
         return Ok(header);
     }
 
     let mut stanzas = Vec::with_capacity(records.len());
     for (record_index, record) in records.iter().enumerate() {
         if record.fields.is_empty() {
-            return Err(TelexEncodeError {
-                detail: format!("Telex record {} must not be empty", record_index + 1),
-            });
+            return Err(TelexEncodeError::new(format!(
+                "Telex record {} must not be empty",
+                record_index + 1
+            )));
         }
-        let mut fields = wire_fields(record).map_err(|detail| TelexEncodeError { detail })?;
+        let mut fields = wire_fields(record, limits).map_err(TelexEncodeError::new)?;
+        enforce_encode_limit(
+            "max_fields_per_event",
+            fields.len(),
+            limits.max_fields_per_event,
+        )?;
         let mut seen = HashSet::new();
-        for (field, _) in &fields {
+        for (field, value) in &fields {
             if !valid_field_name(field) {
-                return Err(TelexEncodeError {
-                    detail: format!("Invalid Telex field name: {field}"),
-                });
+                return Err(TelexEncodeError::new(format!(
+                    "Invalid Telex field name: {field}"
+                )));
             }
             if !seen.insert(field.as_str()) {
-                return Err(TelexEncodeError {
-                    detail: format!("Duplicate Telex field: {field}"),
-                });
+                return Err(TelexEncodeError::new(format!(
+                    "Duplicate Telex field: {field}"
+                )));
             }
+            add_encoded_payload_bytes(value, limits, &mut decoded_payload_bytes)?;
         }
         fields.sort_by(|left, right| compare_fields(&left.0, &right.0));
         let stanza = fields
@@ -523,30 +741,56 @@ pub fn encode_telex_with_projection(
         stanzas.push(stanza);
     }
 
-    Ok(format!("{header}\n\n{}\n", stanzas.join("\n\n")))
+    let encoded = format!("{header}\n\n{}\n", stanzas.join("\n\n"));
+    enforce_encoded_physical_limits(&encoded, limits)?;
+    Ok(encoded)
 }
 
 pub fn canonicalize_telex(input: &str) -> Result<String, TelexSyntaxError> {
-    let parsed = parse_telex(input)?;
+    canonicalize_telex_with_limits(input, &TelexLimits::default())
+}
+
+pub fn canonicalize_telex_with_limits(
+    input: &str,
+    limits: &TelexLimits,
+) -> Result<String, TelexSyntaxError> {
+    let parsed = parse_telex_with_limits(input, limits)?;
     let profile = parsed.profile_explicit.then_some(parsed.profile.as_str());
     let projection = parsed
         .projection_explicit
         .then_some(parsed.projection.as_deref())
         .flatten();
-    encode_telex_with_projection(&parsed.records, profile, projection)
-        .map_err(|error| TelexSyntaxError::new("TELEX_SYNTAX_ERROR", error.detail, None))
+    encode_telex_with_projection_and_limits(&parsed.records, profile, projection, limits).map_err(
+        |error| TelexSyntaxError {
+            code: error.code,
+            line: None,
+            detail: error.detail,
+            counter: error.counter,
+            observed: error.observed,
+            limit: error.limit,
+        },
+    )
 }
 
 pub fn validate_telex(
     input: &str,
     registered_fields: &[&str],
 ) -> Result<ValidationResult, TelexSyntaxError> {
-    let parsed = parse_telex(input)?;
-    Ok(validate_telex_records_with_projection(
+    validate_telex_with_limits(input, registered_fields, &TelexLimits::default())
+}
+
+pub fn validate_telex_with_limits(
+    input: &str,
+    registered_fields: &[&str],
+    limits: &TelexLimits,
+) -> Result<ValidationResult, TelexSyntaxError> {
+    let parsed = parse_telex_with_limits(input, limits)?;
+    Ok(validate_telex_records_with_projection_and_limits(
         &parsed.records,
         &parsed.profile,
         parsed.projection.as_deref(),
         registered_fields,
+        limits,
     ))
 }
 
@@ -555,7 +799,13 @@ pub fn validate_telex_records(
     profile: &str,
     registered_fields: &[&str],
 ) -> ValidationResult {
-    validate_telex_records_with_projection(records, profile, None, registered_fields)
+    validate_telex_records_with_projection_and_limits(
+        records,
+        profile,
+        None,
+        registered_fields,
+        &TelexLimits::default(),
+    )
 }
 
 pub fn validate_telex_records_with_projection(
@@ -564,9 +814,48 @@ pub fn validate_telex_records_with_projection(
     projection: Option<&str>,
     registered_fields: &[&str],
 ) -> ValidationResult {
+    validate_telex_records_with_projection_and_limits(
+        records,
+        profile,
+        projection,
+        registered_fields,
+        &TelexLimits::default(),
+    )
+}
+
+pub fn validate_telex_records_with_limits(
+    records: &[TelexRecord],
+    profile: &str,
+    registered_fields: &[&str],
+    limits: &TelexLimits,
+) -> ValidationResult {
+    validate_telex_records_with_projection_and_limits(
+        records,
+        profile,
+        None,
+        registered_fields,
+        limits,
+    )
+}
+
+pub fn validate_telex_records_with_projection_and_limits(
+    records: &[TelexRecord],
+    profile: &str,
+    projection: Option<&str>,
+    registered_fields: &[&str],
+    limits: &TelexLimits,
+) -> ValidationResult {
     let registered: HashSet<&str> = registered_fields.iter().copied().collect();
     let mut diagnostics = Vec::new();
     let mut events = Vec::with_capacity(records.len());
+
+    if records.len() > limits.max_events {
+        diagnostics.push(limit_diagnostic(
+            "max_events",
+            records.len(),
+            limits.max_events,
+        ));
+    }
 
     if profile != COMPLETE_AES_PROFILE && profile != PARTIAL_AES_PROFILE {
         diagnostics.push(Diagnostic::new(
@@ -601,7 +890,7 @@ pub fn validate_telex_records_with_projection(
             }
         }
         if let Some(datatype) = event.datatype()
-            && let Err((code, message)) = validate_datatype_descriptor(datatype)
+            && let Err((code, message)) = validate_datatype_descriptor(datatype, limits)
         {
             diagnostics.push(
                 Diagnostic::new(code, message)
@@ -637,6 +926,9 @@ pub fn validate_telex_records_with_projection(
             );
         }
 
+        if let Some(path) = address {
+            validate_path_limits(path, index, address_field, limits, &mut diagnostics);
+        }
         let mut path_details = match address {
             Some("$") => {
                 diagnostics.push(
@@ -720,7 +1012,7 @@ pub fn validate_telex_records_with_projection(
             );
         }
         if known_kind {
-            validate_event_value(event, index, &mut diagnostics);
+            validate_event_value(event, index, limits, &mut diagnostics);
         }
         validate_optional_fields(event, index, &mut diagnostics);
         events.push(EventCandidate {
@@ -780,7 +1072,12 @@ pub fn validate_telex_records_with_projection(
     }
 }
 
-fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec<Diagnostic>) {
+fn validate_event_value(
+    event: &TelexRecord,
+    index: usize,
+    limits: &TelexLimits,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     let Some(kind) = event.get("kind") else {
         return;
     };
@@ -876,6 +1173,8 @@ fn validate_event_value(event: &TelexRecord, index: usize, diagnostics: &mut Vec
                     .at_record(index, path)
                     .with_field("value"),
             );
+        } else {
+            validate_path_limits(value, index, Some(AddressField::Path), limits, diagnostics);
         }
     }
 }
@@ -927,6 +1226,41 @@ fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut
                 .with_field("span"),
             );
         }
+    }
+}
+
+fn validate_path_limits(
+    path: &str,
+    index: usize,
+    address_field: Option<AddressField>,
+    limits: &TelexLimits,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let field = address_field.map_or("path", AddressField::name);
+    let characters = path.chars().count();
+    if characters > limits.max_path_characters {
+        diagnostics.push(
+            limit_diagnostic(
+                "max_path_characters",
+                characters,
+                limits.max_path_characters,
+            )
+            .at_record(index, Some(path))
+            .with_field(field),
+        );
+    }
+    if let Ok(details) = parse_canonical_data_path(path)
+        && details.segments.len() > limits.max_path_depth
+    {
+        diagnostics.push(
+            limit_diagnostic(
+                "max_path_depth",
+                details.segments.len(),
+                limits.max_path_depth,
+            )
+            .at_record(index, Some(path))
+            .with_field(field),
+        );
     }
 }
 
@@ -1389,6 +1723,7 @@ fn decode_wire_record(
     mut fields: Vec<(String, String)>,
     datatype_line: Option<usize>,
     datatype_component_line: Option<usize>,
+    limits: &TelexLimits,
 ) -> Result<(TelexRecord, bool), TelexSyntaxError> {
     if let Some((field, _)) = fields
         .iter()
@@ -1410,7 +1745,7 @@ fn decode_wire_record(
         ));
     };
     let encoded = fields[index].1.clone();
-    let descriptor = parse_datatype_descriptor(&encoded).map_err(|detail| {
+    let descriptor = parse_datatype_descriptor(&encoded, limits).map_err(|detail| {
         let code = if detail.contains("exceeds configured limit") {
             "TELEX_DATATYPE_LIMIT"
         } else {
@@ -1429,10 +1764,13 @@ fn decode_wire_record(
     ))
 }
 
-fn wire_fields(record: &TelexRecord) -> Result<Vec<(String, String)>, String> {
+fn wire_fields(
+    record: &TelexRecord,
+    limits: &TelexLimits,
+) -> Result<Vec<(String, String)>, String> {
     let mut fields = record.fields.clone();
     if let Some(descriptor) = &record.datatype {
-        validate_datatype_descriptor(descriptor).map_err(|(_, detail)| detail)?;
+        validate_datatype_descriptor(descriptor, limits).map_err(|(_, detail)| detail)?;
         let encoded = format_datatype_descriptor(descriptor);
         let Some((_, value)) = fields.iter_mut().find(|(field, _)| field == "datatype") else {
             return Err("A structured datatype requires the logical datatype field".to_owned());
@@ -1442,11 +1780,15 @@ fn wire_fields(record: &TelexRecord) -> Result<Vec<(String, String)>, String> {
     Ok(fields)
 }
 
-fn parse_datatype_descriptor(input: &str) -> Result<DatatypeDescriptor, String> {
+fn parse_datatype_descriptor(
+    input: &str,
+    limits: &TelexLimits,
+) -> Result<DatatypeDescriptor, String> {
     let mut parser = DatatypeParser {
         input,
         cursor: 0,
         items: 0,
+        limits: *limits,
     };
     let descriptor = parser.parse_descriptor(0)?;
     parser.skip_whitespace();
@@ -1496,33 +1838,55 @@ fn format_datatype_descriptor(descriptor: &DatatypeDescriptor) -> String {
 
 fn validate_datatype_descriptor(
     descriptor: &DatatypeDescriptor,
+    limits: &TelexLimits,
 ) -> Result<(), (&'static str, String)> {
     let mut items = 0;
-    validate_datatype_descriptor_at_depth(descriptor, 0, &mut items)
+    validate_datatype_descriptor_at_depth(descriptor, 0, &mut items, limits)
 }
 
 fn validate_datatype_descriptor_at_depth(
     descriptor: &DatatypeDescriptor,
     depth: usize,
     items: &mut usize,
+    limits: &TelexLimits,
 ) -> Result<(), (&'static str, String)> {
-    count_datatype_item(items)?;
+    count_datatype_item(items, limits)?;
     if !valid_datatype_name(&descriptor.datatype) {
         return Err((
             "AES_INVALID_DATATYPE",
             "Datatype must be an ASCII identifier".to_owned(),
         ));
     }
-    if !descriptor.generics.is_empty() && depth > DEFAULT_MAX_DATATYPE_DEPTH {
+    if descriptor.generics.len() > limits.max_generic_arguments {
+        return Err((
+            "AES_DATATYPE_LIMIT",
+            limit_message(
+                "max_generic_arguments",
+                descriptor.generics.len(),
+                limits.max_generic_arguments,
+            ),
+        ));
+    }
+    if descriptor.clarifiers.len() > limits.max_clarifier_values {
+        return Err((
+            "AES_DATATYPE_LIMIT",
+            limit_message(
+                "max_clarifier_values",
+                descriptor.clarifiers.len(),
+                limits.max_clarifier_values,
+            ),
+        ));
+    }
+    if !descriptor.generics.is_empty() && depth > limits.max_generic_depth {
         return Err((
             "AES_DATATYPE_DEPTH",
-            "Datatype generic depth exceeds configured limit".to_owned(),
+            limit_message("max_generic_depth", depth, limits.max_generic_depth),
         ));
     }
     for argument in &descriptor.generics {
         match argument {
             GenericArgument::Datatype(nested) => {
-                validate_datatype_descriptor_at_depth(nested, depth + 1, items)?;
+                validate_datatype_descriptor_at_depth(nested, depth + 1, items, limits)?;
             }
             GenericArgument::NumberLiteral(value) if !valid_number_syntax(value) => {
                 return Err((
@@ -1530,11 +1894,11 @@ fn validate_datatype_descriptor_at_depth(
                     "Invalid numeric datatype generic argument".to_owned(),
                 ));
             }
-            GenericArgument::NumberLiteral(_) => count_datatype_item(items)?,
+            GenericArgument::NumberLiteral(_) => count_datatype_item(items, limits)?,
         }
     }
     for clarifier in &descriptor.clarifiers {
-        count_datatype_item(items)?;
+        count_datatype_item(items, limits)?;
         if clarifier.kind == ClarifierKind::NumberLiteral && !valid_number_syntax(&clarifier.value)
         {
             return Err((
@@ -1546,12 +1910,19 @@ fn validate_datatype_descriptor_at_depth(
     Ok(())
 }
 
-fn count_datatype_item(items: &mut usize) -> Result<(), (&'static str, String)> {
+fn count_datatype_item(
+    items: &mut usize,
+    limits: &TelexLimits,
+) -> Result<(), (&'static str, String)> {
     *items += 1;
-    if *items > DEFAULT_MAX_DATATYPE_ITEMS {
+    if *items > limits.max_datatype_components {
         return Err((
             "AES_DATATYPE_LIMIT",
-            "Datatype component count exceeds configured limit".to_owned(),
+            limit_message(
+                "max_datatype_components",
+                *items,
+                limits.max_datatype_components,
+            ),
         ));
     }
     Ok(())
@@ -1606,6 +1977,7 @@ struct DatatypeParser<'a> {
     input: &'a str,
     cursor: usize,
     items: usize,
+    limits: TelexLimits,
 }
 
 impl DatatypeParser<'_> {
@@ -1615,8 +1987,12 @@ impl DatatypeParser<'_> {
         let datatype = self.parse_name()?;
         self.skip_whitespace();
         let generics = if self.peek() == Some(b'<') {
-            if depth > DEFAULT_MAX_DATATYPE_DEPTH {
-                return self.fail("Datatype generic depth exceeds configured limit");
+            if depth > self.limits.max_generic_depth {
+                return self.fail(&limit_message(
+                    "max_generic_depth",
+                    depth,
+                    self.limits.max_generic_depth,
+                ));
             }
             self.parse_generics(depth)?
         } else {
@@ -1672,6 +2048,13 @@ impl DatatypeParser<'_> {
                 GenericArgument::NumberLiteral(self.parse_number(b",>")?)
             };
             values.push(argument);
+            if values.len() > self.limits.max_generic_arguments {
+                return self.fail(&limit_message(
+                    "max_generic_arguments",
+                    values.len(),
+                    self.limits.max_generic_arguments,
+                ));
+            }
             self.skip_whitespace();
             if self.peek() == Some(b'>') {
                 self.cursor += 1;
@@ -1706,6 +2089,13 @@ impl DatatypeParser<'_> {
                 }
             };
             values.push(clarifier);
+            if values.len() > self.limits.max_clarifier_values {
+                return self.fail(&limit_message(
+                    "max_clarifier_values",
+                    values.len(),
+                    self.limits.max_clarifier_values,
+                ));
+            }
             self.skip_whitespace();
             if self.peek() == Some(b']') {
                 self.cursor += 1;
@@ -1751,8 +2141,12 @@ impl DatatypeParser<'_> {
 
     fn count_item(&mut self) -> Result<(), String> {
         self.items += 1;
-        if self.items > DEFAULT_MAX_DATATYPE_ITEMS {
-            return self.fail("Datatype component count exceeds configured limit");
+        if self.items > self.limits.max_datatype_components {
+            return self.fail(&limit_message(
+                "max_datatype_components",
+                self.items,
+                self.limits.max_datatype_components,
+            ));
         }
         Ok(())
     }
@@ -1921,6 +2315,23 @@ fn decode_payload(payload: &str, line: usize) -> Result<DecodedPayload, TelexSyn
         }
     }
     Ok(DecodedPayload { value, canonical })
+}
+
+fn decode_payload_bounded(
+    payload: &str,
+    line: usize,
+    limits: &TelexLimits,
+    current: &mut usize,
+) -> Result<DecodedPayload, TelexSyntaxError> {
+    let decoded = decode_payload(payload, line)?;
+    *current = (*current).saturating_add(decoded.value.len());
+    enforce_syntax_limit(
+        "max_decoded_payload_bytes",
+        *current,
+        limits.max_decoded_payload_bytes,
+        Some(line),
+    )?;
+    Ok(decoded)
 }
 
 fn encode_payload(payload: &str) -> String {

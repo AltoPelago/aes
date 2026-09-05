@@ -663,7 +663,8 @@ Portable local diagnostics use these stable codes; prose is not normative:
 | `AES_DATATYPE_COMPONENTS` | datatype, generics, and clarifiers do not occur together as required |
 | `AES_INVALID_DATATYPE` | datatype name, generic tree, or tagged clarifier is malformed |
 | `AES_DATATYPE_DEPTH` | logical datatype structure exceeds the active generic-depth limit |
-| `AES_DATATYPE_LIMIT` | logical datatype component count exceeds the configured resource limit |
+| `AES_DATATYPE_LIMIT` | a logical datatype argument-count, clarifier-count, or component-count limit is exceeded |
+| `AES_LIMIT_EXCEEDED` | a caller-selected portable event-model resource limit is exceeded |
 | `AES_INVALID_ORIGIN` | origin is not a canonical AES v0 source digest |
 | `AES_SPAN_REQUIRES_ORIGIN` | span occurs without origin |
 | `AES_INVALID_SPAN` | span syntax or ordering is invalid |

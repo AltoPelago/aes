@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   AEON_DOCUMENT_PROJECTION,
   COMPLETE_AES_PROFILE,
+  DEFAULT_TELEX_LIMITS,
   PARTIAL_AES_PROFILE,
   TelexSyntaxError,
   checkPrefixCompleteness,
@@ -16,6 +17,30 @@ import {
   validateTelexRecords,
 } from '../src/telex.js';
 import { formatDatatypeDescriptor, parseDatatypeDescriptor } from '../src/datatype.js';
+
+test('publishes the AltoPelago Telex limit defaults', () => {
+  assert.deepEqual(DEFAULT_TELEX_LIMITS, {
+    maxInputBytes: 67_108_864,
+    maxLineBytes: 1_048_576,
+    maxFieldsPerEvent: 64,
+    maxEvents: 100_000,
+    maxDecodedPayloadBytes: 33_554_432,
+    maxPathDepth: 1_024,
+    maxPathCharacters: 8_192,
+    maxGenericDepth: 1,
+    maxGenericArguments: 32,
+    maxClarifierValues: 1,
+    maxDatatypeComponents: 64,
+  });
+  assert.throws(
+    () => parseTelex('telex.aes=0\n', { limits: { maxInputBytes: 11 } }),
+    (error) => error instanceof TelexSyntaxError
+      && error.code === 'TELEX_LIMIT_EXCEEDED'
+      && error.counter === 'max_input_bytes'
+      && error.observed === 12
+      && error.limit === 11,
+  );
+});
 
 test('round-trips records and canonicalizes core field order', () => {
   const records = [{
@@ -119,23 +144,24 @@ test('expands and recombines datatype metadata at the Telex boundary', () => {
 });
 
 test('datatype descriptor helpers preserve ordered duplicate clarifiers', () => {
-  const descriptor = parseDatatypeDescriptor('grid<tuple<int, 2>>["x", "x", 16]');
+  const limits = { maxClarifierValues: 3 };
+  const descriptor = parseDatatypeDescriptor('grid<tuple<int, 2>>["x", "x", 16]', limits);
   assert.deepEqual(descriptor.clarifiers, [
     { kind: 'StringLiteral', value: 'x' },
     { kind: 'StringLiteral', value: 'x' },
     { kind: 'NumberLiteral', value: '16' },
   ]);
-  assert.equal(formatDatatypeDescriptor(descriptor), 'grid<tuple<int, 2>>["x", "x", 16]');
+  assert.equal(formatDatatypeDescriptor(descriptor, limits), 'grid<tuple<int, 2>>["x", "x", 16]');
 });
 
 test('bounds recursive datatype decoding', () => {
   assert.throws(
     () => parseDatatypeDescriptor('list<list<int>>', { maxDepth: 0 }),
-    /generic depth exceeds configured limit/u,
+    /max_generic_depth .* exceeds configured limit/u,
   );
   assert.throws(
     () => parseDatatypeDescriptor('list<list<list<int>>>'),
-    /generic depth exceeds configured limit/u,
+    /max_generic_depth .* exceeds configured limit/u,
   );
   assert.equal(
     formatDatatypeDescriptor(
@@ -146,7 +172,7 @@ test('bounds recursive datatype decoding', () => {
   );
   assert.throws(
     () => parseDatatypeDescriptor('tuple<int, int>', { maxItems: 2 }),
-    /component count exceeds configured limit/u,
+    /max_datatype_components .* exceeds configured limit/u,
   );
 });
 

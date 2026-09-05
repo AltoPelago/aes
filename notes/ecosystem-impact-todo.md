@@ -301,11 +301,13 @@ while the wider consumer audit remains open.
   canonical/reference path length, and structured-comment payload length.
 - [x] Remove the TypeScript and Python canonicalizers' hard-coded generic and
   clarifier limit values; use the effective consumer-selected limits.
-- [ ] Implement all required Telex bounds: input bytes, line bytes, fields per
+- [x] Implement all required Telex bounds: input bytes, line bytes, fields per
   event, event count, decoded payload bytes, path depth, generic depth, and
-  datatype component count.
+  datatype component count. The JavaScript and Rust reference codecs consume
+  normalized effective limits; limits-file loading remains a trusted caller concern.
 - [ ] Add shared at-limit and one-over-limit vectors for every published
-  counter.
+  counter. Telex v0 counters are covered by the language-neutral resource-limit
+  suite; AEON and future Film counters remain to be completed.
 
 ### 1.6 Spans and provenance
 

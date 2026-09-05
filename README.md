@@ -67,12 +67,15 @@ working/reference copies and do not override those canonical sources.
   uses a record-local `origin=sha256:<digest>` and permits `span` only alongside
   that origin. Its decoder expands compact Telex datatype lines into logical
   `datatype`, `generics`, and `clarifiers` components. Recursive generics are
-  guarded by consumer-selected processing limits and are never truncated.
+  guarded by consumer-selected processing limits and are never truncated. The
+  codec exports `DEFAULT_TELEX_LIMITS` and accepts normalized limits through
+  its public parse, encode, canonicalize, and validation options; resolving an
+  AEON limits file remains the trusted caller's responsibility.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early
   illustrative stream, not a frozen conformance vector.
 - [`conformance/`](conformance/README.md) contains language-neutral v0
-  vectors for syntax, canonicalization, AES profile validation, and the optional
-  AEON document projection.
+  vectors for syntax, canonicalization, AES profile validation, resource-limit
+  boundaries, and the optional AEON document projection.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent,
   dependency-free Rust implementation of the same v0 contract.
 

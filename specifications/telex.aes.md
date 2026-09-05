@@ -227,7 +227,8 @@ not compared for conformance.
 | `TELEX_INVALID_UNICODE_ESCAPE` | Unicode escape digits are malformed |
 | `TELEX_INVALID_UNICODE_SCALAR` | payload or escape is not a Unicode scalar |
 | `TELEX_INVALID_DATATYPE` | compact datatype descriptor cannot be expanded |
-| `TELEX_DATATYPE_LIMIT` | datatype depth or component count exceeds the configured decoder limit |
+| `TELEX_DATATYPE_LIMIT` | a datatype generic-depth, argument-count, clarifier-count, or component-count limit is exceeded |
+| `TELEX_LIMIT_EXCEEDED` | a caller-selected Telex physical or stream resource limit is exceeded |
 
 A bare CR uses `TELEX_BARE_CR`. An LF ends the current physical line, so
 following payload text without `=` is a new malformed line and uses
@@ -376,16 +377,23 @@ a new required AES core field requires another event-contract version.
 
 ## 9. Security and resource bounds
 
-Decoders accept caller-supplied limits for at least:
+Codecs and validators accept caller-supplied normalized integer limits for:
 
 - input bytes;
 - line bytes;
 - fields per record;
 - record count;
 - decoded payload bytes;
-- canonical path depth when semantic validation is enabled;
-- datatype generic depth; and
+- canonical path depth and Unicode-scalar length when semantic validation is enabled;
+- datatype generic depth;
+- generic arguments per generic list;
+- clarifier values per clarifier list; and
 - total descriptor, generic-argument, and clarifier components per record.
+
+Decoded-payload bytes are the cumulative UTF-8 byte length of decoded profile,
+projection, and record-field payloads. Physical line byte counts exclude the LF
+or CRLF delimiter. Limits are inclusive: an observed count equal to its limit
+is accepted and the first greater count is rejected.
 
 Numeric values are consumer implementation policy rather than Telex format or
 AES semantic-profile rules. Implementations document their defaults and expose

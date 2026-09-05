@@ -17,6 +17,10 @@
     {
       "id": "event-and-profile-validation",
       "file": "suites/02-event-and-profile-validation.json"
+    },
+    {
+      "id": "resource-limits",
+      "file": "suites/03-resource-limits.json"
     }
   ]
 }

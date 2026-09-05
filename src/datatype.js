@@ -1,3 +1,5 @@
+import { normalizeDatatypeLimits } from './limits.js';
+
 const DATATYPE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/u;
 const NUMBER = /^[+-]?(?:(?:[0-9]+(?:\.[0-9]*)?)|(?:\.[0-9]+))(?:[eE][+-]?[0-9]+)?$/u;
 
@@ -36,7 +38,7 @@ function formatCheckedDatatypeDescriptor(descriptor) {
 }
 
 export function assertDatatypeDescriptor(descriptor, options = {}) {
-  const limits = datatypeLimits(options);
+  const limits = normalizeDatatypeLimits(options);
   assertDatatypeDescriptorAtDepth(descriptor, limits, { items: 0 }, 0);
 }
 
@@ -57,10 +59,31 @@ function assertDatatypeDescriptorAtDepth(descriptor, limits, state, depth) {
     throw new TypeError('Datatype clarifiers must be an array');
   }
   countLogicalItem(state, limits);
-  if (descriptor.generics.length > 0 && depth > limits.maxDepth) {
+  if (descriptor.generics.length > limits.maxGenericArguments) {
     throw datatypeValidationError(
-      'Datatype generic depth exceeds configured limit',
+      limitMessage('max_generic_arguments', descriptor.generics.length, limits.maxGenericArguments),
+      'AES_DATATYPE_LIMIT',
+      'max_generic_arguments',
+      descriptor.generics.length,
+      limits.maxGenericArguments,
+    );
+  }
+  if (descriptor.clarifiers.length > limits.maxClarifierValues) {
+    throw datatypeValidationError(
+      limitMessage('max_clarifier_values', descriptor.clarifiers.length, limits.maxClarifierValues),
+      'AES_DATATYPE_LIMIT',
+      'max_clarifier_values',
+      descriptor.clarifiers.length,
+      limits.maxClarifierValues,
+    );
+  }
+  if (descriptor.generics.length > 0 && depth > limits.maxGenericDepth) {
+    throw datatypeValidationError(
+      limitMessage('max_generic_depth', depth, limits.maxGenericDepth),
       'AES_DATATYPE_DEPTH',
+      'max_generic_depth',
+      depth,
+      limits.maxGenericDepth,
     );
   }
   for (const argument of descriptor.generics) {
@@ -122,9 +145,11 @@ class DatatypeParser {
   constructor(input, options) {
     this.input = input;
     this.cursor = 0;
-    const limits = datatypeLimits(options);
-    this.maxDepth = limits.maxDepth;
-    this.maxItems = limits.maxItems;
+    const limits = normalizeDatatypeLimits(options);
+    this.maxGenericDepth = limits.maxGenericDepth;
+    this.maxGenericArguments = limits.maxGenericArguments;
+    this.maxClarifierValues = limits.maxClarifierValues;
+    this.maxDatatypeComponents = limits.maxDatatypeComponents;
     this.items = 0;
   }
 
@@ -133,8 +158,8 @@ class DatatypeParser {
     this.skipWhitespace();
     const datatype = this.parseName();
     this.skipWhitespace();
-    if (this.peek() === '<' && depth > this.maxDepth) {
-      this.fail('Datatype generic depth exceeds configured limit', 'TELEX_DATATYPE_LIMIT');
+    if (this.peek() === '<' && depth > this.maxGenericDepth) {
+      this.failLimit('max_generic_depth', depth, this.maxGenericDepth);
     }
     const generics = this.peek() === '<' ? this.parseGenerics(depth) : [];
     this.skipWhitespace();
@@ -156,6 +181,9 @@ class DatatypeParser {
     const values = [];
     while (true) {
       values.push(this.parseGenericArgument(depth));
+      if (values.length > this.maxGenericArguments) {
+        this.failLimit('max_generic_arguments', values.length, this.maxGenericArguments);
+      }
       this.skipWhitespace();
       if (this.peek() === '>') {
         this.cursor += 1;
@@ -183,6 +211,9 @@ class DatatypeParser {
       values.push(this.peek() === '"'
         ? { kind: 'StringLiteral', value: this.parseString() }
         : { kind: 'NumberLiteral', value: this.parseNumber(',]') });
+      if (values.length > this.maxClarifierValues) {
+        this.failLimit('max_clarifier_values', values.length, this.maxClarifierValues);
+      }
       this.skipWhitespace();
       if (this.peek() === ']') {
         this.cursor += 1;
@@ -249,14 +280,23 @@ class DatatypeParser {
 
   countItem() {
     this.items += 1;
-    if (this.items > this.maxItems) {
-      this.fail('Datatype component count exceeds configured limit', 'TELEX_DATATYPE_LIMIT');
+    if (this.items > this.maxDatatypeComponents) {
+      this.failLimit('max_datatype_components', this.items, this.maxDatatypeComponents);
     }
   }
 
-  fail(message, code = 'TELEX_INVALID_DATATYPE') {
+  failLimit(counter, observed, limit) {
+    this.fail(limitMessage(counter, observed, limit), 'TELEX_DATATYPE_LIMIT', {
+      counter,
+      observed,
+      limit,
+    });
+  }
+
+  fail(message, code = 'TELEX_INVALID_DATATYPE', details = {}) {
     const error = new TypeError(`${message} at datatype offset ${this.cursor}`);
     error.code = code;
+    Object.assign(error, details);
     throw error;
   }
 }
@@ -274,30 +314,26 @@ function hasExactKeys(value, expected) {
   return keys.length === expected.length && expected.every((key) => Object.hasOwn(value, key));
 }
 
-function datatypeLimits(options) {
-  const maxDepth = options.maxDepth ?? 1;
-  const maxItems = options.maxItems ?? 4096;
-  if (!Number.isSafeInteger(maxDepth) || maxDepth < 0) {
-    throw new TypeError('Datatype maxDepth must be a non-negative safe integer');
-  }
-  if (!Number.isSafeInteger(maxItems) || maxItems < 1) {
-    throw new TypeError('Datatype maxItems must be a positive safe integer');
-  }
-  return { maxDepth, maxItems };
-}
-
 function countLogicalItem(state, limits) {
   state.items += 1;
-  if (state.items > limits.maxItems) {
+  if (state.items > limits.maxDatatypeComponents) {
     throw datatypeValidationError(
-      'Datatype component count exceeds configured limit',
+      limitMessage('max_datatype_components', state.items, limits.maxDatatypeComponents),
       'AES_DATATYPE_LIMIT',
+      'max_datatype_components',
+      state.items,
+      limits.maxDatatypeComponents,
     );
   }
 }
 
-function datatypeValidationError(message, code) {
+function datatypeValidationError(message, code, counter, observed, limit) {
   const error = new TypeError(message);
   error.code = code;
+  if (counter !== undefined) Object.assign(error, { counter, observed, limit });
   return error;
+}
+
+function limitMessage(counter, observed, limit) {
+  return `${counter} observed value ${observed} exceeds configured limit ${limit}`;
 }
