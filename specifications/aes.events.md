@@ -147,14 +147,14 @@ encoding-specific combined spelling.
 AES v0 implementations guard recursive generic descriptors. Generic depth is
 the number of nested generic arguments that themselves contain generics:
 `list<int>` has depth `0`, `list<list<int>>` has depth `1`, and
-`list<list<list<int>>>` has depth `2`. The default accepted maximum is depth
-`1`. A caller or named profile may explicitly select a higher supported limit,
-but omission always selects `1`. Exceeding the active limit rejects the record;
-it never truncates the generic tree.
+`list<list<list<int>>>` has depth `2`. The consumer selects the active maximum
+as processing policy. Exceeding it rejects the record; it never truncates the
+generic tree.
 
-This is an event-local portability and resource rule, not a completeness rule.
-Both `aes.complete.v0` and `aes.partial.v0` use the default when no higher limit
-is explicitly selected.
+Generic depth is an event-local resource counter, not a completeness rule or a
+semantic-profile setting. This contract defines how it is measured but does
+not prescribe a numeric consumer limit. A profile mentioned by a limits file
+is a claim or metadata association only; the consumer still selects both.
 
 A datatype remains only on the event where it was declared. AES does not infer
 or propagate `int` from `list<int>` onto child events. Datatype interpretation,
@@ -487,9 +487,7 @@ covers supplied order exactly. AES does not infer a signing mode from content.
 `aes.complete.v0` is the default. It claims a self-contained stream that a
 consumer can navigate without external state.
 
-The profile inherits the AES v0 default maximum generic depth of `1`. This
-explicit statement does not make generic depth part of cross-record
-completeness.
+The completeness claim does not select or alter processor resource limits.
 
 Every non-root structural prefix has a material record and each parent kind is
 compatible with its child segment. Parents are never inferred. An attribute

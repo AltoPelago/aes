@@ -49,6 +49,11 @@ working/reference copies and do not override those canonical sources.
 - [AES ecosystem impact checklist](notes/ecosystem-impact-todo.md) tracks
   specification, implementation, conformance, and migration work caused by the
   portable event-model decisions.
+- [AltoPelago Aeonic Limits v1](notes/altopelago-aeonic-limits-v1.md) defines
+  the informative, consumer-owned configuration shape used to align structural
+  and processing limits across AltoPelago implementations. Format byte limits
+  remain local to AEON, Telex, Film, or their enclosing transport, and schema
+  budgets remain separate.
 - [`src/telex.js`](src/telex.js) is a dependency-free syntax codec. It proves
   that the framing can be parsed and produced with a very small implementation;
   it deliberately does not decide AES value semantics. It preserves an
@@ -61,8 +66,7 @@ working/reference copies and do not override those canonical sources.
   uses a record-local `origin=sha256:<digest>` and permits `span` only alongside
   that origin. Its decoder expands compact Telex datatype lines into logical
   `datatype`, `generics`, and `clarifiers` components. Recursive generics are
-  guarded at the AES v0 default maximum depth of `1` unless the caller
-  explicitly selects a higher supported limit.
+  guarded by consumer-selected processing limits and are never truncated.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early
   illustrative stream, not a frozen conformance vector.
 - [`conformance/`](conformance/README.md) contains language-neutral v0

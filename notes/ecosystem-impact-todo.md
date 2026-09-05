@@ -239,9 +239,9 @@ while the wider consumer audit remains open.
   payloads as strings and preserve duplicates.
 - [x] Keep Telex compact by combining those fields into one canonical
   `datatype=` line, expanding on decode and recombining on encode.
-- [x] Guard recursive generic decoding with default maximum generic depth `1`;
-  apply it as an event-local AES v0 limit under both complete and partial
-  profiles, with only explicit callers or named profiles able to raise it.
+- [x] Define generic depth as a shared event-local resource counter, independent
+  of complete and partial semantic profiles; consumer-selected processing
+  policy supplies the numeric limit and exhaustion never truncates a descriptor.
 - [x] Keep a datatype only on the event where it was declared; do not infer or
   propagate container generic arguments onto descendants.
 - [x] Use separate `CloneReference` and `PointerReference` kinds with one
@@ -271,7 +271,33 @@ while the wider consumer audit remains open.
   vocabulary without depending on runtime class identity, raw tokens, or
   nested value trees.
 
-### 1.5 Spans and provenance
+### 1.5 AltoPelago processing limits
+
+- [x] Define the informative `altopelago.aeonic-limits.v1` file shape with an
+  immutable `limits_id` and `limits_version`.
+- [x] Keep structural counters unified across AEON, AES, Telex, Film, and
+  direct in-memory AES ingress.
+- [x] Keep byte, line, frame, and buffering limits scoped to their physical
+  format or transport.
+- [x] Treat `profile_claims` only as descriptive metadata; consumers select
+  limits and semantic profiles independently.
+- [x] Exclude AEOS schema-validation and SANSA evaluation budgets from this
+  limits contract.
+- [ ] Complete an implementation audit for public and hard-coded resource
+  guards in TypeScript, Rust, Python, and PHP.
+- [ ] Approve and publish the first concrete AltoPelago limits values and the
+  fixed bootstrap policy used to load an AEON-encoded limits file.
+- [ ] Add a shared limits loader, normalized effective-configuration view, and
+  deterministic exhaustion diagnostics to every AltoPelago implementation.
+- [ ] Rename or adapt `maxSeparatorDepth` / `max_separator_depth` to the shared
+  `max_clarifier_values` counter without creating a second semantic limit.
+- [ ] Implement all required Telex bounds: input bytes, line bytes, fields per
+  event, event count, decoded payload bytes, path depth, generic depth, and
+  datatype component count.
+- [ ] Add shared at-limit and one-over-limit vectors for every published
+  counter.
+
+### 1.6 Spans and provenance
 
 #### Confirmed direction
 
@@ -319,7 +345,7 @@ while the wider consumer audit remains open.
 - [ ] Ensure SO uses spans only for diagnostics, audit, and provenance—not
   identity, ordering, mutation preconditions, or semantic decisions.
 
-### 1.6 AEON headers and control-plane metadata
+### 1.7 AEON headers and control-plane metadata
 
 - [x] Inventory how TypeScript, Rust, Python, and PHP currently expose
   `aeon:header` and shorthand `aeon:*` fields through AES. TypeScript and PHP

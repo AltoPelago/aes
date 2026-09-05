@@ -276,9 +276,9 @@ either as a physical field name fails with `TELEX_INVALID_DATATYPE`.
 
 A record without `datatype` has neither logical array. A decoded record with
 `datatype` always has both arrays, even when empty. Descriptor array order and
-duplicates are preserved. Unless explicitly configured otherwise, the Telex
-decoder applies the AES v0 maximum generic depth of `1` before accepting a
-record.
+duplicates are preserved. The Telex decoder applies the generic-depth and
+datatype-component limits selected by its consumer before accepting a record.
+Telex does not derive either value from the stream's semantic profile.
 
 Field presence, payload meaning, value kinds, canonical paths, identity,
 provenance, completeness, ordering, and the `aeon.document.v0` control plane
@@ -382,10 +382,15 @@ Decoders accept caller-supplied limits for at least:
 - line bytes;
 - fields per record;
 - record count;
-- decoded payload bytes; and
+- decoded payload bytes;
 - canonical path depth when semantic validation is enabled;
 - datatype generic depth; and
 - total descriptor, generic-argument, and clarifier components per record.
+
+Numeric values are consumer implementation policy rather than Telex format or
+AES semantic-profile rules. Implementations document their defaults and expose
+the normalized effective values. A profile claim in a limits file is metadata;
+it does not let an input stream select or relax those limits.
 
 Syntax decoding performs no reference resolution, schema loading, network
 access, datatype execution, or source-language evaluation.
