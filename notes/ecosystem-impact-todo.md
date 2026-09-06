@@ -369,6 +369,12 @@ while the wider consumer audit remains open.
   ambiguous or character-based offset language.
 - [ ] Align portable provenance with the existing ASP `origin` shape, which
   carries `kind`, `source_id`, and `{start,end}`.
+  - [x] The ASP-hosted SO projection emits provenance only when `kind=source`
+    and `source_id` is a portable SHA-256 origin; it never emits an ASP span
+    without that origin. Orchestrator, migration, and API origins remain
+    internal even when their IDs happen to look like content digests.
+  - [ ] Define storage/operation semantics for retaining the exact source
+    artifact contract rather than inferring it from the existing ASP fields.
 - [ ] Ensure SO uses spans only for diagnostics, audit, and provenance—not
   identity, ordering, mutation preconditions, or semantic decisions.
 
@@ -534,12 +540,35 @@ while the wider consumer audit remains open.
   - [x] The rollout audit fixed detached portable attributes in TypeScript, an
     empty-stream normalization bug in Python AEOS Telex validation, and string
     rather than numeric portable indexes in the Rust AEOS adapter.
-- [ ] SO: add an explicit portable-AES adapter instead of treating current
-  TypeScript AST-shaped values as the interchange contract.
+- [x] SO: add an explicit portable-AES adapter instead of treating current
+  TypeScript AST-shaped values as the interchange contract. The ASP target
+  adapter now exposes direct complete portable records, Telex encoding, and
+  AEOS validators for both forms while retaining the legacy AST-shaped API as
+  an explicit compatibility path.
 - [ ] SO: update candidate construction, validation, stable-order scopes, and
   path-addressed operations for flat attributes and expanded nodes.
+  - [x] ASP-hosted candidate construction and validation emit flat attributes,
+    expanded node paths, split datatype components, and independently retained
+    identities. Existing visible stable-order projections feed the same adapter
+    and preserve the identity-to-index association and record order.
+  - [ ] Define and implement source/event address translation at the mutation
+    boundary before expanded node-head or attribute paths are accepted as SO or
+    ASP operation targets.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
+  - [ ] ASP currently stores one combined datatype descriptor and reparses it
+    at the portable boundary; persist the three AES components independently.
+  - [x] Add the missing `SansaAddressLiteral` value family or define an explicit
+    versioned rejection boundary for ASP profiles that cannot store it.
+    ASP now validates and stores the canonical address as a distinct value kind;
+    JSON and compact AEON codecs, indexed reference tokenization, log replay,
+    snapshots, AEOS reconstruction, SANSA query activation, conservative SANSA
+    lowering, and portable AES export retain the distinction. This corrects the
+    draft profile's existing all-value-family claim without enabling portable
+    AES transaction ingress.
+  - [ ] Extend inline `NodeLiteral` storage if node-head identity, datatype, or
+    source span must survive an ASP round trip; the current model can only
+    synthesize an unannotated head from the tag.
 - [ ] ASP: update operations and origin handling for expanded paths and
   source-backed spans.
 - [ ] AES-DB: reconstruct value-less containers and explicit descendants while
