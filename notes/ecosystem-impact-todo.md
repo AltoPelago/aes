@@ -435,6 +435,16 @@ while the wider consumer audit remains open.
     Core event/source export, SDK read/write, AEOS validation, canonicalization,
     and CLI decode/export surfaces while retaining the legacy in-memory APIs.
     The published AES Events and Telex snapshot suites pass 38/38 and 50/50.
+  - [x] TypeScript: consume complete portable AES directly for semantic JSON
+    materialization without rebuilding the parser AST. The finalizer, SDK,
+    runtime schema pipeline, and CLI expose this path; differential tests cover
+    nested containers, flat attributes, node heads, identities, datatype
+    components, headers, clones, and symbolic pointers. Partial streams require
+    external state and are rejected by this materializer.
+  - [ ] TypeScript: add portable map/node output and live pointer-linking only
+    when consumers require those output profiles. The current portable JSON
+    path deliberately keeps pointers symbolic and does not run AEON source
+    processors or tonics.
   - [x] Rust/WASM: reuse the AES-owned Rust reference codec from the AEON WASM
     package for bulk validation, canonicalization, and prefix-completeness
     checks. Keep full event materialization on the TypeScript surface until a

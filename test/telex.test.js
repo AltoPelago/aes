@@ -259,6 +259,14 @@ test('reports missing structural prefixes without requiring parent-first order',
   });
 });
 
+test('applies caller-selected parser limits during completeness checks', () => {
+  const source = 'telex.aes=0\n\npath=$.answer\nkind=NumberLiteral\nvalue=42\n';
+  assert.throws(
+    () => checkTelexCompleteness(source, { maxEvents: 0 }),
+    (error) => error?.code === 'TELEX_LIMIT_EXCEEDED',
+  );
+});
+
 test('treats an attribute selector and its key as one structural path step', () => {
   const records = [
     { path: '$.a', kind: 'NumberLiteral', value: '0' },

@@ -1963,7 +1963,8 @@ fn wire_fields<'a>(
     Ok(fields)
 }
 
-fn parse_datatype_descriptor(
+/// Parse the logical datatype field into its encoding-neutral components.
+pub fn parse_datatype_descriptor(
     input: &str,
     limits: &TelexLimits,
 ) -> Result<DatatypeDescriptor, String> {
@@ -1984,7 +1985,9 @@ fn parse_datatype_descriptor(
     Ok(descriptor)
 }
 
-fn format_datatype_descriptor(descriptor: &DatatypeDescriptor) -> String {
+/// Render an encoding-neutral datatype descriptor in Telex's single-line form.
+#[must_use]
+pub fn format_datatype_descriptor(descriptor: &DatatypeDescriptor) -> String {
     let mut output = descriptor.datatype.clone();
     if !descriptor.generics.is_empty() {
         output.push('<');
