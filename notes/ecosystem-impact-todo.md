@@ -753,6 +753,18 @@ while the wider consumer audit remains open.
       and richer material descendants fail closed. This remains separate from
       SANSA mutation and advertises no Telex, Wire, CLI, bare-event, or generic
       transaction ingress.
+    - [x] Recursive material-container inverse: a new closed, non-actionable
+      inverse reconstructs nested `ObjectNode`/`ListNode` binding owners and
+      inline tuple values without widening the pinned flat candidate. Every
+      container supplies separate payload/result direct-item counts in event
+      preorder. Fragment-local references bind to one exact supplied occurrence;
+      external references resolve through the immutable ASP read. Logical
+      container recursion uses a consumer-selected `maxValueNestingDepth`, with
+      root depth 1 and the common implementation default 256. Root metadata
+      remains target-owned; child metadata, nodes, and material ownership inside
+      tuples fail closed. The result names no application contract and grants no
+      deletion, insertion, transaction, durability, SO, Wire/CLI, bare-event,
+      generic AET, or Telex-ingress authority.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
