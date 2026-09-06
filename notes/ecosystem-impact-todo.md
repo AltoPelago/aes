@@ -560,6 +560,13 @@ while the wider consumer audit remains open.
       legacy attribute-reference spellings. Portable projection verifies its
       path sequence against the same index. Identity remains metadata and the
       mutation admission gate remains closed.
+    - [x] ASP mutation-target preflight: consume the reverse index with exact
+      source-revision and portable-kind expectations, classifying only existing
+      scalar bindings and direct binding attributes as storage-native
+      replacement candidates. Containers, references, heads, inline children,
+      nested attributes, other operations, and stale/substituted context fail
+      closed. Successful preflight remains non-actionable, names no application
+      contract, and produces no ASP operation or transaction.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
