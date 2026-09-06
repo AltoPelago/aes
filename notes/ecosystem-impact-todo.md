@@ -670,6 +670,16 @@ while the wider consumer audit remains open.
       owner vectors cover the candidate. Transported provenance remains
       rejected, trusted origin is host context, and journal/SO/Telex/Wire/CLI
       and generic AET authority remain closed.
+    - [x] Durable tuple-content replacement receipt: a separate domain-
+      separated, fsync-backed, fenced single-writer journal retains the exact
+      authorized tuple plan before commit. Its deterministic receipt binds the
+      database, intent, attempt, ASP transaction, request/application-context/
+      plan/exact-transaction fingerprints, and adjacent revisions. Restart
+      reconciles completion loss through authoritative exact ASP transaction
+      lookup; identity reuse, plan detachment, transaction collision, target
+      divergence, volatile targets, writer displacement, and persisted receipt
+      tampering fail closed. The sidecar remains implementation state rather
+      than AES data, and SO/Telex/Wire/CLI/generic AET ingress remains closed.
     - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
       sidecar retains the authorized exact plan before commit and binds database,
       intent, attempt, ASP transaction, request/application-context/plan/exact
