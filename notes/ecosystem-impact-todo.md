@@ -590,6 +590,15 @@ while the wider consumer audit remains open.
       than AES claims, and its fingerprint is neither a signature nor an AEON
       security envelope. Generic AET receipts and independently verifiable
       authorization evidence remain open.
+    - [x] Explicit SO application dispatch: a closed host-neutral envelope now
+      binds the named scalar-replacement application to one `asp.v0` substrate
+      and database, distinct intent/attempt/transaction identities, actor,
+      optional audit metadata, and the exact replacement input. The ASP adapter
+      negotiates its required durable capabilities before callbacks or journal
+      writes, preserves phase/outcome diagnostics, and returns the same receipt
+      as direct durable execution. Fresh origin remains trusted host context.
+      This is separate from the SANSA mutation envelope and advertises no Telex,
+      Wire, CLI, bare-event, or generic transaction ingress.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
