@@ -765,6 +765,20 @@ while the wider consumer audit remains open.
       tuples fail closed. The result names no application contract and grants no
       deletion, insertion, transaction, durability, SO, Wire/CLI, bare-event,
       generic AET, or Telex-ingress authority.
+    - [x] Named recursive material-content replacement application: the closed
+      `aes.application.asp.recursive-material-content-replacement.v0-candidate`
+      request joins exact multi-owner preflight with the recursive inverse. It
+      retains the root binding and root-owned metadata, attributes, provenance,
+      and contract; tombstones all current descendant owners deepest-first; and
+      inserts the reconstructed nested owner set atomically under one root-
+      revision precondition. Descendant contracts fail closed. The effective
+      consumer-selected value-nesting limit is retained in the prepared plan.
+      Complete AES validation and exact candidate reprojection prevent storage
+      ordering from changing the supplied event sequence. Request, candidate,
+      and plan authorization remain distinct, and stale/no-op/widened requests
+      publish nothing. The direct result is process-local evidence only;
+      durability, SO, Wire/CLI, bare-event, generic AET, and Telex ingress remain
+      later gates.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
