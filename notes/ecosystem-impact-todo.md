@@ -712,6 +712,19 @@ while the wider consumer audit remains open.
       metadata/attributes, nested material owners, tuples, and nodes fail closed
       pending richer reconstruction. The result has no application, operation,
       transaction, durable receipt, SO route, or Telex ingress.
+    - [x] Named flat material-content replacement application: the closed
+      `aes.application.asp.flat-material-content-replacement.v0-candidate`
+      request joins exact multi-owner preflight with the flat inverse. It keeps
+      the root binding and its metadata/attributes/provenance/root contracts,
+      tombstones every current descendant binding deepest-first, and inserts
+      the reconstructed direct children atomically under one root-revision
+      precondition. Descendant contracts fail closed. Complete AES validation
+      runs before candidate preparation, and exact candidate reprojection
+      prevents ASP v0 canonical binding order from silently changing requested
+      object event order. Request, candidate, and plan authorization remain
+      separate; no-op, widened, stale, and denied requests publish nothing.
+      Durability, receipts, SO dispatch, Wire/CLI, Telex ingress, and generic AET
+      authority remain closed.
     - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
       sidecar retains the authorized exact plan before commit and binds database,
       intent, attempt, ASP transaction, request/application-context/plan/exact
