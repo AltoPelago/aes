@@ -576,9 +576,20 @@ while the wider consumer audit remains open.
       resolved-plan authorization, exact candidate validation, and an atomic
       root-revision precondition. Unknown fields fail before authorization.
       Telex and bare AES streams remain non-actionable, while generic
-      transaction carrier, integrity, encryption, limits, and durable receipt
-      gates remain open. Local unit and ASP conformance vectors cover the
-      candidate without making a public AES transaction conformance claim.
+      transaction carrier, integrity, encryption, and profile-limit gates remain
+      open. Local unit and ASP conformance vectors cover the candidate without
+      making a public AES transaction conformance claim.
+    - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
+      sidecar retains the authorized exact plan before commit and binds database,
+      intent, attempt, ASP transaction, request/application-context/plan/exact
+      transaction fingerprints, and source/commit revisions in a deterministic
+      receipt. Restart reconciles completion loss through exact durable ASP
+      transaction lookup; context reuse, collisions, divergence, volatile
+      targets, and tampering fail closed. The sidecar does not write into user
+      paths, its 10,000-entry/16-MiB bounds are implementation limits rather
+      than AES claims, and its fingerprint is neither a signature nor an AEON
+      security envelope. Generic AET receipts and independently verifiable
+      authorization evidence remain open.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
