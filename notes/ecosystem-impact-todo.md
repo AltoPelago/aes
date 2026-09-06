@@ -614,9 +614,19 @@ while the wider consumer audit remains open.
       post-retarget event sequence and exact prepared ASP candidate, preserves
       reference kind and surrounding metadata, and reconstructs at most one
       binding or direct attribute under request and resolved-plan authorization
-      plus an atomic root-revision precondition. This checkpoint has only
-      process-local commit evidence; durable receipt, SO dispatch, Telex/Wire
-      ingress, and generic AET authority remain closed.
+      plus an atomic root-revision precondition. The direct helper returns only
+      process-local commit evidence; SO dispatch, Telex/Wire ingress, and
+      generic AET authority remain closed.
+    - [x] Durable reference-retarget receipt: a separate domain-separated,
+      fsync-backed, fenced single-writer journal retains the exact authorized
+      plan before commit and binds database, intent, attempt, ASP transaction,
+      request/application-context/plan/transaction fingerprints, and adjacent
+      revisions in a deterministic receipt. Restart uses exact target
+      transaction lookup to reconcile completion loss. Identity collision,
+      request/plan detachment, target divergence, transaction collision,
+      volatile targets, writer displacement, and receipt tampering fail closed.
+      The receipt is neither independent policy evidence nor an AEON security
+      envelope; SO dispatch and public ingress remain closed.
     - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
       sidecar retains the authorized exact plan before commit and binds database,
       intent, attempt, ASP transaction, request/application-context/plan/exact
