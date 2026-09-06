@@ -659,6 +659,17 @@ while the wider consumer audit remains open.
       material object/list containers fail closed. The result is semantically
       lossless for the admitted slice but has no application, operation,
       transaction, receipt, or SO authority.
+    - [x] Named tuple-content replacement application candidate: the closed
+      `aes.application.asp.tuple-content-replacement.v0-candidate` request joins
+      the one-owner tuple topology preflight with the pure tuple inverse. It
+      retains the existing root identity, combined datatype, attributes, and
+      order; validates both the complete post-replacement portable event view
+      and exact prepared ASP candidate; and rewrites one binding or direct
+      attribute under request and resolved-plan authorization plus an atomic
+      root-revision precondition. Direct, binding-attribute, and contained node
+      owner vectors cover the candidate. Transported provenance remains
+      rejected, trusted origin is host context, and journal/SO/Telex/Wire/CLI
+      and generic AET authority remain closed.
     - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
       sidecar retains the authorized exact plan before commit and binds database,
       intent, attempt, ASP transaction, request/application-context/plan/exact
