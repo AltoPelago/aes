@@ -551,9 +551,9 @@ while the wider consumer audit remains open.
     expanded node paths, split datatype components, and independently retained
     identities. Existing visible stable-order projections feed the same adapter
     and preserve the identity-to-index association and record order.
-  - [ ] Define and implement source/event address translation at the mutation
-    boundary before expanded node-head or attribute paths are accepted as SO or
-    ASP operation targets.
+  - [ ] Complete source/event address translation and application semantics for
+    expanded node-head, inline-descendant, and nested-attribute mutation before
+    those paths are accepted as SO or ASP operation targets.
     - [x] ASP reader-side prerequisite: a named read-context path index maps
       explicit structural source routes bidirectionally to portable event
       paths, covers recursively expanded node heads, and rejects ambiguous
@@ -567,6 +567,18 @@ while the wider consumer audit remains open.
       nested attributes, other operations, and stale/substituted context fail
       closed. Successful preflight remains non-actionable, names no application
       contract, and produces no ASP operation or transaction.
+    - [x] First named ASP application candidate: the closed
+      `aes.application.asp.scalar-replacement.v0-candidate` request admits only
+      value replacement of an existing storage-native scalar binding or direct
+      attribute. It preserves kind, combined datatype, structural identity,
+      nested attributes, and order; drops stale source lexeme/provenance; and
+      requires distinct intent/attempt/ASP transaction identities, request and
+      resolved-plan authorization, exact candidate validation, and an atomic
+      root-revision precondition. Unknown fields fail before authorization.
+      Telex and bare AES streams remain non-actionable, while generic
+      transaction carrier, integrity, encryption, limits, and durable receipt
+      gates remain open. Local unit and ASP conformance vectors cover the
+      candidate without making a public AES transaction conformance claim.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
