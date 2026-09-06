@@ -487,8 +487,13 @@ while the wider consumer audit remains open.
   snippets, apply Telex syntax and AES semantic validation, report
   completeness, and optionally materialize complete portable streams without
   changing the existing AEON default.
-- [ ] `altopelago/aeon-tooling`: inventory commands and interchange surfaces
-  that consume or emit AES-shaped JSON.
+- [x] `altopelago/aeon-tooling`: inventory commands and interchange surfaces
+  that consume or emit AES-shaped JSON. The audit found no production
+  serialized AES boundary: VS Code/AEOS validation and Neon canonicalization
+  use same-process objects. The standalone CTS runner's JSON is the
+  `cts.protocol.v1` control envelope, not portable interchange; it now forwards
+  explicit portable-AES cases and preserves structural identities while keeping
+  Telex conformance in the Telex lane.
 - [ ] `altopelago/aeon-tonics`: update canonical rendering, formatting,
   conversion, editing addresses, and node/attribute handling.
 
