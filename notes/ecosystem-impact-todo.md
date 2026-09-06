@@ -650,9 +650,12 @@ while the wider consumer audit remains open.
       at `TupleLiteral` reconstructs nested tuple/scalar/reference ASP values,
       enforces exact boundaries and contiguous indices, and resolves portable
       reference targets outside the replacement against the immutable read.
-      References into the replacement remain closed because the old occurrence
-      index cannot identify new fragment-local targets. Mandatory separate payload
-      and result direct-item counts both match the decoded arity for this full-
+      Fragment-local reference targets must identify exactly one event in the
+      closed replacement and translate by their indexed suffix relative to the
+      selected tuple owner's legacy path; this preserves contained node-head
+      shifts without using structural identity as path identity. Missing or
+      non-indexed local targets fail closed. Mandatory separate payload and
+      result direct-item counts both match the decoded arity for this full-
       replacement slice, including explicit zero for empty tuples. Existing
       occurrence metadata/attributes remain target-owned; inline identity,
       datatype components, provenance/span, attributes, nested nodes, and
@@ -680,6 +683,26 @@ while the wider consumer audit remains open.
       divergence, volatile targets, writer displacement, and persisted receipt
       tampering fail closed. The sidecar remains implementation state rather
       than AES data, and SO/Telex/Wire/CLI/generic AET ingress remains closed.
+    - [x] Explicit tuple-content SO dispatch: the shared closed application
+      envelope now has a third mutually exclusive input shape carrying the
+      portable tuple fragment and both direct-item counts. The ASP adapter
+      negotiates the exact tuple application, bound database, closed fragment,
+      complete result validation, portable inverse, reference translation,
+      one-owner reconstruction, candidate preparation, atomic revision,
+      durable commit/lookup, and receipt journal capabilities. Direct durable
+      and SO execution return identical receipt bytes while phase-specific
+      policy and validation failures remain visible. Trusted origin stays host
+      context, `telexIngress` is false, and Wire/CLI/bare-event/generic AET
+      ingress remain closed.
+    - [x] Fragment-local tuple references: clone and pointer payloads may target
+      the replacement tuple itself or any exactly present indexed occurrence in
+      the same closed fragment. Translation is rooted in the selected immutable
+      source occurrence, so tuples beneath a portable node head preserve the
+      synthetic `[0]` shift while ASP stores the corresponding legacy path.
+      Unit, application, and fixed conformance vectors cover direct and
+      node-contained mappings. This adds no identity-based addressing, nested
+      node/material-container support, Telex ingress, or broader mutation
+      authority.
     - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
       sidecar retains the authorized exact plan before commit and binds database,
       intent, attempt, ASP transaction, request/application-context/plan/exact
