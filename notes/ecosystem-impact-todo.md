@@ -552,26 +552,31 @@ while the wider consumer audit remains open.
     identities. Existing visible stable-order projections feed the same adapter
     and preserve the identity-to-index association and record order.
   - [ ] Complete source/event address translation and application semantics for
-    expanded node-head, inline-descendant, and nested-attribute mutation before
-    those paths are accepted as SO or ASP operation targets.
+    expanded node-head and non-scalar inline-descendant mutation before those
+    paths are accepted as SO or ASP operation targets.
     - [x] ASP reader-side prerequisite: a named read-context path index maps
       explicit structural source routes bidirectionally to portable event
       paths, covers recursively expanded node heads, and rejects ambiguous
       legacy attribute-reference spellings. Portable projection verifies its
       path sequence against the same index. Identity remains metadata and the
-      mutation admission gate remains closed.
+      index alone grants no mutation authority.
     - [x] ASP mutation-target preflight: consume the reverse index with exact
-      source-revision and portable-kind expectations, classifying only existing
-      scalar bindings and direct binding attributes as storage-native
-      replacement candidates. Containers, references, heads, inline children,
-      nested attributes, other operations, and stale/substituted context fail
-      closed. Successful preflight remains non-actionable, names no application
-      contract, and produces no ASP operation or transaction.
+      source-revision and portable-kind expectations. Existing scalar bindings
+      and direct binding attributes are storage-native candidates; scalar tuple
+      items, node children, node-head attributes, and nested binding attributes
+      are contained candidates through one exact storage owner. Containers,
+      references, heads, non-scalar descendants, other operations, and
+      stale/substituted context fail closed. Successful preflight remains
+      non-actionable, names no application contract, and produces no ASP
+      operation or transaction.
     - [x] First named ASP application candidate: the closed
       `aes.application.asp.scalar-replacement.v0-candidate` request admits only
-      value replacement of an existing storage-native scalar binding or direct
-      attribute. It preserves kind, combined datatype, structural identity,
-      nested attributes, and order; drops stale source lexeme/provenance; and
+      value replacement of one existing scalar occurrence. Direct targets map
+      to their native ASP operation; contained tuple items, node children,
+      node-head attributes, and nested binding attributes rebuild exactly one
+      existing binding or direct attribute. It preserves kind, combined
+      datatype, structural identity, siblings, nested attributes, and order;
+      drops stale source lexeme/provenance on changed records; and
       requires distinct intent/attempt/ASP transaction identities, request and
       resolved-plan authorization, exact candidate validation, and an atomic
       root-revision precondition. Unknown fields fail before authorization.
@@ -579,6 +584,13 @@ while the wider consumer audit remains open.
       transaction carrier, integrity, encryption, and profile-limit gates remain
       open. Local unit and ASP conformance vectors cover the candidate without
       making a public AES transaction conformance claim.
+    - [x] Contained scalar lowering: portable source routes now select one exact
+      ASP storage owner and replace only the scalar leaf within its cloned value
+      or attribute tree. The application emits one atomic `put_assignment` or
+      `put_attribute`, distinguishes contained from native capability, and is
+      covered by fixed node-child, node-head-attribute, tuple-item, and nested
+      attribute vectors plus durable SO dispatch. Node-head, reference,
+      container, non-scalar, and multi-owner structural mutation remain closed.
     - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
       sidecar retains the authorized exact plan before commit and binds database,
       intent, attempt, ASP transaction, request/application-context/plan/exact
