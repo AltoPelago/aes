@@ -204,8 +204,10 @@ while the wider consumer audit remains open.
   language parser surfaces accept the portable `%NodeHead` filter, and experimental
   SANSA Resolve snapshot 0.2 locks expansion, parent, attribute, nested-node,
   and legacy collapsed-path behavior.
-- [ ] Update AEOS datatype and cardinality validation for the AEON requirement
-  of exactly one node head.
+- [x] Update AEOS datatype and cardinality validation for the AEON requirement
+  of exactly one node head. Complete Telex validation establishes the single
+  `[0]` head invariant before AEOS applies schema rules, while AEOS cardinality
+  counts the indexed content beneath that head.
 - [ ] Update Tonics and other editing tools that address node-head metadata
   through node-specific commands or legacy child paths.
 
@@ -520,7 +522,18 @@ while the wider consumer audit remains open.
     `origin`/`span`. Create, remove, insert, move, container/node-head changes,
     and reference rewrites remain rejected until the portable path-rewrite and
     reference-translation contract is specified.
-- [ ] AEOS: update datatype, cardinality, kind, node-head, and WTC validation.
+- [x] AEOS: update datatype, cardinality, kind, node-head, and WTC validation.
+  - [x] TypeScript, Rust, and Python accept complete Telex directly, preserve
+    normative representation kinds, reconstruct split datatype components for
+    schema comparison, and validate flat attributes without adding structural
+    identity to path identity.
+  - [x] Explicit adapter vectors cover `NodeLiteral`/`NodeHead` paths and
+    content cardinality. The shared AES Events and Telex snapshot vectors cover
+    the complete WTC anchor/reference matrix, lexical preservation, and exact
+    lowercase `local`.
+  - [x] The rollout audit fixed detached portable attributes in TypeScript, an
+    empty-stream normalization bug in Python AEOS Telex validation, and string
+    rather than numeric portable indexes in the Rust AEOS adapter.
 - [ ] SO: add an explicit portable-AES adapter instead of treating current
   TypeScript AST-shaped values as the interchange contract.
 - [ ] SO: update candidate construction, validation, stable-order scopes, and
