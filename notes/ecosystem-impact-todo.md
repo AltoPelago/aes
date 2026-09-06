@@ -494,8 +494,14 @@ while the wider consumer audit remains open.
   `cts.protocol.v1` control envelope, not portable interchange; it now forwards
   explicit portable-AES cases and preserves structural identities while keeping
   Telex conformance in the Telex lane.
-- [ ] `altopelago/aeon-tonics`: update canonical rendering, formatting,
-  conversion, editing addresses, and node/attribute handling.
+- [x] `altopelago/aeon-tonics`: audit canonical rendering, formatting,
+  conversion, editing addresses, and node/attribute handling. Native
+  `AssignmentEvent[]` remains the same-process API; legacy AES JSON routes are
+  explicit compatibility surfaces. `aes-diff` now validates, compares,
+  patches, and re-emits complete Telex, while `aeon-edit` exports complete
+  Telex with document headers opt-in. The workspace audit records the
+  `$.a`/`$.a[0]`/`$.a[0][0]` translation, attribute ownership, identity,
+  datatype-component, header, and ordering contracts.
 
 ### Semantic, operational, and persistence consumers
 
@@ -506,8 +512,14 @@ while the wider consumer audit remains open.
     spaces, datatype components, structural identities, and the explicit
     `NodeLiteral` → `NodeHead` → content hierarchy remain independent of path
     identity; partial streams fail closed without external namespace state.
-  - [ ] Extend the portable adapter deliberately to mutation/editing surfaces
-    once their source reconstruction and write-target contracts are defined.
+  - [x] Extend the portable adapter deliberately to the first unambiguous
+    mutation/editing surface. SANSA now accepts complete Telex directly for
+    exact scalar replacement and re-emits complete Telex without AEON source
+    reconstruction. It preserves event order, paths, identities, datatype
+    components, and flat attributes; the changed event drops stale
+    `origin`/`span`. Create, remove, insert, move, container/node-head changes,
+    and reference rewrites remain rejected until the portable path-rewrite and
+    reference-translation contract is specified.
 - [ ] AEOS: update datatype, cardinality, kind, node-head, and WTC validation.
 - [ ] SO: add an explicit portable-AES adapter instead of treating current
   TypeScript AST-shaped values as the interchange contract.
