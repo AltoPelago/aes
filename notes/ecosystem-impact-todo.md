@@ -479,13 +479,14 @@ while the wider consumer audit remains open.
     Telex recombines them only at the wire boundary.
   - [x] Rust and Python: the portable projections now expose all three fields
     and Telex recombines them only at the wire boundary.
-- [ ] `altopelago/aeon-php`: implement the same portable contract and shared
+- [x] `altopelago/aeon-php`: implement the same portable contract and shared
   CTS coverage rather than treating PHP as a later compatibility exercise.
-- [ ] `altopelago/aeon-php`: expose the same recursive datatype structure when
-  its portable projection is added; never decode numeric arguments through a
-  PHP numeric type.
-- [ ] `altopelago/aeon-validator`: update validation and diagnostics for the
-  revised event shape and path model.
+- [x] `altopelago/aeon-php`: expose the same recursive datatype structure in
+  its portable projection; numeric arguments remain strings.
+- [x] `altopelago/aeon-validator`: accept explicitly identified AEON or Telex
+  snippets, apply Telex syntax and AES semantic validation, report
+  completeness, and optionally materialize complete portable streams without
+  changing the existing AEON default.
 - [ ] `altopelago/aeon-tooling`: inventory commands and interchange surfaces
   that consume or emit AES-shaped JSON.
 - [ ] `altopelago/aeon-tonics`: update canonical rendering, formatting,
@@ -495,6 +496,13 @@ while the wider consumer audit remains open.
 
 - [ ] SANSA: update structural navigation, ownership, scope, reference
   resolution, and source-path/event-path translation.
+  - [x] The read-only Query CLI and workbench accept complete Telex streams
+    through a direct portable-event adapter. Record order, flat attribute
+    spaces, datatype components, structural identities, and the explicit
+    `NodeLiteral` → `NodeHead` → content hierarchy remain independent of path
+    identity; partial streams fail closed without external namespace state.
+  - [ ] Extend the portable adapter deliberately to mutation/editing surfaces
+    once their source reconstruction and write-target contracts are defined.
 - [ ] AEOS: update datatype, cardinality, kind, node-head, and WTC validation.
 - [ ] SO: add an explicit portable-AES adapter instead of treating current
   TypeScript AST-shaped values as the interchange contract.
