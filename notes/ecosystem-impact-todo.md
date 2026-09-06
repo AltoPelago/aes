@@ -723,8 +723,9 @@ while the wider consumer audit remains open.
       prevents ASP v0 canonical binding order from silently changing requested
       object event order. Request, candidate, and plan authorization remain
       separate; no-op, widened, stale, and denied requests publish nothing.
-      Durability, receipts, SO dispatch, Wire/CLI, Telex ingress, and generic AET
-      authority remain closed.
+      The direct helper returns process-local evidence only; durability and SO
+      dispatch are selected separately below, while Wire/CLI, Telex ingress,
+      and generic AET authority remain closed.
     - [x] Candidate-specific flat material-content durable receipt: an
       fsync-backed, single-writer sidecar retains the authorized exact
       multi-owner plan—including the ordered tombstone and insertion set—before
@@ -738,15 +739,20 @@ while the wider consumer audit remains open.
       claims, and its fingerprint is neither a signature nor an AEON security
       envelope. Generic AET receipts and independently verifiable authorization
       evidence remain open.
-    - [x] Explicit SO application dispatch: a closed host-neutral envelope now
-      binds the named scalar-replacement application to one `asp.v0` substrate
-      and database, distinct intent/attempt/transaction identities, actor,
-      optional audit metadata, and the exact replacement input. The ASP adapter
-      negotiates its required durable capabilities before callbacks or journal
-      writes, preserves phase/outcome diagnostics, and returns the same receipt
-      as direct durable execution. Fresh origin remains trusted host context.
-      This is separate from the SANSA mutation envelope and advertises no Telex,
-      Wire, CLI, bare-event, or generic transaction ingress.
+    - [x] Explicit flat material-content SO dispatch: the shared closed
+      host-neutral envelope now has a fourth application input alternative.
+      `replacementEvents` identifies structural content while `expectedKind`
+      discriminates tuple content from the admitted `ObjectNode`/`ListNode`
+      material roots. The ASP adapter binds the named application to one
+      `asp.v0` substrate and database and negotiates complete fragment/result
+      validation, flat inverse translation, exact multi-owner reconstruction,
+      candidate preparation, atomic revision, durable commit/lookup, and
+      receipt-journal capabilities. Request, candidate, and plan policy phases
+      remain distinct. Direct durable and SO execution return identical receipt
+      bytes. Fresh origin remains trusted host context; descendant contracts
+      and richer material descendants fail closed. This remains separate from
+      SANSA mutation and advertises no Telex, Wire, CLI, bare-event, or generic
+      transaction ingress.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
