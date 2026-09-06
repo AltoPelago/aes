@@ -637,6 +637,28 @@ while the wider consumer audit remains open.
       execution return identical durable receipt bytes. Trusted origin remains
       host context, `telexIngress` is false, and Wire/CLI/bare-event/generic AET
       ingress remain closed.
+    - [x] Structural replacement topology preflight: direct and contained
+      `TupleLiteral` subtrees are classified as ordered one-owner inline
+      candidates and report their exact source route and current event paths,
+      but remain non-actionable with no replacement or transaction.
+      `NodeLiteral`/`NodeHead` remain behind head-aware storage;
+      `ObjectNode`/`ListNode` require a multi-owner subtree application over
+      independently stored bindings. The next gate is a closed tuple-only
+      portable subtree inverse plus structural authorization and explicit
+      payload/result-state count semantics.
+    - [x] Tuple-content inverse prerequisite: a closed preorder fragment rooted
+      at `TupleLiteral` reconstructs nested tuple/scalar/reference ASP values,
+      enforces exact boundaries and contiguous indices, and resolves portable
+      reference targets outside the replacement against the immutable read.
+      References into the replacement remain closed because the old occurrence
+      index cannot identify new fragment-local targets. Mandatory separate payload
+      and result direct-item counts both match the decoded arity for this full-
+      replacement slice, including explicit zero for empty tuples. Existing
+      occurrence metadata/attributes remain target-owned; inline identity,
+      datatype components, provenance/span, attributes, nested nodes, and
+      material object/list containers fail closed. The result is semantically
+      lossless for the admitted slice but has no application, operation,
+      transaction, receipt, or SO authority.
     - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
       sidecar retains the authorized exact plan before commit and binds database,
       intent, attempt, ASP transaction, request/application-context/plan/exact
