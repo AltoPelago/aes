@@ -554,6 +554,12 @@ while the wider consumer audit remains open.
   - [ ] Define and implement source/event address translation at the mutation
     boundary before expanded node-head or attribute paths are accepted as SO or
     ASP operation targets.
+    - [x] ASP reader-side prerequisite: a named read-context path index maps
+      explicit structural source routes bidirectionally to portable event
+      paths, covers recursively expanded node heads, and rejects ambiguous
+      legacy attribute-reference spellings. Portable projection verifies its
+      path sequence against the same index. Identity remains metadata and the
+      mutation admission gate remains closed.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
