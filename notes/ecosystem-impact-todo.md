@@ -591,6 +591,32 @@ while the wider consumer audit remains open.
       covered by fixed node-child, node-head-attribute, tuple-item, and nested
       attribute vectors plus durable SO dispatch. Node-head, reference,
       container, non-scalar, and multi-owner structural mutation remain closed.
+    - [x] Node-head replacement decision: do not register an application on ASP
+      v0. Portable heads may own identity, datatype components, attributes,
+      origin/span, and independent cardinality, while ASP v0 stores only one
+      implicit tag and synthesizes `[0]` on export. Preflight now returns
+      `AES_COMPAT_NODE_HEAD_STORAGE_REQUIRED`; SO classifies it as an unsupported
+      target without candidate, journal, or commit effects. A future application
+      requires a versioned head-aware ASP record/writer contract and
+      mixed-history vectors first.
+    - [x] Reference payload translation prerequisite: portable reference targets
+      now reverse through the same occurrence index to an ASP path only when
+      round-tripping selects the identical non-head occurrence. Synthetic
+      `NodeHead` targets and portable targets that collapse to an ambiguous
+      legacy attribute spelling fail closed. A closed clone/pointer retarget
+      preflight preserves reference kind, binds the exact revision and proposed
+      target, and identifies one storage owner, but remains non-actionable with
+      no application contract, operation, transaction, or receipt.
+    - [x] Named reference-retarget application candidate: the closed
+      `aes.application.asp.reference-retarget.v0-candidate` request selects one
+      existing clone or pointer occurrence and changes only its target payload.
+      It reverse-translates the portable target, validates the complete
+      post-retarget event sequence and exact prepared ASP candidate, preserves
+      reference kind and surrounding metadata, and reconstructs at most one
+      binding or direct attribute under request and resolved-plan authorization
+      plus an atomic root-revision precondition. This checkpoint has only
+      process-local commit evidence; durable receipt, SO dispatch, Telex/Wire
+      ingress, and generic AET authority remain closed.
     - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
       sidecar retains the authorized exact plan before commit and binds database,
       intent, attempt, ASP transaction, request/application-context/plan/exact
