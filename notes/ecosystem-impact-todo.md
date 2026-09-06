@@ -400,10 +400,17 @@ while the wider consumer audit remains open.
   - [x] TypeScript: `compileToTelex()`/`exportTelex()` and CLI
     `inspect --telex --include-headers` emit ordered header-plane records before
     portable body records; body-only remains the default.
+  - [x] Rust: Core/SDK export and CLI `inspect --telex --include-headers`
+    preserve header binding order and keep body-only export as the default.
+  - [x] Python: Core/API export and CLI `inspect --telex --include-headers`
+    preserve header binding order and keep body-only export as the default.
 - [ ] Audit remaining TypeScript public AES surfaces for synthetic header
   leakage, and update PHP's default body stream and explicit document adapter.
 - [ ] Update finalizers and SDKs so existing payload/header/full views consume
   the two planes deliberately rather than filtering records by key prefix.
+  - [x] TypeScript, Rust, and Python portable JSON materializers consume the
+    explicit planes; their SDK and CLI surfaces expose payload/header/full
+    scope deliberately.
 - [ ] Correct the AEON integrity appendix statement that convention headers are
   body state; it must distinguish body semantic coverage from explicit document
   coverage.
@@ -452,6 +459,14 @@ while the wider consumer audit remains open.
     encoder was measured and rejected: for JavaScript-resident records it was
     27–45% slower than the optimized TypeScript encoder despite the native Rust
     encoder being about seven times faster than TypeScript at limit scale.
+  - [x] Rust: expose Core event/source export, SDK Telex read/write, direct
+    portable materialization, AEOS validation, and CLI decode/canonicalize/
+    materialize/export while retaining the legacy in-memory APIs.
+  - [x] Python: expose Core event/source export, API Telex read/write, direct
+    portable materialization, AEOS validation, and CLI decode/canonicalize/
+    materialize/export while retaining the legacy in-memory APIs. The shared
+    AES Events and Telex snapshot suites pass 38/38 and 50/50; Python output is
+    byte-identical to TypeScript and Rust on the full-feature stress fixture.
   - [ ] Promote `aes-telex` from its unpublished `0.0.0` reference-crate state
     to a versioned dependency before AEON and AES need independently releasable
     Rust/WASM build graphs. The family workspace currently uses an explicit
@@ -462,6 +477,8 @@ while the wider consumer audit remains open.
   back into one descriptor string.
   - [x] TypeScript: the portable projection now exposes all three fields and
     Telex recombines them only at the wire boundary.
+  - [x] Rust and Python: the portable projections now expose all three fields
+    and Telex recombines them only at the wire boundary.
 - [ ] `altopelago/aeon-php`: implement the same portable contract and shared
   CTS coverage rather than treating PHP as a later compatibility exercise.
 - [ ] `altopelago/aeon-php`: expose the same recursive datatype structure when
