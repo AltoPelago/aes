@@ -253,6 +253,7 @@ Compatibility adapters use stable codes; prose is not normative:
 | `AES_COMPAT_UNREPRESENTABLE` | a source occurrence has no exact target representation, including zero or multiple heads for a single-head target |
 | `AES_COMPAT_LOSS_REQUIRES_OPT_IN` | conversion would discard data without authorization |
 | `AES_COMPAT_SOURCE_REQUIRED` | exact source bytes are required for requested provenance conversion |
+| `AES_COMPAT_VIEW_INVALID` | a serialized compatibility view or its bound cache/integrity metadata is invalid |
 | `AES_COMPAT_READER_NOT_READY` | a required reader has not acknowledged the selected context |
 | `AES_COMPAT_WRITER_DISABLED` | writer activation evidence is incomplete or unhealthy |
 

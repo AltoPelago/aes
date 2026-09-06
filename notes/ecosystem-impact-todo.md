@@ -558,6 +558,9 @@ while the wider consumer audit remains open.
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
     at the portable boundary; persist the three AES components independently.
+    The named ASP v0 compatibility reader now reports this expansion explicitly
+    and leaves native three-component storage as a later, versioned writer
+    contract rather than rewriting legacy history.
   - [x] Add the missing `SansaAddressLiteral` value family or define an explicit
     versioned rejection boundary for ASP profiles that cannot store it.
     ASP now validates and stores the canonical address as a distinct value kind;
@@ -568,7 +571,9 @@ while the wider consumer audit remains open.
     AES transaction ingress.
   - [ ] Extend inline `NodeLiteral` storage if node-head identity, datatype, or
     source span must survive an ASP round trip; the current model can only
-    synthesize an unannotated head from the tag.
+    synthesize an unannotated head from the tag. The compatibility reader marks
+    that synthesized `NodeHead` in its conversion report; it does not claim the
+    missing node-head metadata was preserved.
 - [ ] ASP: update operations and origin handling for expanded paths and
   source-backed spans.
 - [ ] AES-DB: reconstruct value-less containers and explicit descendants while
@@ -594,6 +599,29 @@ while the wider consumer audit remains open.
   writes a new versioned store after backup, replay, index, and restore proof.
 - [ ] Implement named, versioned legacy-to-portable adapters and conversion
   reports for every supported implementation-specific source contract.
+  - [x] ASP: `asp.read-result.v0-to-aes.events.v0` derives a validated,
+    reader-first `aes.complete.v0` body view from immutable ASP v0 history. Its
+    report accounts for transformations, synthesis, omissions, semantic loss,
+    and explicit loss authorization. Cache coordinates bind the trusted
+    database/history identity plus exact source revision, target profile and
+    projection, and adapter version; a separate fingerprint detects altered
+    derived content. Portable writers remain disabled.
+  - [x] AES-DB/ASP: expose the ASP adapter through a read-only current and
+    historical view facade with a bounded derived-view cache. Revision changes
+    cannot hit an older view, strict reads cannot reuse authorized-loss views,
+    and explicit refresh, bypass, and scoped invalidation are available. Cache
+    state is excluded from durable history and backup artifacts; full-log
+    replay, ordinary checkpoint-bound restart, retained-checkpoint activation,
+    exact full-log and checkpoint-suffix restore, and point-in-time restore
+    reproduce the expected cache keys and content fingerprints from an initially
+    empty cache. The retained history floor is enforced before cache lookup, so
+    a cached pre-floor view cannot escape compaction policy.
+  - [x] ASP Wire v0 and `aspcli`: expose explicit strict read-only portable AES
+    views for current or selected historical database revisions. Wire requires
+    a configured portable reader and permits only scope/revision parameters;
+    the CLI does not offer semantic-loss authorization. Neither surface adds a
+    portable transaction or writer route, and the wire method has a conformance
+    fixture.
 - [ ] Rebuild or invalidate AES-DB path, datatype, attribute, reference, and
   ordered-child indexes affected by the revised projection.
 - [ ] Version persisted ASP/AES-DB records whose span units or checksummed
