@@ -573,7 +573,11 @@ while the wider consumer audit remains open.
     source span must survive an ASP round trip; the current model can only
     synthesize an unannotated head from the tag. The compatibility reader marks
     that synthesized `NodeHead` in its conversion report; it does not claim the
-    missing node-head metadata was preserved.
+    missing node-head metadata was preserved. The persistence audit confirms
+    this cannot be added transparently to ASP v0: JSON, compact AEON,
+    snapshots, and historical logs share the legacy value contract, while the
+    compact AEON parser currently discards node-head metadata. Introduce it only
+    through a versioned record/writer contract with mixed-history vectors.
 - [ ] ASP: update operations and origin handling for expanded paths and
   source-backed spans.
 - [ ] AES-DB: reconstruct value-less containers and explicit descendants while
@@ -622,6 +626,12 @@ while the wider consumer audit remains open.
     the CLI does not offer semantic-loss authorization. Neither surface adds a
     portable transaction or writer route, and the wire method has a conformance
     fixture.
+  - [x] ASP Telex export: derive canonical `telex.aes=0` only from a validated
+    named strict read view, emit `aes.complete.v0` explicitly, and retain the
+    compatibility view beside Telex on the library/Wire surfaces. `aspcli`
+    supports raw current or historical Telex export. No surface accepts Telex
+    as an actionable transaction or exposes semantic-loss authorization; Wire
+    conformance covers the encoding.
 - [ ] Rebuild or invalidate AES-DB path, datatype, attribute, reference, and
   ordered-child indexes affected by the revised projection.
 - [ ] Version persisted ASP/AES-DB records whose span units or checksummed
