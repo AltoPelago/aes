@@ -642,10 +642,9 @@ while the wider consumer audit remains open.
       candidates and report their exact source route and current event paths,
       but remain non-actionable with no replacement or transaction.
       `NodeLiteral`/`NodeHead` remain behind head-aware storage;
-      `ObjectNode`/`ListNode` require a multi-owner subtree application over
-      independently stored bindings. The next gate is a closed tuple-only
-      portable subtree inverse plus structural authorization and explicit
-      payload/result-state count semantics.
+      storage-native `ObjectNode`/`ListNode` roots are now classified as
+      multi-owner material subtrees and report their exact ordered event paths,
+      owner count, and binding paths. All topology results remain non-actionable.
     - [x] Tuple-content inverse prerequisite: a closed preorder fragment rooted
       at `TupleLiteral` reconstructs nested tuple/scalar/reference ASP values,
       enforces exact boundaries and contiguous indices, and resolves portable
@@ -703,6 +702,16 @@ while the wider consumer audit remains open.
       node-contained mappings. This adds no identity-based addressing, nested
       node/material-container support, Telex ingress, or broader mutation
       authority.
+    - [x] Flat material-container inverse: a closed `ObjectNode` or `ListNode`
+      fragment can reconstruct its ordered direct scalar/reference child
+      bindings without mutation authority. Object member paths must be direct;
+      list indices must be contiguous from zero; separate payload and result
+      counts must match the child binding count. External targets resolve
+      through the immutable read and local targets must identify an exact
+      supplied root or child. Root metadata remains target-owned, while child
+      metadata/attributes, nested material owners, tuples, and nodes fail closed
+      pending richer reconstruction. The result has no application, operation,
+      transaction, durable receipt, SO route, or Telex ingress.
     - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
       sidecar retains the authorized exact plan before commit and binds database,
       intent, attempt, ASP transaction, request/application-context/plan/exact
