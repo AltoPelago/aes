@@ -1,12 +1,10 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 
 const VERSION_LINE: &str = "telex.aes=0";
-const TELEX_FIELDS: [&str; 8] = [
-    "header", "path", "kind", "datatype", "identity", "value", "origin", "span",
-];
 const CORE_FIELDS: [&str; 10] = [
     "header",
     "path",
@@ -301,17 +299,6 @@ fn enforce_physical_limits(input: &str, limits: &TelexLimits) -> Result<(), Tele
     Ok(())
 }
 
-fn enforce_encoded_physical_limits(
-    output: &str,
-    limits: &TelexLimits,
-) -> Result<(), TelexEncodeError> {
-    enforce_encode_limit("max_input_bytes", output.len(), limits.max_input_bytes)?;
-    for line in output.split('\n') {
-        enforce_encode_limit("max_line_bytes", line.len(), limits.max_line_bytes)?;
-    }
-    Ok(())
-}
-
 fn add_encoded_payload_bytes(
     value: &str,
     limits: &TelexLimits,
@@ -322,6 +309,23 @@ fn add_encoded_payload_bytes(
         "max_decoded_payload_bytes",
         *current,
         limits.max_decoded_payload_bytes,
+    )
+}
+
+fn push_wire_line(
+    output: &mut String,
+    field: &str,
+    payload: &str,
+    limits: &TelexLimits,
+) -> Result<(), TelexEncodeError> {
+    let line_start = output.len();
+    output.push_str(field);
+    output.push('=');
+    encode_payload_into(payload, output);
+    enforce_encode_limit(
+        "max_line_bytes",
+        output.len() - line_start,
+        limits.max_line_bytes,
     )
 }
 
@@ -393,6 +397,156 @@ pub struct ValidationResult {
     pub valid: bool,
     pub profile: String,
     pub diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MissingPath {
+    pub field: Option<&'static str>,
+    pub path: String,
+    pub required_by: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompletenessResult {
+    pub complete: bool,
+    pub missing: Vec<MissingPath>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TelexCompletenessError {
+    pub detail: String,
+}
+
+impl fmt::Display for TelexCompletenessError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.detail)
+    }
+}
+
+impl Error for TelexCompletenessError {}
+
+#[derive(Debug)]
+pub enum TelexCompletenessCheckError {
+    Syntax(TelexSyntaxError),
+    Invalid(TelexCompletenessError),
+}
+
+impl fmt::Display for TelexCompletenessCheckError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Syntax(error) => error.fmt(formatter),
+            Self::Invalid(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl Error for TelexCompletenessCheckError {}
+
+impl From<TelexSyntaxError> for TelexCompletenessCheckError {
+    fn from(error: TelexSyntaxError) -> Self {
+        Self::Syntax(error)
+    }
+}
+
+impl From<TelexCompletenessError> for TelexCompletenessCheckError {
+    fn from(error: TelexCompletenessError) -> Self {
+        Self::Invalid(error)
+    }
+}
+
+pub fn check_telex_completeness(
+    input: &str,
+) -> Result<CompletenessResult, TelexCompletenessCheckError> {
+    check_telex_completeness_with_limits(input, &TelexLimits::default())
+}
+
+pub fn check_telex_completeness_with_limits(
+    input: &str,
+    limits: &TelexLimits,
+) -> Result<CompletenessResult, TelexCompletenessCheckError> {
+    let parsed = parse_telex_with_limits(input, limits)?;
+    Ok(check_prefix_completeness(
+        &parsed.records,
+        parsed.projection.as_deref(),
+    )?)
+}
+
+pub fn check_prefix_completeness(
+    records: &[TelexRecord],
+    projection: Option<&str>,
+) -> Result<CompletenessResult, TelexCompletenessError> {
+    let mut body_paths = HashSet::new();
+    let mut header_paths = HashSet::new();
+
+    for (index, record) in records.iter().enumerate() {
+        let address_field = record_address_field(record).ok_or_else(|| TelexCompletenessError {
+            detail: format!(
+                "Telex record {} must have exactly one string address field",
+                index + 1
+            ),
+        })?;
+        if address_field == AddressField::Header && projection != Some(AEON_DOCUMENT_PROJECTION) {
+            return Err(TelexCompletenessError {
+                detail: format!(
+                    "Telex record {} requires projection '{AEON_DOCUMENT_PROJECTION}'",
+                    index + 1
+                ),
+            });
+        }
+        let Some(address) = record.get(address_field.name()) else {
+            return Err(TelexCompletenessError {
+                detail: format!(
+                    "Telex record {} must have exactly one string address field",
+                    index + 1
+                ),
+            });
+        };
+        match address_field {
+            AddressField::Path => {
+                body_paths.insert(address);
+            }
+            AddressField::Header => {
+                header_paths.insert(address);
+            }
+        }
+    }
+
+    let mut missing = Vec::new();
+    let mut reported = HashSet::new();
+    for record in records {
+        let Some(address_field) = record_address_field(record) else {
+            continue;
+        };
+        let Some(address) = record.get(address_field.name()) else {
+            continue;
+        };
+        let details = parse_canonical_data_path(address)
+            .map_err(|detail| TelexCompletenessError { detail })?;
+        let available = match address_field {
+            AddressField::Path => &body_paths,
+            AddressField::Header => &header_paths,
+        };
+        for prefix in details
+            .prefixes
+            .iter()
+            .take(details.prefixes.len().saturating_sub(1))
+        {
+            let report_key = (address_field, prefix.clone());
+            if available.contains(prefix.as_str()) || !reported.insert(report_key) {
+                continue;
+            }
+            missing.push(MissingPath {
+                field: (address_field == AddressField::Header).then_some("header"),
+                path: prefix.clone(),
+                required_by: address.to_owned(),
+            });
+        }
+    }
+
+    Ok(CompletenessResult {
+        complete: missing.is_empty(),
+        missing,
+    })
 }
 
 pub fn parse_telex(input: &str) -> Result<ParsedTelex, TelexSyntaxError> {
@@ -686,25 +840,27 @@ pub fn encode_telex_with_projection_and_limits(
         ));
     }
 
-    let mut header = VERSION_LINE.to_owned();
+    let mut encoded = String::with_capacity(records.len().saturating_mul(60));
+    encoded.push_str(VERSION_LINE);
+    enforce_encode_limit("max_line_bytes", VERSION_LINE.len(), limits.max_line_bytes)?;
     let mut decoded_payload_bytes = 0_usize;
     if let Some(profile) = profile {
         add_encoded_payload_bytes(profile, limits, &mut decoded_payload_bytes)?;
-        header.push_str("\nprofile=");
-        header.push_str(&encode_payload(profile));
+        encoded.push('\n');
+        push_wire_line(&mut encoded, "profile", profile, limits)?;
     }
     if let Some(projection) = projection {
         add_encoded_payload_bytes(projection, limits, &mut decoded_payload_bytes)?;
-        header.push_str("\nprojection=");
-        header.push_str(&encode_payload(projection));
+        encoded.push('\n');
+        push_wire_line(&mut encoded, "projection", projection, limits)?;
     }
     if records.is_empty() {
-        header.push('\n');
-        enforce_encoded_physical_limits(&header, limits)?;
-        return Ok(header);
+        encoded.push('\n');
+        enforce_encode_limit("max_input_bytes", encoded.len(), limits.max_input_bytes)?;
+        return Ok(encoded);
     }
 
-    let mut stanzas = Vec::with_capacity(records.len());
+    encoded.push_str("\n\n");
     for (record_index, record) in records.iter().enumerate() {
         if record.fields.is_empty() {
             return Err(TelexEncodeError::new(format!(
@@ -712,37 +868,46 @@ pub fn encode_telex_with_projection_and_limits(
                 record_index + 1
             )));
         }
-        let mut fields = wire_fields(record, limits).map_err(TelexEncodeError::new)?;
         enforce_encode_limit(
             "max_fields_per_event",
-            fields.len(),
+            record.fields.len(),
             limits.max_fields_per_event,
         )?;
-        let mut seen = HashSet::new();
-        for (field, value) in &fields {
+        for (field_index, (field, _)) in record.fields.iter().enumerate() {
             if !valid_field_name(field) {
                 return Err(TelexEncodeError::new(format!(
                     "Invalid Telex field name: {field}"
                 )));
             }
-            if !seen.insert(field.as_str()) {
+            if record.fields[..field_index]
+                .iter()
+                .any(|(existing, _)| existing == field)
+            {
                 return Err(TelexEncodeError::new(format!(
                     "Duplicate Telex field: {field}"
                 )));
             }
+        }
+        let mut fields = wire_fields(record, limits).map_err(TelexEncodeError::new)?;
+        for (_, value) in &fields {
             add_encoded_payload_bytes(value, limits, &mut decoded_payload_bytes)?;
         }
-        fields.sort_by(|left, right| compare_fields(&left.0, &right.0));
-        let stanza = fields
-            .iter()
-            .map(|(field, value)| format!("{field}={}", encode_payload(value)))
-            .collect::<Vec<_>>()
-            .join("\n");
-        stanzas.push(stanza);
+        if !has_canonical_wire_field_order(&fields) {
+            fields.sort_by(|left, right| compare_fields(left.0, right.0));
+        }
+        for (field_index, (field, value)) in fields.iter().enumerate() {
+            if field_index > 0 {
+                encoded.push('\n');
+            }
+            push_wire_line(&mut encoded, field, value, limits)?;
+        }
+        if record_index + 1 < records.len() {
+            encoded.push_str("\n\n");
+        }
     }
 
-    let encoded = format!("{header}\n\n{}\n", stanzas.join("\n\n"));
-    enforce_encoded_physical_limits(&encoded, limits)?;
+    encoded.push('\n');
+    enforce_encode_limit("max_input_bytes", encoded.len(), limits.max_input_bytes)?;
     Ok(encoded)
 }
 
@@ -1457,7 +1622,7 @@ fn invalid_node_head(candidate: &EventCandidate<'_>) -> Diagnostic {
     .at_record(candidate.index, candidate.address)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum AddressField {
     Path,
     Header,
@@ -1764,18 +1929,36 @@ fn decode_wire_record(
     ))
 }
 
-fn wire_fields(
-    record: &TelexRecord,
+fn wire_fields<'a>(
+    record: &'a TelexRecord,
     limits: &TelexLimits,
-) -> Result<Vec<(String, String)>, String> {
-    let mut fields = record.fields.clone();
-    if let Some(descriptor) = &record.datatype {
+) -> Result<Vec<(&'a str, Cow<'a, str>)>, String> {
+    let mut wire_datatype = if let Some(descriptor) = &record.datatype {
         validate_datatype_descriptor(descriptor, limits).map_err(|(_, detail)| detail)?;
-        let encoded = format_datatype_descriptor(descriptor);
-        let Some((_, value)) = fields.iter_mut().find(|(field, _)| field == "datatype") else {
-            return Err("A structured datatype requires the logical datatype field".to_owned());
-        };
-        *value = encoded;
+        Some(
+            if descriptor.generics.is_empty() && descriptor.clarifiers.is_empty() {
+                Cow::Borrowed(descriptor.datatype.as_str())
+            } else {
+                Cow::Owned(format_datatype_descriptor(descriptor))
+            },
+        )
+    } else {
+        None
+    };
+    let mut fields = Vec::with_capacity(record.fields.len());
+    for (field, value) in &record.fields {
+        if field == "datatype" {
+            let Some(datatype) = wire_datatype.take() else {
+                fields.push((field.as_str(), Cow::Borrowed(value.as_str())));
+                continue;
+            };
+            fields.push((field.as_str(), datatype));
+        } else {
+            fields.push((field.as_str(), Cow::Borrowed(value.as_str())));
+        }
+    }
+    if wire_datatype.is_some() {
+        return Err("A structured datatype requires the logical datatype field".to_owned());
     }
     Ok(fields)
 }
@@ -2202,10 +2385,24 @@ fn compare_fields(left: &str, right: &str) -> Ordering {
     }
 }
 
+fn has_canonical_wire_field_order(fields: &[(&str, Cow<'_, str>)]) -> bool {
+    fields
+        .windows(2)
+        .all(|pair| compare_fields(pair[0].0, pair[1].0) != Ordering::Greater)
+}
+
 fn core_rank(field: &str) -> Option<usize> {
-    TELEX_FIELDS
-        .iter()
-        .position(|candidate| *candidate == field)
+    match field {
+        "header" => Some(0),
+        "path" => Some(1),
+        "kind" => Some(2),
+        "datatype" => Some(3),
+        "identity" => Some(4),
+        "value" => Some(5),
+        "origin" => Some(6),
+        "span" => Some(7),
+        _ => None,
+    }
 }
 
 fn has_canonical_field_order(record: &TelexRecord) -> bool {
@@ -2334,8 +2531,14 @@ fn decode_payload_bounded(
     Ok(decoded)
 }
 
-fn encode_payload(payload: &str) -> String {
-    let mut encoded = String::new();
+fn encode_payload_into(payload: &str, encoded: &mut String) {
+    if !payload
+        .bytes()
+        .any(|byte| byte == b'\\' || byte <= 0x1f || byte == 0x7f)
+    {
+        encoded.push_str(payload);
+        return;
+    }
     for character in payload.chars() {
         match character {
             '\\' => encoded.push_str("\\\\"),
@@ -2349,5 +2552,4 @@ fn encode_payload(payload: &str) -> String {
             character => encoded.push(character),
         }
     }
-    encoded
 }

@@ -2,7 +2,7 @@
 
 Status: living working list
 
-Updated: 2026-09-05
+Updated: 2026-09-06
 
 ## Scope
 
@@ -435,6 +435,17 @@ while the wider consumer audit remains open.
     Core event/source export, SDK read/write, AEOS validation, canonicalization,
     and CLI decode/export surfaces while retaining the legacy in-memory APIs.
     The published AES Events and Telex snapshot suites pass 38/38 and 50/50.
+  - [x] Rust/WASM: reuse the AES-owned Rust reference codec from the AEON WASM
+    package for bulk validation, canonicalization, and prefix-completeness
+    checks. Keep full event materialization on the TypeScript surface until a
+    low-copy record bridge is justified by benchmarks. A JSON-bridged WASM
+    encoder was measured and rejected: for JavaScript-resident records it was
+    27–45% slower than the optimized TypeScript encoder despite the native Rust
+    encoder being about seven times faster than TypeScript at limit scale.
+  - [ ] Promote `aes-telex` from its unpublished `0.0.0` reference-crate state
+    to a versioned dependency before AEON and AES need independently releasable
+    Rust/WASM build graphs. The family workspace currently uses an explicit
+    sibling path dependency.
 - [ ] `altopelago/aeon`: update the existing TypeScript, Rust, and Python
   portable AES projections so they emit base-name `datatype`, recursive
   `generics`, and tagged `clarifiers` instead of collapsing the AST annotation

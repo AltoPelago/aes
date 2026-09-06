@@ -45,6 +45,9 @@ copies and do not override those canonical sources.
   reader-before-writer deployment barrier.
 - [Telex v0](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
+- [Film v0 binary encoding proposal](proposals/film.aes.md) records the
+  transport boundary, initial streaming direction, performance contract, and
+  deferred wire-format decision gates for the binary AES encoding.
 - [Current event-model inventory](notes/current-event-model.md) records the
   differences that exist across the current TypeScript, Rust, and Python AEON
   implementations.
@@ -137,7 +140,8 @@ ambiguity.
 
 1. Continue compatibility readers and adapters across the existing producers
    and consumers.
-2. Use the published event model to design `film.aes`.
+2. Prototype and resolve the decision gates in the
+   [Film v0 binary encoding proposal](proposals/film.aes.md).
 3. Consolidate the later Film and Tape specifications here.
 4. Advance shared value behavior through the Aeonic Semantic Language proposal.
 

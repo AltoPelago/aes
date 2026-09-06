@@ -30,6 +30,12 @@ Run the Rust vector suite with:
 cargo test --locked --manifest-path implementations/rust/Cargo.toml
 ```
 
+Run the native bulk-operation benchmark with:
+
+```bash
+cargo run --release --example bench_telex --manifest-path implementations/rust/Cargo.toml
+```
+
 The Rust and JavaScript implementations intentionally do not call each other or
 share codec source. Their common authorities are the transport-neutral portable
 AES event contract, the Telex encoding draft, and the shared vectors.
