@@ -725,17 +725,19 @@ while the wider consumer audit remains open.
       separate; no-op, widened, stale, and denied requests publish nothing.
       Durability, receipts, SO dispatch, Wire/CLI, Telex ingress, and generic AET
       authority remain closed.
-    - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
-      sidecar retains the authorized exact plan before commit and binds database,
-      intent, attempt, ASP transaction, request/application-context/plan/exact
-      transaction fingerprints, and source/commit revisions in a deterministic
-      receipt. Restart reconciles completion loss through exact durable ASP
-      transaction lookup; context reuse, collisions, divergence, volatile
-      targets, and tampering fail closed. The sidecar does not write into user
-      paths, its 10,000-entry/16-MiB bounds are implementation limits rather
-      than AES claims, and its fingerprint is neither a signature nor an AEON
-      security envelope. Generic AET receipts and independently verifiable
-      authorization evidence remain open.
+    - [x] Candidate-specific flat material-content durable receipt: an
+      fsync-backed, single-writer sidecar retains the authorized exact
+      multi-owner plan—including the ordered tombstone and insertion set—before
+      commit and binds database, intent, attempt, ASP transaction,
+      request/application-context/plan/exact transaction fingerprints, and
+      source/commit revisions in a deterministic receipt. Restart reconciles
+      completion loss through exact durable ASP transaction lookup; context
+      reuse, collisions, divergence, volatile targets, writer fencing, and
+      tampering fail closed. The sidecar does not write into user paths, its
+      10,000-entry/16-MiB bounds are implementation limits rather than AES
+      claims, and its fingerprint is neither a signature nor an AEON security
+      envelope. Generic AET receipts and independently verifiable authorization
+      evidence remain open.
     - [x] Explicit SO application dispatch: a closed host-neutral envelope now
       binds the named scalar-replacement application to one `asp.v0` substrate
       and database, distinct intent/attempt/transaction identities, actor,
