@@ -626,7 +626,17 @@ while the wider consumer audit remains open.
       request/plan detachment, target divergence, transaction collision,
       volatile targets, writer displacement, and receipt tampering fail closed.
       The receipt is neither independent policy evidence nor an AEON security
-      envelope; SO dispatch and public ingress remain closed.
+      envelope; public ingress remains closed.
+    - [x] Explicit reference-retarget SO dispatch: the shared closed application
+      envelope now distinguishes scalar replacement values from reference
+      replacement target paths, and each adapter rejects the other's shape
+      before callbacks. The reference profile negotiates the exact application,
+      ASP substrate and database, reversible target translation, native and
+      contained owner reconstruction, candidate preparation, atomic revision,
+      durable commit/lookup, and receipt journal capabilities. Direct and SO
+      execution return identical durable receipt bytes. Trusted origin remains
+      host context, `telexIngress` is false, and Wire/CLI/bare-event/generic AET
+      ingress remain closed.
     - [x] Candidate-specific durable receipt: an fsync-backed, single-writer
       sidecar retains the authorized exact plan before commit and binds database,
       intent, attempt, ASP transaction, request/application-context/plan/exact
