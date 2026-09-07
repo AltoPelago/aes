@@ -189,14 +189,18 @@ while the wider consumer audit remains open.
   clone/pointer retargeting, reverse materialization of node-content references,
   and proof that `$.a[0]` remains the synthetic head rather than the legacy
   first child.
-- [ ] Apply the same mapping to every public consumer surface.
+- [x] Apply the same mapping to every public consumer surface.
   - [x] SANSA selection/navigation and SO/ASP mutation targets use the expanded
     structural mapping without making identity part of path identity.
   - [x] The Tonics audit records the mapping, and `aes-diff` operates on
     validated complete portable streams.
-  - [ ] Complete Tonics node-head edit-address behavior, emitted diagnostic
-    paths, and any public SDK navigation APIs that still expose legacy child
-    paths.
+  - [x] Tonics `aeon-edit` lists and accepts portable node-head/content paths,
+    requires an explicit `NodeHead` path for node metadata operations, and
+    fails closed rather than reinterpreting that path as a child. Titonic SANSA
+    navigation exposes portable `pathText`/`portablePath` while retaining its
+    child marker only as the explicitly named `titonicPath`. Graph, search, and
+    lint paths, reference targets, and diagnostic path fields use the portable
+    projection.
 - [x] Define the node-head source span as the tag token through the last
   identity, attribute, or datatype component, excluding node delimiters and
   children.
@@ -219,8 +223,10 @@ while the wider consumer audit remains open.
   of exactly one node head. Complete Telex validation establishes the single
   `[0]` head invariant before AEOS applies schema rules, while AEOS cardinality
   counts the indexed content beneath that head.
-- [ ] Update Tonics and other editing tools that address node-head metadata
-  through node-specific commands or legacy child paths.
+- [x] Update Tonics and other editing tools that address node-head metadata
+  through node-specific commands or legacy child paths. `aeon-edit` node-head
+  metadata commands now require `$.node[0]`; listed node content begins at
+  `$.node[0][0]`, and outer-node addresses are rejected for those commands.
 
 ### 1.3 Flat attributes and descendants
 
@@ -600,12 +606,13 @@ recorded below.
   and PHP pass the same versioned forward/reverse vectors for recursive node
   boundaries and references; a direct synthetic `NodeHead` target fails closed
   without being reinterpreted as a legacy child.
+- [x] **Public consumer path propagation:** TypeScript exposes a reusable
+  native-to-portable event path map; Tonics edit, Titonic SANSA navigation,
+  graph, search, lint, and compile-diagnostic surfaces preserve the expanded
+  node-head hierarchy and translated reference targets.
 
 ##### Remaining Telex/AES compatibility requirements
 
-- [ ] Complete the remaining public-consumer path propagation: Tonics
-  node-head edit addresses, emitted diagnostics, and SDK navigation surfaces.
-  SANSA selection and SO/ASP mutation translation are already closed.
 - [ ] Complete named legacy-to-portable adapters and conversion reports for
   every supported implementation-specific source contract; ASP is complete,
   while the parent rollout requirement remains open for the other durable or
