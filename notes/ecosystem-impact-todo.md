@@ -211,8 +211,12 @@ while the wider consumer audit remains open.
     tag token through the final identity, attribute block, or datatype, plus
     complete attribute-entry spans. Its portable adapter uses those ranges for
     `NodeHead` and flattened attribute occurrences.
-  - [ ] Audit and implement the same independent range in Rust, Python, and PHP
-    where their current AST or projection cannot yet prove it.
+  - [x] Python now retains an independent `NodeLiteral.head_span` from the tag
+    token through the final identity, attribute block, or datatype, plus
+    complete attribute-entry spans. Its portable adapter uses those ranges for
+    `NodeHead` and flattened attribute occurrences.
+  - [ ] Audit and implement the same independent range in Rust and PHP where
+    their current AST or projection cannot yet prove it.
 - [x] Use the normative AEON representation-kind names at portable boundaries,
   including `StringLiteral`, `NodeLiteral`, and the new `NodeHead`; do not
   maintain a parallel lowercase or kebab-case vocabulary. The JavaScript and
@@ -381,8 +385,8 @@ while the wider consumer audit remains open.
   The JavaScript and Rust AES reference implementations now pass the same 11
   candidate vectors for exact-byte digest verification, origin-only evidence,
   missing artifacts, UTF-8 scalar boundaries, range overflow, invalid UTF-8,
-  and BOM/CRLF preservation. TypeScript, Python, and PHP projection-boundary
-  rollout remains open below.
+  and BOM/CRLF preservation. TypeScript and Python projection-boundary rollout
+  is complete below; Rust verification and PHP rollout remain open.
 - [ ] Derive line and column only when the identified source bytes are
   available.
 - [x] TypeScript: the lexer now names offsets and columns as native UTF-16
@@ -395,8 +399,15 @@ while the wider consumer audit remains open.
   omission remains the default. Tests cover ASCII, precomposed and combining
   Unicode, astral scalars, BOM, CRLF, shorthand headers, node heads, and the
   absent-source path.
-- [ ] Python: convert code-point offsets to UTF-8 byte offsets at the portable
-  boundary.
+- [x] Python: the lexer and AST retain native Unicode code-point ranges,
+  including an accepted leading BOM, independent node-head ranges, complete
+  attribute-entry ranges, and full shorthand-header ranges. Supplying exact
+  `source_bytes` to the named adapter, `project_telex_records()`,
+  `export_telex()`, or `aeon_to_telex()` derives the lowercase SHA-256 origin
+  and converts all retained ranges to UTF-8 byte offsets. Invalid UTF-8 and
+  invalid or non-positive native ranges fail closed; omission remains the
+  default. Tests cover ASCII, precomposed and combining Unicode, astral
+  scalars, BOM, CRLF, headers, node heads, and absent-source behavior.
 - [ ] Rust: verify byte offsets and Unicode-scalar columns against shared
   non-ASCII fixtures.
 - [ ] PHP: establish its current offset unit and convert it at the portable

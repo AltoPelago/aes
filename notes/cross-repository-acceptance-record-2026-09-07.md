@@ -47,6 +47,14 @@ available through the named compatibility adapter and Core Telex export. Its
 regressions cover ASCII, precomposed and combining Unicode, astral scalars,
 BOM, CRLF, shorthand headers, invalid UTF-8, and scalar-splitting ranges.
 
+The Python projection checkpoint now retains independent node-head and
+attribute-entry ranges, names native offsets as Unicode code points, and keeps
+an accepted BOM in that coordinate space. Its named adapter and public Telex
+exports optionally derive a lowercase SHA-256 origin from exact source bytes
+and convert retained ranges to UTF-8 byte spans. The shared TypeScript fixture
+produces the same origin and spans; invalid UTF-8 and invalid native ranges
+fail closed.
+
 ## Executed lanes
 
 | Repository/lane | Result |
@@ -56,7 +64,7 @@ BOM, CRLF, shorthand headers, invalid UTF-8, and scalar-splitting ranges.
 | AEON TypeScript AES Events CTS | 38 vectors passed |
 | AEON TypeScript Telex CTS | 50 vectors passed |
 | AEON TypeScript provenance projection checkpoint | all 24 workspace projects typechecked; all 23 non-fuzz unit-test projects passed; focused lexer 127, parser 167, AES 200, and Core 131 tests passed |
-| AEON Python Telex/AES tests under the required bundled Python runtime | 12 tests passed |
+| AEON Python provenance projection checkpoint | all 321 unit tests passed; all consolidated CTS lanes passed, including Core 265, AES 67, canonicalization 27, finalization 18, inspect 6, map 3, SANSA 46, annotations 14, and AEOS 118 cases |
 | AEON PHP AES suite | 91 tests and 256 assertions passed |
 | SANSA full suite | 257 tests passed |
 | ASP full suite, including the source-derived round trip, hardened AET scalar bridge, and portable subtree/index lifecycle | 1,110 tests passed; 62 conformance cases passed |
@@ -99,7 +107,7 @@ and mixed historical record-version readers. Those additions should advance a
 development CTS and later publish a new immutable snapshot; they do not mutate
 snapshot 0.1.
 
-Public AET ingress and encryption, the remaining non-TypeScript provenance
+Public AET ingress and encryption, the remaining Rust/PHP provenance
 projection and offset audits, index lifecycle closure, and head-aware ASP
 storage remain separate unchecked requirements. Base event-stream integrity belongs to
 `aes.integrity.v0`, while
