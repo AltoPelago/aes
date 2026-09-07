@@ -74,6 +74,19 @@ Rust, retain proven byte spans for all PHP source occurrences, and fail closed
 on invalid UTF-8, invalid or scalar-splitting ranges, and a mismatched source
 artifact.
 
+The AEON specification and shared CTS checkpoint removes the last ambiguous
+"character offset" language from the span appendix, the normative AEOS input
+contract, and the CTS protocol. Spans are now uniformly defined as half-open,
+zero-based UTF-8 byte ranges into the exact, unnormalised source artifact, with
+BOM, CRLF, scalar-boundary, empty diagnostic-span, and absent-source behavior
+spelled out. The mutable AES development snapshot adds six common projection
+vectors for ASCII, precomposed non-ASCII, combining sequences, astral scalars,
+BOM plus CRLF, and source absence. Its 73 vectors pass in TypeScript, Rust,
+Python, and PHP; no released snapshot was modified. Each CLI also exposes
+exact-source provenance explicitly through `inspect --portable-aes
+--source-provenance` and `inspect --telex --source-provenance`. Plain portable
+projection omits a local span that has no immutable origin.
+
 ## Executed lanes
 
 | Repository/lane | Result |
@@ -85,7 +98,8 @@ artifact.
 | AEON TypeScript provenance projection checkpoint | all 24 workspace projects typechecked; all 23 non-fuzz unit-test projects passed; focused lexer 127, parser 167, AES 200, and Core 131 tests passed |
 | AEON Python provenance projection checkpoint | all 321 unit tests passed; all consolidated CTS lanes passed, including Core 265, AES 67, canonicalization 27, finalization 18, inspect 6, map 3, SANSA 46, annotations 14, and AEOS 118 cases |
 | AEON Rust provenance projection checkpoint | all 552 workspace unit tests passed; all consolidated CTS lanes passed, including Core 265, AES 67, canonicalization 27, finalization 14, finalization limits 4, inspect 6, map 3, SANSA 9, annotations 14, and AEOS 118 cases; Clippy with warnings denied and formatting passed |
-| AEON PHP provenance projection checkpoint | all 873 repository tests and 2,656 assertions passed; Core CTS 265/265, limits 32/32, and AES 91 tests/256 assertions passed; Composer manifest validation completed with only pre-existing metadata/constraint warnings |
+| AEON PHP provenance projection checkpoint | all 873 repository tests and 2,658 assertions passed; Core CTS 265/265, limits 32/32, and AES 91 tests/256 assertions passed; Composer manifest validation completed with only pre-existing metadata/constraint warnings |
+| AEON cross-language development AES projection CTS | all 73 vectors passed independently in TypeScript, Rust, Python, and PHP; six exact-source span vectors were added only to the mutable next manifest |
 | SANSA full suite | 257 tests passed |
 | ASP full suite, including the source-derived round trip, hardened AET scalar bridge, and portable subtree/index lifecycle | 1,110 tests passed; 62 conformance cases passed |
 | AEON TypeScript integrity package | 14 tests passed |
@@ -122,8 +136,8 @@ not implementation failures.
 
 The more exhaustive matrix in the primary checklist remains useful future CTS
 work: all structural-identity locations across every source implementation,
-additional Unicode span fixtures, all header shorthand/conflict combinations,
-and mixed historical record-version readers. Those additions should advance a
+all header shorthand/conflict combinations, and mixed historical
+record-version readers. Those additions should advance a
 development CTS and later publish a new immutable snapshot; they do not mutate
 snapshot 0.1.
 

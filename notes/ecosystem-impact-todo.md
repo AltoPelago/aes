@@ -437,8 +437,11 @@ while the wider consumer audit remains open.
   binding, anonymous occurrence, node-head, attribute-entry, and shorthand
   header ranges; the shared TypeScript/Python fixture produces the same origin
   and spans across precomposed, combining, and astral Unicode plus BOM/CRLF.
-- [ ] Update the AEON span appendix and CTS protocol, which currently use
-  ambiguous or character-based offset language.
+- [x] Update the AEON span appendix and CTS protocol to define exact-source,
+  zero-based UTF-8 byte offsets, including BOM, CRLF, Unicode-normalisation,
+  scalar-boundary, empty-diagnostic-span, and absent-source rules. The
+  normative AEOS input contract and CTS validator guidance now use the same
+  coordinates.
 - [ ] Align portable provenance with the existing ASP `origin` shape, which
   carries `kind`, `source_id`, and `{start,end}`.
   - [x] The ASP-hosted SO projection emits provenance only when `kind=source`
@@ -1205,8 +1208,12 @@ above.
   prefix-completeness, and container compatibility.
 - [ ] Values: positive and negative cases for every kind and its
   allowed/required fields, including WTC anchor/reference variants.
-- [ ] Spans: ASCII, non-ASCII, combining characters, astral characters, BOM,
-  and absent-source fixtures across TypeScript, Rust, Python, and PHP.
+- [x] Spans: the mutable AES development snapshot carries six shared
+  exact-source fixtures covering ASCII, non-ASCII, combining characters,
+  astral characters, BOM with CRLF, and absent source. All 73 AES projection
+  vectors pass in TypeScript, Rust, Python, and PHP. The released CTS snapshot
+  remains unchanged. Rust's separately recorded anonymous-occurrence range
+  limitation is not hidden by this common event-span matrix.
 - [ ] Headers: structured, shorthand, conflicting, and body-only inputs under
   the chosen control-plane policy.
 - [ ] End to end: AEON source -> portable AES -> SO -> ASP -> AES-DB ->
