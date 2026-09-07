@@ -33,8 +33,8 @@ for (const suiteRef of manifest.suites) {
   }
 }
 
-test('AES integrity candidate contains 14 vectors', () => {
-  assert.equal(vectorCount, 14);
+test('AES integrity candidate contains 17 vectors', () => {
+  assert.equal(vectorCount, 17);
 });
 
 function runVector(vector) {

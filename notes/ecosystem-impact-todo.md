@@ -47,7 +47,8 @@ surfaces until these gates are complete.
   validation vectors and `telex-cts-v0-snapshot-0.1` freezes 50 encoding and
   format-limit vectors, each with per-suite SHA-256 digests. JavaScript and
   Rust pass both published targets independently; the AEON-to-AES projection
-  candidate passes 79/79 in TypeScript, Rust, Python, and PHP.
+  candidate passes 82/82 in TypeScript, Rust, Python, and PHP, including the
+  mutable portable representation-kind and canonical-payload suite.
 - [x] Define reader-first compatibility rules before any producer emits the
   revised shape into durable stores or cross-service interfaces.
 
@@ -305,18 +306,23 @@ while the wider consumer audit remains open.
 - [x] Treat `conflictAuthority` as a consumer responsibility, not document or
   AES event authority.
 - [x] Do not transport exact AEON lexemes or a generic representation field.
-- [ ] Reconcile ASP, AEOS, and downstream CTS canonical payload rules with the
-  portable table. TypeScript, Rust, Python, PHP, AES validators, and portable
-  CTS now use the normative AEON representation-kind names.
+- [x] Reconcile ASP, AEOS, and downstream CTS canonical payload rules with the
+  portable table. `canonical-payload-boundary-audit.md` records the reviewed
+  boundaries; the mutable 82-vector source-projection target now asserts every
+  scalar family, canonical payload normalization, and distinct reference
+  kinds across TypeScript, Rust, Python, and PHP.
 - [x] Add WTC cases covering the three temporal anchor forms and local, named,
   and geographic references without introducing `conflictAuthority` into the
   portable event contract.
-- [ ] Verify canonical payloads and semantic hashes preserve recognized value
+- [x] Verify canonical payloads and semantic hashes preserve recognized value
   distinctions, including temporal distinctions, while excluding source-only
-  spelling.
-- [ ] Ensure portable boundaries use the normative AEON representation
+  spelling. The 17-vector integrity candidate distinguishes equal payload text
+  under `StringLiteral` and `DateLiteral` and rejects source-only `raw`; ASP
+  tests prove `4_2` and `42` produce the same portable record and fingerprint.
+- [x] Ensure portable boundaries use the normative AEON representation
   vocabulary without depending on runtime class identity, raw tokens, or
-  nested value trees.
+  nested value trees. The audit also removed PHP AEOS temporal-kind inference
+  from the portable adapter; explicit `kind` now survives its runtime bridge.
 
 ### 1.5 AltoPelago processing limits
 
@@ -642,7 +648,7 @@ while the wider consumer audit remains open.
     and reference rewrites remain rejected until the portable path-rewrite and
     reference-translation contract is specified.
 - [x] AEOS: update datatype, cardinality, kind, node-head, and WTC validation.
-  - [x] TypeScript, Rust, and Python accept complete Telex directly, preserve
+  - [x] TypeScript, Rust, Python, and PHP accept complete Telex directly, preserve
     normative representation kinds, reconstruct split datatype components for
     schema comparison, and validate flat attributes without adding structural
     identity to path identity.
@@ -652,7 +658,9 @@ while the wider consumer audit remains open.
     lowercase `local`.
   - [x] The rollout audit fixed detached portable attributes in TypeScript, an
     empty-stream normalization bug in Python AEOS Telex validation, and string
-    rather than numeric portable indexes in the Rust AEOS adapter.
+    rather than numeric portable indexes in the Rust AEOS adapter. The
+    canonical-payload audit additionally fixed PHP re-inference of portable
+    temporal kinds from its shared runtime datetime class and payload text.
 - [x] SO: add an explicit portable-AES adapter instead of treating current
   TypeScript AST-shaped values as the interchange contract. The ASP target
   adapter now exposes direct complete portable records, Telex encoding, and

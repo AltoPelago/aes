@@ -29,7 +29,7 @@ fn passes_aes_integrity_candidate_vectors() -> Result<(), Box<dyn Error>> {
             run_vector(vector)?;
         }
     }
-    assert_eq!(count, 14);
+    assert_eq!(count, 17);
     Ok(())
 }
 

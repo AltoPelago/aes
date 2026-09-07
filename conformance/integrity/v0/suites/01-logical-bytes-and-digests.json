@@ -271,6 +271,51 @@
         "logical_hex": "6165732e7369676e61747572652e7630006d363a73333a616c6773373a6564323535313973363a64696765737473363a73686132353673343a686173687336343a6633613661656462326561613535333366633431313262356466373531376235346135353965353231623932613839363466326432333233613566663333343573393a696e746567726974797331363a6165732e696e746567726974792e763073333a6b696473333a626f6273393a7369676e61747572657331363a6165732e7369676e61747572652e7630"
       },
       "tags": ["signature", "kid", "logical-bytes"]
+    },
+    {
+      "id": "aes-integrity-015-string-kind-distinction",
+      "description": "A date-shaped string remains a StringLiteral integrity input",
+      "operation": "digest",
+      "input": {
+        "records": [{ "path": "$.when", "kind": "StringLiteral", "value": "2026-09-07" }],
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "359800b010387ebd4428a00d01b31ec6cf959ce2dc5943914ffe19c70b9142a1",
+        "record_addresses": ["$.when"]
+      },
+      "tags": ["representation-kind", "semantic-distinction", "string"]
+    },
+    {
+      "id": "aes-integrity-016-date-kind-distinction",
+      "description": "The same payload under DateLiteral produces distinct logical bytes and digest",
+      "operation": "digest",
+      "input": {
+        "records": [{ "path": "$.when", "kind": "DateLiteral", "value": "2026-09-07" }],
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "ec88c6fdbca0b9b4173d14894d63e358512a41d5c4555c85e9ea5ed667ba0e7c",
+        "record_addresses": ["$.when"]
+      },
+      "tags": ["representation-kind", "semantic-distinction", "temporal"]
+    },
+    {
+      "id": "aes-integrity-017-source-raw-field-rejected",
+      "description": "Source-only raw spelling is not admitted to portable AES integrity input",
+      "operation": "digest",
+      "input": {
+        "records": [{ "path": "$.value", "kind": "NumberLiteral", "value": "42", "raw": "4_2" }],
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": { "error_code": "AES_INTEGRITY_INVALID_LOGICAL_VALUE" },
+      "tags": ["source-spelling", "raw", "negative"]
     }
   ]
 }

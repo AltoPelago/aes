@@ -140,7 +140,10 @@ extension surface before claiming semantic conformance.
 
 Portable scalar strings are encoded exactly as their Unicode scalar sequence.
 No normalization, case folding, numeric parsing, null reinterpretation, or
-reference resolution occurs.
+reference resolution occurs. The record's normative `kind` is independently
+covered, so equal string payloads under distinct recognized representation
+kinds remain distinct integrity inputs. Source-only fields such as `raw` are
+not part of `aes.events.v0` and fail validation instead of entering the digest.
 
 ## 7. Deterministic structural byte mapping
 
@@ -289,6 +292,8 @@ complete logical bytes and SHA-256 digests. Required vectors cover:
 - expanded generics and clarifiers;
 - body versus document scope;
 - semantic versus provenance-inclusive evidence;
+- representation-kind distinctions for equal scalar payload strings;
+- rejection of source-only raw spelling at the integrity boundary;
 - extension-field preservation and map-key ordering;
 - non-ASCII UTF-8 byte lengths; and
 - signature-context binding of algorithm and key identity.
