@@ -471,15 +471,18 @@ while the wider consumer audit remains open.
 - [x] Add shared Telex vectors for explicit projection, body-only rejection,
   header ordering, mutually exclusive address fields, and independent nested
   header completeness.
-- [ ] Add shared fixtures for structured headers, shorthand headers, header
-  conflicts, and body-only streams.
-- [x] TypeScript, Rust, and Python: `inspect --json --portable-aes` now exposes
+- [x] Add shared fixtures for structured headers, shorthand headers, header
+  conflicts, body-only streams, and an explicitly selected empty document
+  projection, plus a quoted top-level `"aeon:*"` payload collision. All six
+  mutable CTS vectors pass in TypeScript, Rust, Python, and PHP.
+- [x] TypeScript, Rust, Python, and PHP: `inspect --json --portable-aes` exposes
   the portable projection as a body-only event stream. TypeScript excludes its
   synthetic `aeon:*` events; Rust and Python retain parsed headers outside the
-  event stream.
-- [ ] TypeScript, Rust, and Python: add an explicit `aeon.document.v0` adapter
-  that projects the retained header into ordered `header` records before the
-  portable body events.
+  event stream; PHP applies the same body-only boundary.
+- [x] TypeScript, Rust, Python, and PHP: provide an explicit
+  `aeon.document.v0` adapter for portable JSON and Telex that projects the
+  retained header into complete ordered `header` records before portable body
+  events.
   - [x] TypeScript: `compileToTelex()`/`exportTelex()` and CLI
     `inspect --telex --include-headers` emit ordered header-plane records before
     portable body records; body-only remains the default.
@@ -487,16 +490,38 @@ while the wider consumer audit remains open.
     preserve header binding order and keep body-only export as the default.
   - [x] Python: Core/API export and CLI `inspect --telex --include-headers`
     preserve header binding order and keep body-only export as the default.
-- [ ] Audit remaining TypeScript public AES surfaces for synthetic header
-  leakage, and update PHP's default body stream and explicit document adapter.
-- [ ] Update finalizers and SDKs so existing payload/header/full views consume
+  - [x] PHP: Core export and CLI portable JSON/Telex output keep body-only as
+    the default and select the explicit document projection with
+    `--include-headers`.
+- [x] Audit remaining TypeScript public AES surfaces for synthetic header
+  leakage outside the named portable adapters. The direct portable projector
+  is body-only, Core/SDK/CLI source exporters pass exact retained header field
+  names, and source-to-finalizer call sites pass the retained header model.
+  Quoted `aeon:*` payload keys therefore remain body records at these portable
+  boundaries while `compile().events` remains the unchanged native event API.
+  - [ ] Replace the residual prefix-only classification in event-only native
+    consumers such as direct AEOS validation and legacy inspect rendering once
+    native assignment events carry explicit source-plane identity. This is a
+    production-hardening item, not a Telex/AES compatibility blocker: named
+    portable adapters accept retained `headerFieldNames`, and decoded Telex
+    already distinguishes `header` from `path` structurally.
+- [x] **Telex/AES compatibility:** add a shared source-projection fixture in
+  which a real header coexists with a quoted top-level `"aeon:*"` payload key.
+  TypeScript, Rust, Python, and PHP now use retained header identity at their
+  source-aware portable boundaries and preserve that payload key in the body
+  plane. The mutable shared fixture passes in all four implementations.
+- [x] Update finalizers and SDKs so existing payload/header/full views consume
   the two planes deliberately rather than filtering records by key prefix.
   - [x] TypeScript, Rust, and Python portable JSON materializers consume the
     explicit planes; their SDK and CLI surfaces expose payload/header/full
     scope deliberately.
-- [ ] Correct the AEON integrity appendix statement that convention headers are
+  - [x] PHP `PortableJson` indexes `header` and `path` records independently;
+    its Telex CLI exposes deliberate payload/header/full materialization scope.
+- [x] Correct the AEON integrity appendix statement that convention headers are
   body state; it must distinguish body semantic coverage from explicit document
-  coverage.
+  coverage. The canonical source now states that body-only coverage excludes
+  `aeon:header`, while `aeon.document.v0` document coverage includes the
+  header plane.
 
 ## 2. Repository and component work
 
@@ -1198,30 +1223,41 @@ above.
 
 ## 4. Cross-repository acceptance tests
 
-- [ ] Structural identity: all four head locations, document-wide duplicates,
-  and preservation through every supported language and consumer adapter.
-- [ ] Nodes: nested, attributed, typed, empty, and multiple-head event streams;
-  AEON-facing profiles must still enforce exactly one head.
-- [ ] Paths and references: round trips across legacy and revised node paths,
-  with no target silently changing meaning.
-- [ ] Attributes: nested attribute descendants, duplicate paths,
+- [x] Structural identity: shared projection vectors cover all four head
+  locations and document-wide duplicate rejection; supported adapters and the
+  ASP storage lifecycle preserve identity as metadata rather than path state.
+- [x] Nodes: shared event/completeness and path-translation suites cover nested,
+  attributed, typed, empty, and multiple-head streams; AEON-facing compilation
+  still enforces its single-head source-language rule.
+- [x] Paths and references: versioned forward/reverse fixtures cover legacy and
+  expanded node paths, reference targets, and fail-closed synthetic node-head
+  input without silently retargeting a legacy child.
+- [x] Attributes: shared AES, completeness, SO application, and ASP lifecycle
+  vectors cover nested descendants, duplicate-address rejection,
   prefix-completeness, and container compatibility.
-- [ ] Values: positive and negative cases for every kind and its
-  allowed/required fields, including WTC anchor/reference variants.
+- [x] Values: shared positive and negative vectors cover every admitted kind and
+  its allowed/required fields, including WTC anchor/reference variants.
 - [x] Spans: the mutable AES development snapshot carries six shared
   exact-source fixtures covering ASCII, non-ASCII, combining characters,
-  astral characters, BOM with CRLF, and absent source. All 73 AES projection
+  astral characters, BOM with CRLF, and absent source. All 79 AES projection
   vectors pass in TypeScript, Rust, Python, and PHP. The released CTS snapshot
   remains unchanged. Rust's separately recorded anonymous-occurrence range
   limitation is not hidden by this common event-span matrix.
-- [ ] Headers: structured, shorthand, conflicting, and body-only inputs under
-  the chosen control-plane policy.
-- [ ] End to end: AEON source -> portable AES -> SO -> ASP -> AES-DB ->
-  reconstructed portable AES.
-- [ ] Compatibility: legacy readers reject or explicitly adapt revised records
-  and revised readers accept supported legacy records without ambiguity.
-- [ ] Compatibility context: untagged JSON is rejected at portable boundaries;
-  every non-Telex carrier binds records explicitly to `aes.events.v0`.
+- [x] Headers: six mutable shared fixtures cover structured and shorthand
+  normalization, fail-closed mixed-form conflict, default body-only output, and
+  explicit document projection with an empty header plane, plus disambiguation
+  of a quoted top-level `"aeon:*"` payload key from the control plane. All 79
+  AES projection vectors pass in TypeScript, Rust, Python, and PHP; released
+  CTS snapshots remain unchanged.
+- [x] End to end: the ASP acceptance lane covers AEON source -> portable
+  AES/Telex -> named SO application -> ASP -> durable AES-DB -> reconstructed
+  portable AES/Telex.
+- [x] Compatibility: named adapters report the legacy source contract and
+  conversion losses; revised readers reject unsupported records rather than
+  reinterpreting them, including unsupported mutation forms.
+- [x] Compatibility context: portable non-Telex carriers bind records to
+  `aes.events.v0`; the audited untagged Tonics JSON boundary now fails closed
+  or enters through its explicit adapter.
 
 ## 5. Rollout sequence
 
