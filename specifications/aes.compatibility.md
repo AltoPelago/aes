@@ -229,6 +229,15 @@ the immutable source revision. Indexes derived from portable paths, node
 heads, attributes, datatypes, identities, or references belong to that
 versioned view and are rebuilt when any key component changes.
 
+A legacy store that does not persist portable indexes MAY derive a portable
+view directly from canonical legacy state. Its legacy path, datatype,
+attribute, contract, revision, transaction, and allocator indexes remain
+legacy-storage indexes and are rebuilt from that canonical state after writes
+and recovery. Read-time reference translation or ordered-child projection does
+not become a durable portable index merely because it is exposed in the view.
+If an implementation later persists either index, the index is versioned and
+invalidated by every source or adapter coordinate on which it depends.
+
 An operator may instead migrate into a new versioned store. Migration requires
 a retained original or verified backup, deterministic replay, conversion
 reports, rebuilt indexes, and restore verification before cutover. The migrated
@@ -262,6 +271,12 @@ portable data.
 Dual-writing legacy and portable records into the same unversioned namespace
 is forbidden. Their paths, ordering, hashes, and signatures can differ even
 when they represent the same source semantics.
+
+Here, mixed legacy/portable reads mean reads from separately and explicitly
+identified source contracts during deployment. They do not authorize a reader
+to infer or mix legacy and portable records inside one unversioned log. Testing
+mixed persisted records requires an approved versioned storage contract and
+reader; it cannot be claimed by a read-time projection alone.
 
 ## 7. Capability and evidence
 

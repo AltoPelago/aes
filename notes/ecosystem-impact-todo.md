@@ -207,6 +207,12 @@ while the wider consumer audit remains open.
 - [ ] Give the node tag/head its own source span in ASTs that currently expose
   only the complete node-literal span; emit origin-only provenance until that
   exact range is available.
+  - [x] TypeScript now retains an independent `NodeLiteral.headSpan` from the
+    tag token through the final identity, attribute block, or datatype, plus
+    complete attribute-entry spans. Its portable adapter uses those ranges for
+    `NodeHead` and flattened attribute occurrences.
+  - [ ] Audit and implement the same independent range in Rust, Python, and PHP
+    where their current AST or projection cannot yet prove it.
 - [x] Use the normative AEON representation-kind names at portable boundaries,
   including `StringLiteral`, `NodeLiteral`, and the new `NodeHead`; do not
   maintain a parallel lowercase or kebab-case vocabulary. The JavaScript and
@@ -379,8 +385,16 @@ while the wider consumer audit remains open.
   rollout remains open below.
 - [ ] Derive line and column only when the identified source bytes are
   available.
-- [ ] TypeScript: correct or replace the lexer claim that its UTF-16 string
-  index is a byte offset, and convert positions at the portable boundary.
+- [x] TypeScript: the lexer now names offsets and columns as native UTF-16
+  code-unit coordinates and retains an accepted leading BOM in those
+  coordinates. The named compatibility adapter converts scalar-aligned ranges
+  to UTF-8 byte offsets only when exact `sourceBytes` are supplied, derives the
+  record-local SHA-256 origin from those unnormalized bytes, and fails closed
+  on invalid UTF-8, out-of-range offsets, or surrogate-splitting boundaries.
+  Core exposes the same opt-in through `compileToTelex()` and `exportTelex()`;
+  omission remains the default. Tests cover ASCII, precomposed and combining
+  Unicode, astral scalars, BOM, CRLF, shorthand headers, node heads, and the
+  absent-source path.
 - [ ] Python: convert code-point offsets to UTF-8 byte offsets at the portable
   boundary.
 - [ ] Rust: verify byte offsets and Unicode-scalar columns against shared
@@ -691,9 +705,17 @@ recorded below.
   unchanged. Eleven shared candidate vectors pass in independent JavaScript
   and Rust implementations; generic inspection still reports
   `actionable=false`.
-- [ ] Rebuild or invalidate affected AES-DB indexes and verify replay,
-  snapshots, checkpoints, backup, restore, compaction, subtree deletion/move,
-  and mixed legacy/revised reads preserve the admitted portable occurrences.
+- [x] Verify current ASP v0 index and derived-view lifecycle behavior for every
+  admitted portable occurrence. ASP rebuilds its canonical path, datatype,
+  attribute, contract, revision, transaction, and allocator views after writes
+  and recovery; it persists no portable-path, reference, or ordered-child
+  secondary index. Portable views are derived from immutable reads and cached
+  by lineage, scope revision, target context, and adapter version. Fixed tests
+  cover current/historical reads, explicit storage-level subtree relocation and
+  deletion, node expansion, reference retargeting, identity preservation,
+  index equivalence, snapshots, full-log and checkpoint replay, backup/restore,
+  point-in-time restore, and retained compaction. This does not add a public
+  subtree-move application or change ASP v0 storage.
 - [x] Define separate canonical-semantic and exact-order AES signature policies,
   including deterministic logical bytes and version/profile/order binding.
   `aes.integrity.v0` owns event-stream evidence and `aes.signature.v0` binds its
@@ -725,6 +747,11 @@ recorded below.
 - [ ] **Revised span/source storage:** any change to persisted span units or
   checksummed source-artifact identity requires versioned records and explicit
   migration/read-view behavior; historical logs must not be silently rewritten.
+- [ ] **Mixed legacy/revised persisted records:** compatibility between ASP v0
+  history and a revised portable/head-aware record cannot be verified until
+  that versioned record and reader contract exists. Current mixed-deployment
+  support is read-time projection from an explicitly identified ASP v0 source,
+  never record-shape inference or dual writing into an unversioned log.
 
 ##### Optional future mutation capabilities
 
@@ -1104,12 +1131,19 @@ above.
     supports raw current or historical Telex export. No surface accepts Telex
     as an actionable transaction or exposes semantic-loss authorization; Wire
     conformance covers the encoding.
-- [ ] Rebuild or invalidate AES-DB path, datatype, attribute, reference, and
-  ordered-child indexes affected by the revised projection.
+- [x] Verify index ownership and invalidation for the current ASP v0 portable
+  read view. Canonical storage indexes are rebuilt after every commit and
+  recovery and pass equivalence checks after atomic subtree relocation and
+  deletion. Portable path/reference translation and ordered-child projection
+  are read-time derivations, not persisted AES-DB indexes; the revision-keyed
+  portable cache misses after affected writes and is absent from durable state.
 - [ ] Version persisted ASP/AES-DB records whose span units or checksummed
   source bytes change; do not silently rewrite historical logs.
-- [ ] Verify subtree moves, deletion, replay, snapshots, checkpoints, backup,
-  restore, and compaction preserve node-head and identity occurrences.
+- [x] Verify admitted node expansion and identity occurrences across
+  storage-level subtree relocation/deletion, replay, snapshots, checkpoints,
+  backup, restore, and compaction. The relocation vector is a storage lifecycle
+  proof only; public move/remove applications remain optional, and independent
+  node-head metadata remains blocked by a versioned head-aware record.
 - [x] Define semantic losslessness relative to the selected AES profile and
   projection, separately from full record/provenance fidelity. Exact source
   reconstruction requires the separately retained artifact identified by
