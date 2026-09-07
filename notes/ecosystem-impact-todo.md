@@ -793,6 +793,20 @@ while the wider consumer audit remains open.
       The fingerprint is integrity evidence, not a signature, generic AET
       receipt, or AEON security envelope; SO, Wire/CLI, bare-event, and Telex
       ingress remain closed.
+    - [x] Explicit recursive material-content SO dispatch: the shared closed
+      host-neutral envelope now has a fifth application input alternative.
+      Structural input is selected by `replacementEvents` plus the presence of
+      ordered `containerAssertions`; each assertion binds one container path
+      and separate payload/result direct-item counts. The ASP adapter binds the
+      named application to one `asp.v0` database and negotiates recursive
+      inverse translation, the effective value-nesting policy, exact nested
+      owner-set reconstruction, complete result and candidate validation,
+      atomic revision, durable commit/lookup, and the recursive receipt journal.
+      The depth limit is trusted adapter configuration, not transported AES
+      data. Policy phases remain distinct, and direct durable and SO execution
+      return identical receipt bytes. `telexIngress: false` keeps Telex,
+      Wire/CLI, bare-event, generic AET, and AEON security-envelope ingress
+      closed.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
