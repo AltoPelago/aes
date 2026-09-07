@@ -761,8 +761,9 @@ while the wider consumer audit remains open.
       external references resolve through the immutable ASP read. Logical
       container recursion uses a consumer-selected `maxValueNestingDepth`, with
       root depth 1 and the common implementation default 256. Root metadata
-      remains target-owned; child metadata, nodes, and material ownership inside
-      tuples fail closed. The result names no application contract and grants no
+      remains target-owned; child metadata was initially closed and is admitted
+      only by the explicit owner-metadata gate below. Nodes and material
+      ownership inside tuples fail closed. The result names no application contract and grants no
       deletion, insertion, transaction, durability, SO, Wire/CLI, bare-event,
       generic AET, or Telex-ingress authority.
     - [x] Named recursive material-content replacement application: the closed
@@ -807,6 +808,22 @@ while the wider consumer audit remains open.
       return identical receipt bytes. `telexIngress: false` keeps Telex,
       Wire/CLI, bare-event, generic AET, and AEON security-envelope ingress
       closed.
+    - [x] Recursive child binding-owner identity and datatype metadata: every
+      independently stored descendant binding may carry portable `identity`
+      plus the complete `datatype`/`generics`/`clarifiers` triple. The inverse
+      canonically combines that triple for ASP v0 storage, and strict portable
+      reprojection must expand it to the same semantic components. The atomic
+      application transports identity and the combined descriptor into each
+      exact `put_assignment`; ordinary ASP candidate validation retains
+      document-wide structural-identity uniqueness. Event-array ordering stays
+      exact while JSON record-key insertion order is explicitly non-semantic.
+      The durable and SO paths need no new envelope fields and reproduce the
+      same metadata-bearing receipt; the adapter advertises exact recursive
+      owner metadata. Existing root metadata remains target-owned, inline tuple
+      items have no independent metadata owner, `origin`/`span` remain trusted
+      host provenance rather than transported authority, and attribute trees
+      fail with `AES_COMPAT_MATERIAL_ATTRIBUTES_UNSUPPORTED` pending their own
+      inverse. Node-head storage and material owners inside tuples remain open.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
