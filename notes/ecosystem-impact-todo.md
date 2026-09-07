@@ -181,11 +181,22 @@ while the wider consumer audit remains open.
   as the new node-head path.
 - [x] Define translation and validation for `CloneReference` and
   `PointerReference` target payloads across the additional node path level.
-- [ ] Implement structure-aware source-path/event-path translation in all four
+- [x] Implement structure-aware source-path/event-path translation in all four
   language adapters, including reverse-projection rejection for direct
-  synthetic node-head reference targets.
-- [ ] Apply the same mapping to SANSA selections, Tonics edit addresses, SO/ASP
-  mutation targets, diagnostics, and any public SDK navigation APIs.
+  synthetic node-head reference targets. The experimental
+  `aes-path-translation-cts-v0-snapshot-0.1` target passes 3/3 in TypeScript,
+  Rust, Python, and PHP. It covers recursive head-index insertion,
+  clone/pointer retargeting, reverse materialization of node-content references,
+  and proof that `$.a[0]` remains the synthetic head rather than the legacy
+  first child.
+- [ ] Apply the same mapping to every public consumer surface.
+  - [x] SANSA selection/navigation and SO/ASP mutation targets use the expanded
+    structural mapping without making identity part of path identity.
+  - [x] The Tonics audit records the mapping, and `aes-diff` operates on
+    validated complete portable streams.
+  - [ ] Complete Tonics node-head edit-address behavior, emitted diagnostic
+    paths, and any public SDK navigation APIs that still expose legacy child
+    paths.
 - [x] Define the node-head source span as the tag token through the last
   identity, attribute, or datatype component, excluding node delimiters and
   children.
@@ -585,14 +596,16 @@ recorded below.
   reference, tuple, flat-material, and recursive-material applications have
   explicit SO dispatch, atomic revision preconditions, durable fenced receipts,
   restart reconciliation, and fail-closed candidate/result validation.
+- [x] **Cross-language path translation acceptance:** TypeScript, Rust, Python,
+  and PHP pass the same versioned forward/reverse vectors for recursive node
+  boundaries and references; a direct synthetic `NodeHead` target fails closed
+  without being reinterpreted as a legacy child.
 
 ##### Remaining Telex/AES compatibility requirements
 
-- [ ] Complete the existing cross-language reverse source/event-path work and
-  its acceptance vectors, including rejection of synthetic node-head reference
-  targets and proof that no legacy child path is silently reinterpreted. This
-  is the remaining work already named in sections 1.2 and 4, not a new mutation
-  application family.
+- [ ] Complete the remaining public-consumer path propagation: Tonics
+  node-head edit addresses, emitted diagnostics, and SDK navigation surfaces.
+  SANSA selection and SO/ASP mutation translation are already closed.
 - [ ] Complete named legacy-to-portable adapters and conversion reports for
   every supported implementation-specific source contract; ASP is complete,
   while the parent rollout requirement remains open for the other durable or
