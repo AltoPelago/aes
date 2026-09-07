@@ -204,7 +204,7 @@ while the wider consumer audit remains open.
 - [x] Define the node-head source span as the tag token through the last
   identity, attribute, or datatype component, excluding node delimiters and
   children.
-- [ ] Give the node tag/head its own source span in ASTs that currently expose
+- [x] Give the node tag/head its own source span in ASTs that currently expose
   only the complete node-literal span; emit origin-only provenance until that
   exact range is available.
   - [x] TypeScript now retains an independent `NodeLiteral.headSpan` from the
@@ -215,8 +215,14 @@ while the wider consumer audit remains open.
     token through the final identity, attribute block, or datatype, plus
     complete attribute-entry spans. Its portable adapter uses those ranges for
     `NodeHead` and flattened attribute occurrences.
-  - [ ] Audit and implement the same independent range in Rust and PHP where
-    their current AST or projection cannot yet prove it.
+  - [x] Rust now retains an independent `NodeLiteral.head_span` from the tag
+    token through the final identity, attribute block, or datatype, plus
+    complete attribute-entry spans. Its portable adapter uses those ranges for
+    `NodeHead` and flattened attribute occurrences.
+  - [x] PHP now retains an independent `NodeLiteral.headSpan` from the tag token
+    through the final identity, attribute block, or datatype, plus complete
+    attribute-entry spans. Its portable adapter uses those ranges for
+    `NodeHead` and flattened attribute occurrences.
 - [x] Use the normative AEON representation-kind names at portable boundaries,
   including `StringLiteral`, `NodeLiteral`, and the new `NodeHead`; do not
   maintain a parallel lowercase or kebab-case vocabulary. The JavaScript and
@@ -385,8 +391,9 @@ while the wider consumer audit remains open.
   The JavaScript and Rust AES reference implementations now pass the same 11
   candidate vectors for exact-byte digest verification, origin-only evidence,
   missing artifacts, UTF-8 scalar boundaries, range overflow, invalid UTF-8,
-  and BOM/CRLF preservation. TypeScript and Python projection-boundary rollout
-  is complete below; Rust verification and PHP rollout remain open.
+  and BOM/CRLF preservation. TypeScript, Python, Rust, and PHP
+  projection-boundary rollout is complete below; the Rust
+  anonymous-occurrence range limitation remains open.
 - [ ] Derive line and column only when the identified source bytes are
   available.
 - [x] TypeScript: the lexer now names offsets and columns as native UTF-16
@@ -408,10 +415,28 @@ while the wider consumer audit remains open.
   invalid or non-positive native ranges fail closed; omission remains the
   default. Tests cover ASCII, precomposed and combining Unicode, astral
   scalars, BOM, CRLF, headers, node heads, and absent-source behavior.
-- [ ] Rust: verify byte offsets and Unicode-scalar columns against shared
-  non-ASCII fixtures.
-- [ ] PHP: establish its current offset unit and convert it at the portable
-  boundary where necessary.
+- [x] Rust: lexer offsets are zero-based UTF-8 bytes and columns count Unicode
+  scalars. Compilation retains the exact source, including an accepted BOM,
+  shebang or host directive, and CRLF. The named adapter and Core/SDK Telex
+  exports optionally derive the lowercase SHA-256 origin from exact
+  `source_bytes`, retain proven byte spans, and fail closed on invalid UTF-8,
+  invalid ranges, or a source mismatch. The shared TypeScript/Python fixture
+  produces the same origin and spans for precomposed, combining, and astral
+  Unicode, BOM, CRLF, a node head, and an attribute entry.
+- [ ] Rust: retain independent native ranges for anonymous list, tuple, and
+  node-child occurrences in a versioned event/AST revision. The current v0
+  flattening assigns those occurrences their storage owner's range, so the
+  source-backed adapter deliberately emits origin-only evidence and reports
+  `AES_COMPAT_PROVENANCE_RANGE_OMITTED` rather than transporting a false span.
+- [x] PHP: lexer offsets are zero-based UTF-8 bytes and columns now count
+  Unicode scalars. Compilation retains an accepted leading BOM in the exact
+  source coordinate space. The named adapter and Core Telex exports optionally
+  derive the lowercase SHA-256 origin from exact `sourceBytes`, retain proven
+  byte spans, and fail closed on invalid UTF-8, empty/out-of-range or
+  scalar-splitting ranges, and compile/source mismatch. PHP retains independent
+  binding, anonymous occurrence, node-head, attribute-entry, and shorthand
+  header ranges; the shared TypeScript/Python fixture produces the same origin
+  and spans across precomposed, combining, and astral Unicode plus BOM/CRLF.
 - [ ] Update the AEON span appendix and CTS protocol, which currently use
   ambiguous or character-based offset language.
 - [ ] Align portable provenance with the existing ASP `origin` shape, which

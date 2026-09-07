@@ -55,6 +55,25 @@ and convert retained ranges to UTF-8 byte spans. The shared TypeScript fixture
 produces the same origin and spans; invalid UTF-8 and invalid native ranges
 fail closed.
 
+The Rust projection checkpoint now retains the exact compiled source and
+independent node-head and attribute-entry byte ranges. Lexer offsets are UTF-8
+bytes while columns count Unicode scalars. The named adapter and Core/SDK Telex
+exports optionally derive the same lowercase SHA-256 origin as TypeScript and
+Python, retain only proven ranges, and fail closed on invalid UTF-8, invalid
+ranges, or a mismatched source artifact. Anonymous indexed occurrences remain
+origin-only because the v0 flattened event shape does not retain an independent
+range for them; the adapter reports that omission rather than asserting the
+owner's range as occurrence provenance.
+
+The PHP projection checkpoint establishes lexer offsets as UTF-8 bytes and
+columns as Unicode-scalar coordinates, while retaining an accepted BOM in the
+exact source coordinate space. Independent node-head and attribute-entry
+ranges now survive event emission. The named adapter and Core Telex exports
+optionally derive the same lowercase SHA-256 origin as TypeScript, Python, and
+Rust, retain proven byte spans for all PHP source occurrences, and fail closed
+on invalid UTF-8, invalid or scalar-splitting ranges, and a mismatched source
+artifact.
+
 ## Executed lanes
 
 | Repository/lane | Result |
@@ -65,7 +84,8 @@ fail closed.
 | AEON TypeScript Telex CTS | 50 vectors passed |
 | AEON TypeScript provenance projection checkpoint | all 24 workspace projects typechecked; all 23 non-fuzz unit-test projects passed; focused lexer 127, parser 167, AES 200, and Core 131 tests passed |
 | AEON Python provenance projection checkpoint | all 321 unit tests passed; all consolidated CTS lanes passed, including Core 265, AES 67, canonicalization 27, finalization 18, inspect 6, map 3, SANSA 46, annotations 14, and AEOS 118 cases |
-| AEON PHP AES suite | 91 tests and 256 assertions passed |
+| AEON Rust provenance projection checkpoint | all 552 workspace unit tests passed; all consolidated CTS lanes passed, including Core 265, AES 67, canonicalization 27, finalization 14, finalization limits 4, inspect 6, map 3, SANSA 9, annotations 14, and AEOS 118 cases; Clippy with warnings denied and formatting passed |
+| AEON PHP provenance projection checkpoint | all 873 repository tests and 2,656 assertions passed; Core CTS 265/265, limits 32/32, and AES 91 tests/256 assertions passed; Composer manifest validation completed with only pre-existing metadata/constraint warnings |
 | SANSA full suite | 257 tests passed |
 | ASP full suite, including the source-derived round trip, hardened AET scalar bridge, and portable subtree/index lifecycle | 1,110 tests passed; 62 conformance cases passed |
 | AEON TypeScript integrity package | 14 tests passed |
@@ -107,9 +127,10 @@ and mixed historical record-version readers. Those additions should advance a
 development CTS and later publish a new immutable snapshot; they do not mutate
 snapshot 0.1.
 
-Public AET ingress and encryption, the remaining Rust/PHP provenance
-projection and offset audits, index lifecycle closure, and head-aware ASP
-storage remain separate unchecked requirements. Base event-stream integrity belongs to
+Public AET ingress and encryption, Rust independent anonymous-occurrence
+ranges, index lifecycle closure, and head-aware ASP storage remain separate
+unchecked requirements.
+Base event-stream integrity belongs to
 `aes.integrity.v0`, while
 `aes.transaction.v0` supplies the support-gated logical carrier, transaction
 digest, and source-backed preparation gate. Neither completion changes this
