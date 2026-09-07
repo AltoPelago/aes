@@ -613,10 +613,13 @@ recorded below.
 
 ##### Remaining Telex/AES compatibility requirements
 
-- [ ] Complete named legacy-to-portable adapters and conversion reports for
-  every supported implementation-specific source contract; ASP is complete,
-  while the parent rollout requirement remains open for the other durable or
-  serialized contracts.
+- [x] Complete named legacy-to-portable adapters and conversion reports for
+  every supported implementation-specific source contract. TypeScript, Rust,
+  Python, PHP, and ASP now expose implementation-owned v0 source identifiers,
+  named adapters, strict `aes.complete.v0` results, and reports that separate
+  semantic, record, and provenance fidelity. Local spans without an immutable
+  origin are omitted and reported; existing same-process projection helpers
+  remain available but do not identify an interchange contract.
 - [ ] Complete the AES-DB portable projection for value-less containers and
   explicit descendants while keeping datatype inference, reference resolution,
   and value-family semantics in their owning layers. The existing ASP-backed
@@ -1012,8 +1015,20 @@ above.
 - [x] Keep durable history in its original contract by default and expose a
   versioned read-time compatibility view. An explicitly authorized migration
   writes a new versioned store after backup, replay, index, and restore proof.
-- [ ] Implement named, versioned legacy-to-portable adapters and conversion
+- [x] Implement named, versioned legacy-to-portable adapters and conversion
   reports for every supported implementation-specific source contract.
+  - [x] TypeScript: `aeon.typescript.assignment-events.v0-to-aes.events.v0`
+    is exported by the AES package and Core facade, preserves source order and
+    expanded paths, and returns a report alongside strict portable events.
+  - [x] Rust: `aeon.rust.assignment-events.v0-to-aes.events.v0` is exported by
+    `aeon-core` with the same report semantics and explicit document-projection
+    option.
+  - [x] Python: `aeon.python.assignment-events.v0-to-aes.events.v0` is exported
+    by the package root with the same report semantics and explicit
+    document-projection option.
+  - [x] PHP: `aeon.php.assignment-events.v0-to-aes.events.v0` is exposed by
+    `PortableEvents::adapt()` with the same logical report fields and explicit
+    document-projection option.
   - [x] ASP: `asp.read-result.v0-to-aes.events.v0` derives a validated,
     reader-first `aes.complete.v0` body view from immutable ASP v0 history. Its
     report accounts for transformations, synthesis, omissions, semantic loss,

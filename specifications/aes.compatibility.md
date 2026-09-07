@@ -56,6 +56,47 @@ default mode succeeds only for a semantically lossless conversion under the
 selected target context. An explicitly authorized lossy mode records each
 loss; it never silently drops data.
 
+The logical v0 report has these fields. Host APIs may use their conventional
+member spelling, but a serialized report uses the names below.
+
+| Field | Meaning |
+| --- | --- |
+| `sourceContract` | implementation-owned, versioned source contract |
+| `targetContract` | `aes.events.v0` |
+| `adapter` | stable adapter identifier |
+| `adapterVersion` | implementation version of that mapping |
+| `profile` | selected portable AES profile |
+| `projection` | selected projection, or null for body-only |
+| `semanticLossless` | whether the selected semantic surface is preserved |
+| `recordLossless` | whether every source record field is preserved |
+| `provenanceLossless` | whether origin and exact ranges are preserved |
+| `semanticLossAuthorized` | whether explicit caller authority admitted reported semantic loss |
+| `changes` | ordered change records |
+
+Each change contains `kind`, `code`, `field`, `message`,
+`requiresAuthorization`, and optional `sourcePath` and `targetPath`. `kind` is
+one of `transformed`, `synthesized`, `omitted`, or `semantic-loss`. Change
+records are descriptive evidence; portable AES validation remains independent
+and runs after conversion.
+
+The initial implementation-owned adapter registry is:
+
+| Source contract | Adapter | Adapter version |
+| --- | --- | --- |
+| `aeon.typescript.assignment-events.v0` | `aeon.typescript.assignment-events.v0-to-aes.events.v0` | `0.1.0-candidate` |
+| `aeon.rust.assignment-events.v0` | `aeon.rust.assignment-events.v0-to-aes.events.v0` | `0.1.0-candidate` |
+| `aeon.python.assignment-events.v0` | `aeon.python.assignment-events.v0-to-aes.events.v0` | `0.1.0-candidate` |
+| `aeon.php.assignment-events.v0` | `aeon.php.assignment-events.v0-to-aes.events.v0` | `0.1.0-candidate` |
+| `asp.read-result.v0` | `asp.read-result.v0-to-aes.events.v0` | `0.1.0-candidate` |
+
+The first four identifiers name the corresponding implementation's legacy
+assignment-event/inspect model; they do not make untagged JSON portable AES.
+Their named adapter entry points accept the implementation's native equivalent
+of that source contract, return `aes.complete.v0`, retain source order, and
+omit local spans that lack an immutable origin. Existing same-process
+projection helpers are conveniences and are not substitutes for a named
+compatibility result at a serialized boundary.
+
 ## 3. Legacy to portable projection
 
 ### 3.1 Nodes and paths
