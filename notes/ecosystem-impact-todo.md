@@ -779,6 +779,20 @@ while the wider consumer audit remains open.
       publish nothing. The direct result is process-local evidence only;
       durability, SO, Wire/CLI, bare-event, generic AET, and Telex ingress remain
       later gates.
+    - [x] Candidate-specific recursive material-content durable receipt: an
+      fsync-backed, fenced single-writer sidecar retains the exact authorized
+      nested tombstone/insertion plan before commit. The recursive-specific
+      deterministic receipt binds database, intent, attempt, ASP transaction,
+      request, trusted application context, prepared plan, exact transaction,
+      and adjacent revisions. The effective value-nesting limit is bound by
+      both application-context and plan fingerprints. Restart reconciles
+      completion loss through authoritative exact transaction lookup; identity
+      reuse, context/plan detachment, collision, target divergence, volatile
+      targets, writer displacement, and retained evidence tampering fail closed.
+      Its 10,000-entry and 16-MiB bounds remain local implementation limits.
+      The fingerprint is integrity evidence, not a signature, generic AET
+      receipt, or AEON security envelope; SO, Wire/CLI, bare-event, and Telex
+      ingress remain closed.
 - [ ] ASP: preserve kind, canonical value, all three datatype components,
   identity, and provenance without rebuilding source lexemes.
   - [ ] ASP currently stores one combined datatype descriptor and reparses it
