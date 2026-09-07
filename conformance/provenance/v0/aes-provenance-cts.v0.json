@@ -1,0 +1,17 @@
+{
+  "meta": {
+    "version": "0.1.0-dev",
+    "status": "draft",
+    "lane": "aes-provenance",
+    "event_contract": "aes.events.v0",
+    "preparation_contract": "aes.preparation.source-backed.v0",
+    "sut_protocol": "cts.protocol.v1",
+    "description": "Mutable AES v0 exact-source digest, UTF-8 range, availability, and source-backed preparation candidate"
+  },
+  "suites": [
+    {
+      "id": "exact-source-audit",
+      "file": "suites/01-exact-source-audit.json"
+    }
+  ]
+}

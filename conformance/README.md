@@ -42,6 +42,17 @@ exact-order transaction integrity, support-versus-authority gating, and the
 initial narrow ASP scalar-value replacement application. It does not change
 Telex v0 framing or enable bare-stream, Wire, or CLI mutation ingress.
 
+The separate mutable exact-source provenance candidate is rooted at:
+
+```text
+provenance/v0/aes-provenance-cts.v0.json
+```
+
+It verifies record-local origins and UTF-8 byte ranges against exact retained
+artifacts, distinguishes unavailable evidence from invalid evidence, and gates
+the source-backed preparation contract. It is not a published immutable CTS
+snapshot.
+
 The manifest separates:
 
 - syntax and canonicalization;

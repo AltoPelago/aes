@@ -67,6 +67,7 @@ pub const AES_SCALAR_REPLACEMENT_APPLICATION: &str = "aes.application.asp.scalar
 pub const AES_ASP_TARGET: &str = "aes.target.asp.v0";
 pub const AES_ASP_REVISION_PRECONDITION: &str = "aes.precondition.asp-revision.v0";
 pub const AES_IDENTITY_PREPARATION: &str = "aes.preparation.identity.v0";
+pub const AES_SOURCE_BACKED_PREPARATION: &str = "aes.preparation.source-backed.v0";
 pub const AES_HOST_AUTHORIZATION: &str = "aes.authorization.host-context.v0";
 pub const AES_LIMITS_CLAIM: &str = "aes.limits.claim.v0";
 
@@ -187,6 +188,170 @@ impl TelexRecord {
     #[must_use]
     pub fn contains(&self, field: &str) -> bool {
         self.get(field).is_some()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesSourceArtifact {
+    pub origin: String,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesProvenanceDiagnostic {
+    pub code: &'static str,
+    pub message: String,
+    pub record: Option<usize>,
+    pub field: Option<&'static str>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesProvenanceAudit {
+    pub valid: bool,
+    pub complete: bool,
+    pub verified_origins: Vec<String>,
+    pub missing_origins: Vec<String>,
+    pub diagnostics: Vec<AesProvenanceDiagnostic>,
+}
+
+/// Audit record-local provenance against exact caller-retained source bytes.
+/// Missing artifacts remain an incomplete observation unless the caller makes
+/// availability mandatory for a source-backed operation.
+#[must_use]
+pub fn audit_aes_source_provenance(
+    records: &[TelexRecord],
+    artifacts: &[AesSourceArtifact],
+    require_all_records: bool,
+    require_available: bool,
+) -> AesProvenanceAudit {
+    enum ArtifactState<'a> {
+        Missing,
+        Invalid,
+        Verified(&'a str),
+    }
+
+    let mut states = HashMap::<String, ArtifactState<'_>>::new();
+    let mut verified_origins = Vec::new();
+    let mut missing_origins = Vec::new();
+    let mut diagnostics = Vec::new();
+    let mut complete = true;
+
+    for (index, record) in records.iter().enumerate() {
+        let Some(origin) = record.get("origin") else {
+            if require_all_records {
+                complete = false;
+                diagnostics.push(provenance_diagnostic(
+                    "AES_SOURCE_REQUIRED",
+                    "Source-backed preparation requires origin on every payload record.",
+                    index,
+                    "origin",
+                ));
+            }
+            continue;
+        };
+        if !valid_origin(origin) {
+            diagnostics.push(provenance_diagnostic(
+                "AES_INVALID_ORIGIN",
+                "Origin is not a canonical AES v0 source digest.",
+                index,
+                "origin",
+            ));
+            continue;
+        }
+        if !states.contains_key(origin) {
+            let state = match artifacts.iter().find(|artifact| artifact.origin == origin) {
+                None => {
+                    complete = false;
+                    missing_origins.push(origin.to_owned());
+                    if require_available {
+                        diagnostics.push(provenance_diagnostic(
+                            "AES_SOURCE_REQUIRED",
+                            format!("Exact source artifact '{origin}' is unavailable."),
+                            index,
+                            "origin",
+                        ));
+                    }
+                    ArtifactState::Missing
+                }
+                Some(artifact) => {
+                    let actual = format!("sha256:{}", lower_hex(&Sha256::digest(&artifact.bytes)));
+                    if actual != origin {
+                        diagnostics.push(provenance_diagnostic(
+                            "AES_ORIGIN_MISMATCH",
+                            "Retained source bytes do not match the declared origin.",
+                            index,
+                            "origin",
+                        ));
+                        ArtifactState::Invalid
+                    } else if let Ok(source) = std::str::from_utf8(&artifact.bytes) {
+                        verified_origins.push(origin.to_owned());
+                        ArtifactState::Verified(source)
+                    } else {
+                        diagnostics.push(provenance_diagnostic(
+                            "AES_SOURCE_INVALID_UTF8",
+                            "Retained source artifact is not valid UTF-8.",
+                            index,
+                            "origin",
+                        ));
+                        ArtifactState::Invalid
+                    }
+                }
+            };
+            states.insert(origin.to_owned(), state);
+        }
+        let Some(span) = record.get("span") else {
+            continue;
+        };
+        let Some(ArtifactState::Verified(source)) = states.get(origin) else {
+            continue;
+        };
+        let Some((start, end)) = source_span(span) else {
+            diagnostics.push(provenance_diagnostic(
+                "AES_INVALID_SPAN",
+                "Span syntax or ordering is invalid.",
+                index,
+                "span",
+            ));
+            continue;
+        };
+        if end > source.len() || !source.is_char_boundary(start) || !source.is_char_boundary(end) {
+            diagnostics.push(provenance_diagnostic(
+                "AES_INVALID_SPAN",
+                "Span exceeds the retained source artifact or splits a UTF-8 scalar.",
+                index,
+                "span",
+            ));
+        }
+    }
+
+    AesProvenanceAudit {
+        valid: diagnostics.is_empty(),
+        complete,
+        verified_origins,
+        missing_origins,
+        diagnostics,
+    }
+}
+
+fn source_span(span: &str) -> Option<(usize, usize)> {
+    if !valid_span(span) {
+        return None;
+    }
+    let (start, end) = span.split_once(':')?;
+    Some((start.parse().ok()?, end.parse().ok()?))
+}
+
+fn provenance_diagnostic(
+    code: &'static str,
+    message: impl Into<String>,
+    record: usize,
+    field: &'static str,
+) -> AesProvenanceDiagnostic {
+    AesProvenanceDiagnostic {
+        code,
+        message: message.into(),
+        record: Some(record),
+        field: Some(field),
     }
 }
 
@@ -391,6 +556,7 @@ pub struct AesTransactionInspection {
     pub valid: bool,
     pub supported: bool,
     pub evidence_verified: bool,
+    pub provenance_verified: Option<bool>,
     pub ready_for_authorization: bool,
     pub actionable: bool,
     pub diagnostics: Vec<AesTransactionDiagnostic>,
@@ -1069,6 +1235,25 @@ pub fn inspect_aes_transaction_envelope(
     registered_fields: &[&str],
     registered_event_fields: &[&str],
 ) -> AesTransactionInspection {
+    inspect_aes_transaction_envelope_with_sources(
+        envelope,
+        require_evidence,
+        support,
+        registered_fields,
+        registered_event_fields,
+        &[],
+    )
+}
+
+#[must_use]
+pub fn inspect_aes_transaction_envelope_with_sources(
+    envelope: &AesTransactionEnvelope,
+    require_evidence: bool,
+    support: &AesTransactionSupport,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+    source_artifacts: &[AesSourceArtifact],
+) -> AesTransactionInspection {
     let validation = validate_aes_transaction_envelope(
         envelope,
         require_evidence,
@@ -1079,12 +1264,38 @@ pub fn inspect_aes_transaction_envelope(
     let unsupported = transaction_unsupported(&envelope.body, support);
     let supported = unsupported.is_empty();
     diagnostics.extend(unsupported);
+    let provenance = if envelope.body.preparation.contract == AES_SOURCE_BACKED_PREPARATION {
+        Some(audit_aes_source_provenance(
+            &envelope.body.records,
+            source_artifacts,
+            true,
+            true,
+        ))
+    } else {
+        None
+    };
+    if let Some(audit) = &provenance {
+        diagnostics.extend(audit.diagnostics.iter().map(|item| {
+            AesTransactionDiagnostic {
+                code: item.code,
+                message: item.message.clone(),
+                path: item
+                    .record
+                    .map(|record| format!("records[{record}].{}", item.field.unwrap_or("origin"))),
+            }
+        }));
+    }
+    let provenance_verified = provenance
+        .as_ref()
+        .map(|audit| audit.valid && audit.complete);
+    let valid = validation.valid && provenance_verified.unwrap_or(true);
     let ready_for_authorization =
-        validation.valid && supported && (!require_evidence || validation.evidence_verified);
+        valid && supported && (!require_evidence || validation.evidence_verified);
     AesTransactionInspection {
-        valid: validation.valid,
+        valid,
         supported,
         evidence_verified: validation.evidence_verified,
+        provenance_verified,
         ready_for_authorization,
         actionable: false,
         diagnostics,

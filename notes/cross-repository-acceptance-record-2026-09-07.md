@@ -33,11 +33,18 @@ the ASP bridge admits only an independently validated, supported,
 integrity-verified scalar AET into the existing named SO application path.
 Generic inspection remains non-actionable.
 
+The exact-source provenance lane adds 11 shared JavaScript/Rust candidate
+vectors. Source-backed preparation now blocks readiness unless every payload
+record has a verified origin and every exact artifact/span audit completes;
+ordinary source-unavailable events remain locally valid and unverified. The
+registered scalar application does not select this preparation and its mutation
+behavior is unchanged.
+
 ## Executed lanes
 
 | Repository/lane | Result |
 | --- | --- |
-| AltoPelago AES JavaScript, shared immutable CTS plus integrity and AET candidate lanes | 218 tests passed, including all 38 AES Events, 50 Telex, 14 integrity, and 14 AET vectors |
+| AltoPelago AES JavaScript, shared immutable CTS plus integrity, provenance, and AET candidate lanes | full suite passed, including all 38 AES Events, 50 Telex, 14 integrity, 11 provenance, and 14 AET vectors |
 | AltoPelago AES Rust, shared immutable CTS plus integrity and AET candidate lanes | all conformance, completeness, limits, integrity, and transaction tests passed; Clippy is warning-free |
 | AEON TypeScript AES Events CTS | 38 vectors passed |
 | AEON TypeScript Telex CTS | 50 vectors passed |
@@ -84,9 +91,9 @@ and mixed historical record-version readers. Those additions should advance a
 development CTS and later publish a new immutable snapshot; they do not mutate
 snapshot 0.1.
 
-Public AET ingress and encryption, source-backed provenance mutation, index
-lifecycle closure, and head-aware ASP storage remain separate unchecked
-requirements. Base event-stream integrity now belongs to `aes.integrity.v0`,
-while the later `aes.transaction.v0` draft supplies the support-gated logical
-carrier and transaction digest. Neither later completion changes this earlier
-read/export and supported-application acceptance run.
+Public AET ingress and encryption, cross-language provenance projection rollout,
+index lifecycle closure, and head-aware ASP storage remain separate unchecked
+requirements. Base event-stream integrity belongs to `aes.integrity.v0`, while
+`aes.transaction.v0` supplies the support-gated logical carrier, transaction
+digest, and source-backed preparation gate. Neither completion changes this
+earlier read/export and supported-application acceptance run.

@@ -5,14 +5,15 @@ use std::path::PathBuf;
 use aes_telex::{
     AES_ASP_REVISION_PRECONDITION, AES_ASP_TARGET, AES_EVENT_CONTRACT, AES_EXACT_ORDER,
     AES_HOST_AUTHORIZATION, AES_IDENTITY_PREPARATION, AES_LIMITS_CLAIM,
-    AES_SCALAR_REPLACEMENT_APPLICATION, AES_TRANSACTION_CONTRACT, AES_TRANSACTION_ENVELOPE,
-    AES_TRANSACTION_INTEGRITY, AesTransactionApplication, AesTransactionAssertions,
-    AesTransactionAuthorization, AesTransactionBody, AesTransactionEnvelope,
-    AesTransactionEvidence, AesTransactionIntegrityPolicy, AesTransactionLimitsClaim,
-    AesTransactionPrecondition, AesTransactionPreparation, AesTransactionSupport,
-    AesTransactionTarget, IntegrityValue, PARTIAL_AES_PROFILE, TelexRecord,
-    compute_aes_transaction_digest, encode_aes_transaction_signature_input,
-    inspect_aes_transaction_envelope, validate_aes_transaction_body,
+    AES_SCALAR_REPLACEMENT_APPLICATION, AES_SOURCE_BACKED_PREPARATION, AES_TRANSACTION_CONTRACT,
+    AES_TRANSACTION_ENVELOPE, AES_TRANSACTION_INTEGRITY, AesSourceArtifact,
+    AesTransactionApplication, AesTransactionAssertions, AesTransactionAuthorization,
+    AesTransactionBody, AesTransactionEnvelope, AesTransactionEvidence,
+    AesTransactionIntegrityPolicy, AesTransactionLimitsClaim, AesTransactionPrecondition,
+    AesTransactionPreparation, AesTransactionSupport, AesTransactionTarget, IntegrityValue,
+    PARTIAL_AES_PROFILE, TelexRecord, compute_aes_transaction_digest,
+    encode_aes_transaction_signature_input, inspect_aes_transaction_envelope,
+    inspect_aes_transaction_envelope_with_sources, validate_aes_transaction_body,
     validate_aes_transaction_envelope,
 };
 use serde_json::{Map, Value};
@@ -59,7 +60,58 @@ fn supported_verified_transaction_still_requires_host_authorization() -> Result<
     };
     let result = inspect_aes_transaction_envelope(&envelope, true, &scalar_support(), &[], &[]);
     assert!(result.ready_for_authorization);
+    assert_eq!(result.provenance_verified, None);
     assert!(!result.actionable);
+    Ok(())
+}
+
+#[test]
+fn source_backed_preparation_requires_exact_retained_bytes() -> Result<(), Box<dyn Error>> {
+    let origin = "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2";
+    let mut body = scalar_body();
+    body.application.contract = "x.example.source-check.v0".to_owned();
+    body.preparation.contract = AES_SOURCE_BACKED_PREPARATION.to_owned();
+    body.records = vec![TelexRecord::new(vec![
+        ("path".to_owned(), "$.a".to_owned()),
+        ("kind".to_owned(), "StringLiteral".to_owned()),
+        ("value".to_owned(), "é".to_owned()),
+        ("origin".to_owned(), origin.to_owned()),
+        ("span".to_owned(), "4:8".to_owned()),
+    ])];
+    let hash = compute_aes_transaction_digest(&body, &[], &[])?.digest;
+    let envelope = AesTransactionEnvelope {
+        envelope: AES_TRANSACTION_ENVELOPE.to_owned(),
+        body,
+        evidence: Some(AesTransactionEvidence {
+            integrity: AES_TRANSACTION_INTEGRITY.to_owned(),
+            digest: "sha256".to_owned(),
+            hash,
+            signatures: Vec::new(),
+        }),
+    };
+    let mut support = scalar_support();
+    support.applications = vec!["x.example.source-check.v0".to_owned()];
+    support.preparations = vec![AES_SOURCE_BACKED_PREPARATION.to_owned()];
+    let unavailable = inspect_aes_transaction_envelope(&envelope, true, &support, &[], &[]);
+    assert!(!unavailable.valid);
+    assert_eq!(unavailable.provenance_verified, Some(false));
+    assert!(!unavailable.ready_for_authorization);
+
+    let verified = inspect_aes_transaction_envelope_with_sources(
+        &envelope,
+        true,
+        &support,
+        &[],
+        &[],
+        &[AesSourceArtifact {
+            origin: origin.to_owned(),
+            bytes: "a = \"é\"\r\n".as_bytes().to_vec(),
+        }],
+    );
+    assert!(verified.valid);
+    assert_eq!(verified.provenance_verified, Some(true));
+    assert!(verified.ready_for_authorization);
+    assert!(!verified.actionable);
     Ok(())
 }
 

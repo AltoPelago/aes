@@ -2,7 +2,10 @@ import { Buffer } from 'node:buffer';
 import { createHash, timingSafeEqual } from 'node:crypto';
 
 import { encodeAesIntegrityValue } from './integrity.js';
+import { AES_SOURCE_BACKED_PREPARATION, auditAesSourceProvenance } from './provenance.js';
 import { PARTIAL_AES_PROFILE, validateTelexRecords } from './telex.js';
+
+export { AES_SOURCE_BACKED_PREPARATION } from './provenance.js';
 
 export const AES_TRANSACTION_CONTRACT = 'aes.transaction.v0';
 export const AES_TRANSACTION_ENVELOPE = 'aes.transaction.envelope.v0';
@@ -210,16 +213,30 @@ export function validateAesTransactionEnvelope(envelope, options = {}) {
 export function inspectAesTransactionEnvelope(envelope, options = {}) {
   const validation = validateAesTransactionEnvelope(envelope, options);
   const support = checkAesTransactionSupport(envelope?.body, options.support ?? {});
+  const provenance = inspectTransactionProvenance(envelope?.body, options.sourceArtifacts);
   const evidenceSatisfied = options.requireEvidence !== true || validation.evidenceVerified;
-  const readyForAuthorization = validation.valid && support.supported && evidenceSatisfied;
+  const valid = validation.valid && provenance.valid;
+  const readyForAuthorization = valid && support.supported && evidenceSatisfied;
   return {
-    valid: validation.valid,
+    valid,
     supported: support.supported,
     evidenceVerified: validation.evidenceVerified,
+    provenanceVerified: provenance.claimed ? provenance.valid && provenance.complete : null,
     readyForAuthorization,
     actionable: false,
-    diagnostics: [...validation.diagnostics, ...support.diagnostics],
+    diagnostics: [...validation.diagnostics, ...support.diagnostics, ...provenance.diagnostics],
   };
+}
+
+function inspectTransactionProvenance(body, sourceArtifacts) {
+  if (!plainRecord(body) || body.preparation?.contract !== AES_SOURCE_BACKED_PREPARATION) {
+    return { claimed: false, valid: true, complete: true, diagnostics: [] };
+  }
+  const audit = auditAesSourceProvenance(body.records, sourceArtifacts, {
+    requireAllRecords: true,
+    requireAvailable: true,
+  });
+  return { claimed: true, ...audit };
 }
 
 function validateTarget(value, diagnostics) {

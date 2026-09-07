@@ -442,6 +442,26 @@ If an available artifact does not match `origin`, the audit reports
 `AES_ORIGIN_MISMATCH`. If its range is out of bounds or either endpoint splits
 a UTF-8 scalar, it reports `AES_INVALID_SPAN`.
 
+The source-artifact resolver is trusted application context, not event data. It
+returns exact bytes for a declared origin; a filesystem path, URI, decoded
+string, current document buffer, or similarly mutable locator is insufficient.
+The audit verifies each distinct origin once and each present span against that
+verified artifact. Source bytes must themselves be valid UTF-8. An exact-byte
+API is required so a consumer cannot silently normalize a BOM, line endings, or
+encoding before hashing.
+
+An audit reports validity separately from completeness. With no source-backed
+operation claim, an unavailable artifact leaves otherwise valid provenance
+incomplete and unverified. A profile or preparation contract that requires
+source-backed provenance turns every missing record origin or unavailable
+artifact into `AES_SOURCE_REQUIRED` and cannot proceed. Digest, UTF-8, or range
+failure is invalid evidence rather than merely unavailable evidence.
+
+This audit establishes artifact identity and coordinate validity only. It does
+not by itself prove that an event's semantic payload was parsed from its span.
+A consumer making that stronger claim must select a versioned source projection
+and reproduce the event from the verified bytes.
+
 ### 7.1 NodeHead span
 
 A source-backed NodeHead span begins at the first byte of its tag token and
@@ -686,6 +706,9 @@ not emitted by a local record validator:
 | Code | Condition |
 | --- | --- |
 | `AES_ORIGIN_MISMATCH` | available source bytes do not match the declared origin digest |
+| `AES_SOURCE_REQUIRED` | a source-backed operation lacks a record origin or exact retained artifact |
+| `AES_SOURCE_ARTIFACT_INVALID` | an artifact resolver did not return exact bytes |
+| `AES_SOURCE_INVALID_UTF8` | digest-matching source bytes are not valid UTF-8 |
 
 `AES_INVALID_SPAN` is also used by a source-backed audit when a range exceeds
 the artifact or splits a UTF-8 scalar boundary.

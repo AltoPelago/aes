@@ -50,8 +50,9 @@ working/reference copies and do not override those canonical sources.
   signature inputs without treating Telex or Film bytes as the signed form.
 - [Assignment Event Transaction Contract v0](specifications/aes.transactions.md)
   defines the non-actionable logical transaction envelope, exact-order
-  transaction integrity, trusted-host boundaries, and the initial narrow ASP
-  scalar-value replacement application without changing Telex framing.
+  transaction integrity, trusted-host boundaries, source-backed preparation,
+  and the initial narrow ASP scalar-value replacement application without
+  changing Telex framing.
 - [Telex v0](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
 - [Film v0 binary encoding proposal](proposals/film.aes.md) records the
@@ -85,15 +86,22 @@ working/reference copies and do not override those canonical sources.
   codec exports `DEFAULT_TELEX_LIMITS` and accepts normalized limits through
   its public parse, encode, canonicalize, and validation options; resolving an
   AEON limits file remains the trusted caller's responsibility.
+- [`src/provenance.js`](src/provenance.js) audits record-local origin digests
+  and UTF-8 byte spans against exact caller-retained bytes. It reports artifact
+  availability separately from evidence validity and gates
+  `aes.preparation.source-backed.v0` without turning source coordinates into
+  mutation authority.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early
   illustrative stream, not a frozen conformance vector.
 - [`conformance/`](conformance/README.md) contains language-neutral v0
-  vectors for syntax, canonicalization, AES profile validation, resource-limit
-  boundaries, and the optional AEON document projection. Stable external
+  vectors for syntax, canonicalization, AES profile validation, exact-source
+  provenance, resource-limit boundaries, and the optional AEON document
+  projection. Stable external
   targets are published separately as `aes-events-cts-v0-snapshot-0.1` and
   `telex-cts-v0-snapshot-0.1` in the shared `aeonite-cts` repository.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
-  Rust implementation of the same v0 event, Telex, and integrity contracts.
+  Rust implementation of the same v0 event, Telex, integrity, provenance, and
+  transaction contracts.
   Its Telex codec has no runtime dependencies; portable SHA-256 integrity uses
   the audited `sha2` crate.
 

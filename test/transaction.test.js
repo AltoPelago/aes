@@ -8,6 +8,7 @@ import {
   AES_IDENTITY_PREPARATION,
   AES_LIMITS_CLAIM,
   AES_SCALAR_REPLACEMENT_APPLICATION,
+  AES_SOURCE_BACKED_PREPARATION,
   AES_TRANSACTION_CONTRACT,
   AES_TRANSACTION_ENVELOPE,
   AES_TRANSACTION_INTEGRITY,
@@ -147,4 +148,41 @@ test('tampered evidence fails and signature input binds algorithm and key identi
   const alice = encodeAesTransactionSignatureInput({ digest, alg: 'ed25519', kid: 'alice' });
   const bob = encodeAesTransactionSignatureInput({ digest, alg: 'ed25519', kid: 'bob' });
   assert.notDeepEqual(alice.bytes, bob.bytes);
+});
+
+test('source-backed preparation gates readiness on exact retained artifacts', () => {
+  const origin = 'sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2';
+  const sourceBody = scalarBody({
+    application: { contract: 'x.example.source-check.v0' },
+    preparation: { contract: AES_SOURCE_BACKED_PREPARATION },
+    records: [{ path: '$.a', kind: 'StringLiteral', value: 'é', origin, span: '4:8' }],
+  });
+  const sourceEnvelope = {
+    envelope: AES_TRANSACTION_ENVELOPE,
+    body: sourceBody,
+    evidence: evidence(sourceBody),
+  };
+  const sourceSupport = {
+    ...support(),
+    applications: ['x.example.source-check.v0'],
+    preparations: [AES_SOURCE_BACKED_PREPARATION],
+  };
+  const unavailable = inspectAesTransactionEnvelope(sourceEnvelope, {
+    requireEvidence: true,
+    support: sourceSupport,
+  });
+  assert.equal(unavailable.valid, false);
+  assert.equal(unavailable.provenanceVerified, false);
+  assert.equal(unavailable.readyForAuthorization, false);
+  assert.ok(unavailable.diagnostics.some(({ code }) => code === 'AES_SOURCE_REQUIRED'));
+
+  const verified = inspectAesTransactionEnvelope(sourceEnvelope, {
+    requireEvidence: true,
+    support: sourceSupport,
+    sourceArtifacts: new Map([[origin, Buffer.from('a = "é"\r\n')]]),
+  });
+  assert.equal(verified.valid, true);
+  assert.equal(verified.provenanceVerified, true);
+  assert.equal(verified.readyForAuthorization, true);
+  assert.equal(verified.actionable, false);
 });

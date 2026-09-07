@@ -20,12 +20,17 @@ The default stream contains body events only. The optional
 plane; it remains independent of the complete/partial AES profile selection.
 Optional source provenance is record-local: `origin` may stand alone, while
 `span` requires a canonical SHA-256 origin.
+`audit_aes_source_provenance` verifies exact retained bytes, valid UTF-8, range
+bounds, and scalar boundaries while distinguishing missing artifacts from
+invalid evidence.
 
 The crate also implements the candidate transport-neutral
 `aes.transaction.v0` body, support-gated logical envelope, exact-order
 transaction digest, and signature input. Generic inspection can report that a
 verified transaction is ready for trusted authorization, but always reports
-`actionable=false`.
+`actionable=false`. A transaction selecting
+`aes.preparation.source-backed.v0` additionally remains unready until its
+record provenance audit is complete.
 
 The Telex codec has no runtime dependencies. Portable integrity uses the
 `sha2` crate for SHA-256 rather than implementing a cryptographic primitive in

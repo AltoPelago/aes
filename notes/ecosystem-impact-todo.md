@@ -372,6 +372,11 @@ while the wider consumer audit remains open.
   `AES_ORIGIN_MISMATCH`.
 - [ ] Implement source-backed provenance audits over exact source artifacts in
   each language and add non-ASCII boundary, range, and digest-mismatch vectors.
+  The JavaScript and Rust AES reference implementations now pass the same 11
+  candidate vectors for exact-byte digest verification, origin-only evidence,
+  missing artifacts, UTF-8 scalar boundaries, range overflow, invalid UTF-8,
+  and BOM/CRLF preservation. TypeScript, Python, and PHP projection-boundary
+  rollout remains open below.
 - [ ] Derive line and column only when the identified source bytes are
   available.
 - [ ] TypeScript: correct or replace the lexer claim that its UTF-16 string
@@ -671,10 +676,21 @@ recorded below.
   AET into the existing closed SO request. Inspection still returns
   `actionable=false`; Wire, CLI, bare-event, and Telex mutation ingress remain
   absent.
-- [ ] Complete origin/span operation semantics against an exact retained source
+- [x] Complete origin/span operation semantics against an exact retained source
   artifact when a selected application claims source-backed provenance.
-  Changed records may continue to drop stale provenance, and applications that
-  make no retention claim may continue to omit it.
+  `aes.preparation.source-backed.v0` now gates transaction readiness on origin
+  coverage for every payload record and a valid, complete exact-byte audit.
+  The resolver is trusted context rather than transaction data; missing bytes
+  fail the claimed preparation, while ordinary local event validation still
+  permits unavailable evidence. The operation contract distinguishes artifact
+  and range verification from semantic source projection: changed target
+  occurrences drop old provenance, and incoming verified provenance may be
+  retained only through the named application's explicit result mapping and
+  any claimed source reprojection. The current registered scalar application
+  keeps identity preparation, forbids transported provenance, and remains
+  unchanged. Eleven shared candidate vectors pass in independent JavaScript
+  and Rust implementations; generic inspection still reports
+  `actionable=false`.
 - [ ] Rebuild or invalidate affected AES-DB indexes and verify replay,
   snapshots, checkpoints, backup, restore, compaction, subtree deletion/move,
   and mixed legacy/revised reads preserve the admitted portable occurrences.

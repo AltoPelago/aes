@@ -1,0 +1,120 @@
+{
+  "meta": {
+    "suite_id": "exact-source-audit",
+    "lane": "aes-provenance",
+    "event_contract": "aes.events.v0",
+    "preparation_contract": "aes.preparation.source-backed.v0",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/aes.events.md#7-provenance-and-spans",
+      "specifications/aes.transactions.md#4-4-source-backed-preparation"
+    ]
+  },
+  "id": "exact-source-audit",
+  "title": "AES v0 Exact Source-Backed Provenance Audit",
+  "tests": [
+    {
+      "id": "aes-provenance-001-origin-only",
+      "description": "Origin-only evidence verifies the exact retained source without inventing a range",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "é", "origin": "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2" }],
+        "artifacts": { "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2": "YSA9ICLDqSINCg==" }
+      },
+      "expected": { "valid": true, "complete": true, "diagnostic_codes": [], "verified_origins": ["sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2"] }
+    },
+    {
+      "id": "aes-provenance-002-non-ascii-boundary",
+      "description": "A range ending after a two-byte UTF-8 scalar verifies",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "é", "origin": "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2", "span": "4:8" }],
+        "artifacts": { "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2": "YSA9ICLDqSINCg==" },
+        "require_all_records": true,
+        "require_available": true
+      },
+      "expected": { "valid": true, "complete": true, "diagnostic_codes": [], "verified_origins": ["sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2"] }
+    },
+    {
+      "id": "aes-provenance-003-split-start",
+      "description": "A start inside a UTF-8 scalar is invalid",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "é", "origin": "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2", "span": "6:8" }],
+        "artifacts": { "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2": "YSA9ICLDqSINCg==" }
+      },
+      "expected": { "valid": false, "complete": true, "diagnostic_codes": ["AES_INVALID_SPAN"], "verified_origins": ["sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2"] }
+    },
+    {
+      "id": "aes-provenance-004-split-end",
+      "description": "An end inside a UTF-8 scalar is invalid",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "é", "origin": "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2", "span": "4:6" }],
+        "artifacts": { "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2": "YSA9ICLDqSINCg==" }
+      },
+      "expected": { "valid": false, "complete": true, "diagnostic_codes": ["AES_INVALID_SPAN"], "verified_origins": ["sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2"] }
+    },
+    {
+      "id": "aes-provenance-005-out-of-range",
+      "description": "A range beyond the exact source length is invalid",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "é", "origin": "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2", "span": "4:11" }],
+        "artifacts": { "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2": "YSA9ICLDqSINCg==" }
+      },
+      "expected": { "valid": false, "complete": true, "diagnostic_codes": ["AES_INVALID_SPAN"], "verified_origins": ["sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2"] }
+    },
+    {
+      "id": "aes-provenance-006-origin-mismatch",
+      "description": "Available bytes that disagree with the declared digest fail",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "é", "origin": "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2" }],
+        "artifacts": { "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2": "ZGlmZmVyZW50" }
+      },
+      "expected": { "valid": false, "complete": true, "diagnostic_codes": ["AES_ORIGIN_MISMATCH"], "verified_origins": [] }
+    },
+    {
+      "id": "aes-provenance-007-unavailable-observation",
+      "description": "Unavailable bytes leave locally valid provenance unverified when no operation claim is made",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "é", "origin": "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2" }],
+        "artifacts": {}
+      },
+      "expected": { "valid": true, "complete": false, "diagnostic_codes": [], "verified_origins": [] }
+    },
+    {
+      "id": "aes-provenance-008-unavailable-required",
+      "description": "A source-backed operation claim fails when exact bytes are unavailable",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "é", "origin": "sha256:d7f871f7c49226de258ccf11674f66e7395ab65f2e006e42851cd232b03c28e2" }],
+        "artifacts": {},
+        "require_available": true
+      },
+      "expected": { "valid": false, "complete": false, "diagnostic_codes": ["AES_SOURCE_REQUIRED"], "verified_origins": [] }
+    },
+    {
+      "id": "aes-provenance-009-all-record-coverage",
+      "description": "A source-backed preparation cannot silently omit one payload record",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "é" }],
+        "artifacts": {},
+        "require_all_records": true
+      },
+      "expected": { "valid": false, "complete": false, "diagnostic_codes": ["AES_SOURCE_REQUIRED"], "verified_origins": [] }
+    },
+    {
+      "id": "aes-provenance-010-invalid-utf8",
+      "description": "A digest-matching artifact must still be valid UTF-8 source",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "x", "origin": "sha256:a8100ae6aa1940d0b663bb31cd466142ebbdbd5187131b92d93818987832eb89" }],
+        "artifacts": { "sha256:a8100ae6aa1940d0b663bb31cd466142ebbdbd5187131b92d93818987832eb89": "/w==" }
+      },
+      "expected": { "valid": false, "complete": true, "diagnostic_codes": ["AES_SOURCE_INVALID_UTF8"], "verified_origins": [] }
+    },
+    {
+      "id": "aes-provenance-011-bom-crlf-exactness",
+      "description": "BOM and CRLF bytes participate in origin identity and range offsets",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "a", "origin": "sha256:ea3948106c12d96eaf84d4bb8be214b194c3442acb99a3005251960b0ec2ba63", "span": "3:4" }],
+        "artifacts": { "sha256:ea3948106c12d96eaf84d4bb8be214b194c3442acb99a3005251960b0ec2ba63": "77u/YQ0K" }
+      },
+      "expected": { "valid": true, "complete": true, "diagnostic_codes": [], "verified_origins": ["sha256:ea3948106c12d96eaf84d4bb8be214b194c3442acb99a3005251960b0ec2ba63"] }
+    }
+  ]
+}

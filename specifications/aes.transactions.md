@@ -156,6 +156,8 @@ sufficient.
 
 ### 4.4 Preparation
 
+#### 4.4.1 Identity preparation
+
 The initial `aes.preparation.identity.v0` map contains only its `contract`.
 It asserts that the supplied record order and values are already the final
 prepared payload. Any transformation or reordering selects another registered
@@ -163,6 +165,40 @@ preparation contract and produces a new `attempt`, transaction `id`, and digest.
 
 Preparation declarations are descriptive evidence. They never cause a
 consumer to execute document-supplied code.
+
+#### 4.4.2 Source-backed preparation
+
+`aes.preparation.source-backed.v0` registers the operation gate for an
+application that claims every payload record has exact retained source
+evidence. Its map also contains only `contract`; record-local origins bind the
+artifacts and do not expose storage locators in the transaction body.
+
+Before readiness, the trusted consumer must resolve every distinct record
+origin to exact bytes, verify its SHA-256 digest, require valid UTF-8, and check
+every present span for bounds and scalar boundaries. Every record must carry an
+origin. An origin-only record is valid evidence that the exact artifact was
+retained while making no range claim. Missing bytes or a missing record origin
+reports `AES_SOURCE_REQUIRED`; mismatch and invalid ranges retain their AES
+event diagnostics. Local event validity remains independent of artifact
+availability, but a transaction selecting this preparation cannot become
+ready-for-authorization until the audit is valid and complete.
+
+The audit alone does not prove that record semantics were parsed from the
+claimed span. An application making that stronger assertion must name and rerun
+the source projection that derives the event. A target adapter applies these
+retention rules:
+
+- an unchanged target occurrence may retain its already-verified provenance;
+- a changed target occurrence always drops its previous provenance;
+- verified payload provenance may become result provenance only when the named
+  application maps that payload record to the result occurrence and performs
+  any claimed source projection; otherwise it is evidence only; and
+- ASP operation `origin` supplied by trusted host context is audit metadata,
+  not AES source provenance, and is never synthesized from transported fields.
+
+The registered scalar-replacement application continues to require identity
+preparation and forbids payload `origin` and `span`; it makes no source-retention
+claim.
 
 ### 4.5 Authorization context
 
@@ -356,13 +392,15 @@ metadata, and processing order.
    authorization, limits, extension, integrity, and security contract against
    trusted consumer capabilities.
 5. Verify integrity evidence when required by consumer policy.
-6. Resolve and authenticate trusted host context; document fields do not grant
+6. If source-backed preparation is selected, resolve and audit every exact
+   source artifact and require complete record coverage.
+7. Resolve and authenticate trusted host context; document fields do not grant
    authority.
-7. Authorize the request, read the exact target state, and prepare the concrete
+8. Authorize the request, read the exact target state, and prepare the concrete
    candidate.
-8. Validate the resolved plan and complete candidate, then authorize the plan.
-9. Recheck preconditions and commit atomically.
-10. Return a separate versioned receipt or a failure with no partial commit.
+9. Validate the resolved plan and complete candidate, then authorize the plan.
+10. Recheck preconditions and commit atomically.
+11. Return a separate versioned receipt or a failure with no partial commit.
 
 A consumer may inspect, relay, or reject a well-formed transaction without
 supporting its application. Structural validity, supported contracts, verified
@@ -382,6 +420,7 @@ evidence, authorization, and successful commit are separate states.
 | `AES_TRANSACTION_INTEGRITY_INVALID` | integrity evidence is malformed or unsupported |
 | `AES_TRANSACTION_INTEGRITY_MISMATCH` | supplied and recomputed transaction digests differ |
 | `AES_TRANSACTION_SIGNATURE_INVALID` | signature entry or signature input is invalid |
+| `AES_SOURCE_REQUIRED` | source-backed preparation lacks complete exact artifacts |
 | `AES_TRANSACTION_UNAUTHORIZED` | trusted host authorization rejects the request or plan |
 | `AES_TRANSACTION_STALE` | an atomic target precondition no longer holds |
 
@@ -391,7 +430,8 @@ Candidate vectors cover closed shape, distinct identities, explicit event
 context, exact record order, scalar-application narrowing, revision and count
 assertions, target/authorization/limits binding, deterministic logical bytes,
 tamper detection, digest-only evidence, signature-context binding, unknown
-fields, and unsupported-contract separation.
+fields, unsupported-contract separation, and source-backed preparation
+readiness against exact retained artifacts.
 
 The carrier and initial application remain normative drafts until independent
 implementations pass a shared immutable CTS snapshot and the ASP bridge proves
