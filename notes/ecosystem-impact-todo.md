@@ -620,20 +620,35 @@ recorded below.
   semantic, record, and provenance fidelity. Local spans without an immutable
   origin are omitted and reported; existing same-process projection helpers
   remain available but do not identify an interchange contract.
-- [ ] Complete the AES-DB portable projection for value-less containers and
+- [x] Complete the AES-DB portable projection for value-less containers and
   explicit descendants while keeping datatype inference, reference resolution,
-  and value-family semantics in their owning layers. The existing ASP-backed
-  strict read view is evidence for this task, not closure of every AES-DB
-  storage/projection path.
-- [ ] Audit relays, canonicalizers, signing paths, and durable codecs for the
-  legacy event shape, and bind semantic hashes/signatures to
-  `aes.events.v0`, the effective profile/projection, ordering policy, and the
-  expanded datatype structure rather than a Telex descriptor string.
-- [ ] Run the existing cross-repository acceptance set for identities, nodes,
+  and value-family semantics in their owning layers. Current and historical
+  file-backed reads, verified snapshots, checkpoint/log replay, backup restore,
+  ordered-container visible reads, and strict Telex encoding now share tested
+  acceptance for value-less object/list markers and separately stored
+  descendants. The vectors also prove that absent datatype metadata is not
+  inferred, references remain references rather than being resolved by
+  storage, and visible ordering retains descendant association.
+- [x] Audit relays, canonicalizers, signing paths, and durable codecs for the
+  legacy event shape. The audit distinguishes portable encodings from legacy
+  AEON canonical hashes and application-specific fingerprints, and closes the
+  discovered untagged Aeon Tonics JSON compatibility boundary. See
+  [AES integrity, relay, and durable-codec audit](aes-integrity-relay-codec-audit.md).
+- [ ] Define and implement a versioned, encoding-neutral portable AES
+  logical-byte and integrity contract. Semantic hashes/signatures must bind
+  `aes.events.v0`, the effective profile/projection, the selected ordering
+  policy, and expanded datatype structure rather than a Telex descriptor or
+  canonical Telex bytes. This is deliberately not supplied by the legacy AEON
+  envelope hash, ASP fingerprints, or tool-local ledger/patch protocols.
+- [x] Run the existing cross-repository acceptance set for identities, nodes,
   paths/references, attributes, values, headers, provenance, compatibility,
   and AEON -> portable AES/Telex -> SO -> ASP -> AES-DB -> portable AES/Telex.
   A consumer may pass an unsupported-mutation vector by returning the specified
-  stable rejection without side effects.
+  stable rejection without side effects. The published shared CTS passes in
+  JavaScript, Rust, TypeScript, Python, and PHP; SANSA and ASP pass their full
+  suites; and the ASP acceptance lane now includes a source-derived Telex ->
+  named scalar application -> durable AES-DB -> Telex round trip. See
+  [cross-repository acceptance record](cross-repository-acceptance-record-2026-09-07.md).
 
 ##### Remaining production-safe SO/ASP requirements
 
@@ -1069,9 +1084,13 @@ above.
   reconstruction requires the separately retained artifact identified by
   provenance and is not implied by a semantic event round trip.
 - [ ] Define separate signature policies for canonical semantic projections
-  and exact-order ledger streams.
+  and exact-order ledger streams. The implementation audit and exact open
+  integrity inventory are recorded in
+  [AES integrity, relay, and durable-codec audit](aes-integrity-relay-codec-audit.md).
 - [ ] Ensure hashes and signatures bind the selected portable contract version
-  and ordering policy so incompatible projections cannot be confused.
+  and ordering policy so incompatible projections cannot be confused. This is
+  part of the still-open versioned portable logical-byte contract, not a
+  retrofit of legacy AEON or application-specific fingerprints.
 
 ## 4. Cross-repository acceptance tests
 
