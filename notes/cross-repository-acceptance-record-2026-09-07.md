@@ -78,7 +78,9 @@ and mixed historical record-version readers. Those additions should advance a
 development CTS and later publish a new immutable snapshot; they do not mutate
 snapshot 0.1.
 
-Production-safe generic AET ingress, portable integrity logical bytes,
+Production-safe generic AET ingress, transaction-level integrity and encryption,
 source-backed provenance mutation, index lifecycle closure, and head-aware ASP
-storage remain separate unchecked requirements. None is implied by this green
-read/export and supported-application acceptance run.
+storage remain separate unchecked requirements. Base portable event-stream
+logical bytes now belong to `aes.integrity.v0`; that later completion does not
+make them part of this earlier read/export and supported-application acceptance
+run.

@@ -31,6 +31,8 @@ This document owns:
 - AES semantic diagnostic codes.
 
 Encodings own framing, escaping, canonical bytes, and syntax diagnostics.
+[`aes.integrity.v0`](./aes.integrity.md) separately owns deterministic logical
+bytes, ordering policies, digests, and signature inputs over this event model.
 Source languages own their grammar and projection into this model. SANSA owns
 canonical address grammar and navigation semantics. The Aeonic Semantic
 Language owns operations over recognized values.
@@ -476,9 +478,11 @@ members and attributes preserve declaration order. List and tuple items, node
 heads, and NodeHead content preserve ascending index order. Paths, datatype
 components, values, and identities are never implicit sort keys.
 
-A signature profile states which sequence it covers. A semantic document
-signature may cover a profile-defined canonical projection; a ledger signature
-covers supplied order exactly. AES does not infer a signing mode from content.
+A signature profile states which sequence it covers. `aes.integrity.v0`
+registers `aes.order.canonical-semantic.v0` for an explicitly order-independent
+canonical projection and `aes.order.exact.v0` for supplied-order evidence. A
+ledger signature uses the latter. AES does not infer a signing mode from
+content.
 
 ## 9. Completeness profiles
 

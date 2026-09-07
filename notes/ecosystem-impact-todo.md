@@ -634,12 +634,17 @@ recorded below.
   AEON canonical hashes and application-specific fingerprints, and closes the
   discovered untagged Aeon Tonics JSON compatibility boundary. See
   [AES integrity, relay, and durable-codec audit](aes-integrity-relay-codec-audit.md).
-- [ ] Define and implement a versioned, encoding-neutral portable AES
+- [x] Define and implement a versioned, encoding-neutral portable AES
   logical-byte and integrity contract. Semantic hashes/signatures must bind
   `aes.events.v0`, the effective profile/projection, the selected ordering
   policy, and expanded datatype structure rather than a Telex descriptor or
-  canonical Telex bytes. This is deliberately not supplied by the legacy AEON
-  envelope hash, ASP fingerprints, or tool-local ledger/patch protocols.
+  canonical Telex bytes. `aes.integrity.v0` now defines the closed structural
+  mapping, SHA-256 evidence, body/document and provenance coverage,
+  `aes.order.canonical-semantic.v0`, `aes.order.exact.v0`, and the
+  domain-separated `aes.signature.v0` input. Fourteen shared candidate vectors
+  pass in independent JavaScript and Rust implementations. This is deliberately
+  not supplied by the legacy AEON envelope hash, ASP fingerprints, or tool-local
+  ledger/patch protocols.
 - [x] Run the existing cross-repository acceptance set for identities, nodes,
   paths/references, attributes, values, headers, provenance, compatibility,
   and AEON -> portable AES/Telex -> SO -> ASP -> AES-DB -> portable AES/Telex.
@@ -665,10 +670,12 @@ recorded below.
 - [ ] Rebuild or invalidate affected AES-DB indexes and verify replay,
   snapshots, checkpoints, backup, restore, compaction, subtree deletion/move,
   and mixed legacy/revised reads preserve the admitted portable occurrences.
-- [ ] Define separate canonical-semantic and exact-order ledger signature
-  policies, including deterministic logical bytes and version/profile/order
-  binding, before signatures are used as independently verifiable application
-  evidence.
+- [x] Define separate canonical-semantic and exact-order AES signature policies,
+  including deterministic logical bytes and version/profile/order binding.
+  `aes.integrity.v0` owns event-stream evidence and `aes.signature.v0` binds its
+  digest, signature algorithm, and key identity. A transaction signature still
+  requires the separate AET carrier and transaction-integrity contract below;
+  this completion does not make a bare stream actionable.
 
 ##### Blocked by a versioned ASP storage/writer contract
 
@@ -1083,14 +1090,14 @@ above.
   projection, separately from full record/provenance fidelity. Exact source
   reconstruction requires the separately retained artifact identified by
   provenance and is not implied by a semantic event round trip.
-- [ ] Define separate signature policies for canonical semantic projections
-  and exact-order ledger streams. The implementation audit and exact open
-  integrity inventory are recorded in
+- [x] Define separate signature policies for canonical semantic projections
+  and exact-order streams. `aes.integrity.v0` names both ordering policies and
+  rejects duplicate-address canonicalization rather than hiding repeated writes.
+- [x] Ensure hashes and signatures bind the selected portable contract version,
+  effective profile/projection, scope, provenance policy, digest identifier,
+  and ordering policy so incompatible projections cannot be confused. The
+  implementation audit is recorded in
   [AES integrity, relay, and durable-codec audit](aes-integrity-relay-codec-audit.md).
-- [ ] Ensure hashes and signatures bind the selected portable contract version
-  and ordering policy so incompatible projections cannot be confused. This is
-  part of the still-open versioned portable logical-byte contract, not a
-  retrofit of legacy AEON or application-specific fingerprints.
 
 ## 4. Cross-repository acceptance tests
 

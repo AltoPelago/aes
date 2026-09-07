@@ -4,6 +4,8 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
 
+use sha2::{Digest, Sha256};
+
 const VERSION_LINE: &str = "telex.aes=0";
 const CORE_FIELDS: [&str; 10] = [
     "header",
@@ -47,6 +49,19 @@ pub const TELEX_VERSION: &str = "0";
 pub const COMPLETE_AES_PROFILE: &str = "aes.complete.v0";
 pub const PARTIAL_AES_PROFILE: &str = "aes.partial.v0";
 pub const AEON_DOCUMENT_PROJECTION: &str = "aeon.document.v0";
+pub const AES_INTEGRITY_CONTRACT: &str = "aes.integrity.v0";
+pub const AES_EVENT_CONTRACT: &str = "aes.events.v0";
+pub const AES_CANONICAL_SEMANTIC_ORDER: &str = "aes.order.canonical-semantic.v0";
+pub const AES_EXACT_ORDER: &str = "aes.order.exact.v0";
+pub const AES_BODY_SCOPE: &str = "aes.scope.body.v0";
+pub const AES_DOCUMENT_SCOPE: &str = "aes.scope.document.v0";
+pub const AES_PROVENANCE_EXCLUDED: &str = "aes.provenance.excluded.v0";
+pub const AES_PROVENANCE_INCLUDED: &str = "aes.provenance.included.v0";
+pub const AES_DIGEST_SHA256: &str = "sha256";
+pub const AES_SIGNATURE_CONTRACT: &str = "aes.signature.v0";
+
+const INTEGRITY_DOMAIN: &[u8] = b"aes.integrity.v0\0";
+const SIGNATURE_DOMAIN: &[u8] = b"aes.signature.v0\0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TelexLimits {
@@ -160,6 +175,435 @@ impl TelexRecord {
     #[must_use]
     pub fn contains(&self, field: &str) -> bool {
         self.get(field).is_some()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IntegrityValue {
+    Null,
+    String(String),
+    List(Vec<IntegrityValue>),
+    Map(Vec<(String, IntegrityValue)>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesIntegrityOptions {
+    pub profile: String,
+    pub projection: Option<String>,
+    pub ordering: String,
+    pub scope: String,
+    pub provenance: String,
+    pub digest: String,
+    pub registered_fields: Vec<String>,
+}
+
+impl AesIntegrityOptions {
+    #[must_use]
+    pub fn new(ordering: &str, scope: &str, provenance: &str) -> Self {
+        Self {
+            profile: COMPLETE_AES_PROFILE.to_owned(),
+            projection: None,
+            ordering: ordering.to_owned(),
+            scope: scope.to_owned(),
+            provenance: provenance.to_owned(),
+            digest: AES_DIGEST_SHA256.to_owned(),
+            registered_fields: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesIntegrityEncoding {
+    pub input: IntegrityValue,
+    pub records: Vec<TelexRecord>,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesIntegrityDigest {
+    pub input: IntegrityValue,
+    pub records: Vec<TelexRecord>,
+    pub bytes: Vec<u8>,
+    pub algorithm: String,
+    pub digest: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesSignatureInput {
+    pub context: IntegrityValue,
+    pub bytes: Vec<u8>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesIntegrityError {
+    pub code: &'static str,
+    pub detail: String,
+}
+
+impl fmt::Display for AesIntegrityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.detail)
+    }
+}
+
+impl Error for AesIntegrityError {}
+
+pub fn encode_aes_integrity(
+    records: &[TelexRecord],
+    options: &AesIntegrityOptions,
+) -> Result<AesIntegrityEncoding, AesIntegrityError> {
+    require_integrity_identifier(&options.ordering, "ordering")?;
+    require_integrity_identifier(&options.scope, "scope")?;
+    require_integrity_identifier(&options.provenance, "provenance")?;
+    if options.ordering != AES_CANONICAL_SEMANTIC_ORDER && options.ordering != AES_EXACT_ORDER {
+        return Err(integrity_error(
+            "AES_INTEGRITY_UNSUPPORTED_ORDERING",
+            format!(
+                "Unsupported AES integrity ordering policy '{}'.",
+                options.ordering
+            ),
+        ));
+    }
+    if options.scope != AES_BODY_SCOPE && options.scope != AES_DOCUMENT_SCOPE {
+        return Err(integrity_error(
+            "AES_INTEGRITY_UNSUPPORTED_SCOPE",
+            format!("Unsupported AES integrity scope '{}'.", options.scope),
+        ));
+    }
+    if options.provenance != AES_PROVENANCE_EXCLUDED
+        && options.provenance != AES_PROVENANCE_INCLUDED
+    {
+        return Err(integrity_error(
+            "AES_INTEGRITY_UNSUPPORTED_PROVENANCE",
+            format!(
+                "Unsupported AES integrity provenance policy '{}'.",
+                options.provenance
+            ),
+        ));
+    }
+    if options.digest != AES_DIGEST_SHA256 {
+        return Err(integrity_error(
+            "AES_INTEGRITY_UNSUPPORTED_DIGEST",
+            format!("Unsupported AES digest identifier '{}'.", options.digest),
+        ));
+    }
+    if options.scope == AES_DOCUMENT_SCOPE
+        && options.projection.as_deref() != Some(AEON_DOCUMENT_PROJECTION)
+    {
+        return Err(integrity_error(
+            "AES_INTEGRITY_UNSUPPORTED_SCOPE",
+            format!(
+                "Scope '{AES_DOCUMENT_SCOPE}' requires projection '{AEON_DOCUMENT_PROJECTION}'."
+            ),
+        ));
+    }
+
+    let registered = options
+        .registered_fields
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    let validation = validate_telex_records_with_projection(
+        records,
+        &options.profile,
+        options.projection.as_deref(),
+        &registered,
+    );
+    if !validation.valid {
+        return Err(integrity_error(
+            "AES_INTEGRITY_INVALID_LOGICAL_VALUE",
+            "AES integrity input is not valid under its selected event context.",
+        ));
+    }
+
+    let mut covered = records
+        .iter()
+        .filter(|record| options.scope == AES_DOCUMENT_SCOPE || record.contains("path"))
+        .cloned()
+        .collect::<Vec<_>>();
+    if options.ordering == AES_CANONICAL_SEMANTIC_ORDER {
+        assert_unique_integrity_addresses(&covered)?;
+        covered.sort_by(compare_integrity_record_addresses);
+    }
+    let logical_records = covered
+        .iter()
+        .map(|record| integrity_record_value(record, &options.provenance))
+        .collect::<Vec<_>>();
+    let input = IntegrityValue::Map(vec![
+        integrity_member("integrity", AES_INTEGRITY_CONTRACT),
+        integrity_member("events", AES_EVENT_CONTRACT),
+        integrity_member("profile", &options.profile),
+        (
+            "projection".to_owned(),
+            options
+                .projection
+                .as_ref()
+                .map_or(IntegrityValue::Null, |value| {
+                    IntegrityValue::String(value.clone())
+                }),
+        ),
+        integrity_member("ordering", &options.ordering),
+        integrity_member("scope", &options.scope),
+        integrity_member("provenance", &options.provenance),
+        integrity_member("digest", &options.digest),
+        ("records".to_owned(), IntegrityValue::List(logical_records)),
+    ]);
+    let mut bytes = Vec::from(INTEGRITY_DOMAIN);
+    encode_integrity_value_into(&input, &mut bytes)?;
+    Ok(AesIntegrityEncoding {
+        input,
+        records: covered,
+        bytes,
+    })
+}
+
+pub fn compute_aes_integrity_digest(
+    records: &[TelexRecord],
+    options: &AesIntegrityOptions,
+) -> Result<AesIntegrityDigest, AesIntegrityError> {
+    let encoded = encode_aes_integrity(records, options)?;
+    let digest = Sha256::digest(&encoded.bytes);
+    Ok(AesIntegrityDigest {
+        input: encoded.input,
+        records: encoded.records,
+        bytes: encoded.bytes,
+        algorithm: AES_DIGEST_SHA256.to_owned(),
+        digest: lower_hex(&digest),
+    })
+}
+
+pub fn verify_aes_integrity_digest(
+    records: &[TelexRecord],
+    expected: &str,
+    options: &AesIntegrityOptions,
+) -> Result<bool, AesIntegrityError> {
+    if !is_lower_sha256(expected) {
+        return Err(integrity_error(
+            "AES_INTEGRITY_DIGEST_MISMATCH",
+            "Expected AES integrity digest must be 64 lowercase hexadecimal digits.",
+        ));
+    }
+    Ok(compute_aes_integrity_digest(records, options)?.digest == expected)
+}
+
+pub fn encode_aes_signature_input(
+    digest: &str,
+    algorithm: &str,
+    key_id: &str,
+) -> Result<AesSignatureInput, AesIntegrityError> {
+    if !is_lower_sha256(digest) || algorithm.is_empty() || key_id.is_empty() {
+        return Err(integrity_error(
+            "AES_SIGNATURE_CONTEXT_INVALID",
+            "AES signature context requires a canonical SHA-256 digest and non-empty alg and kid strings.",
+        ));
+    }
+    let context = IntegrityValue::Map(vec![
+        integrity_member("signature", AES_SIGNATURE_CONTRACT),
+        integrity_member("integrity", AES_INTEGRITY_CONTRACT),
+        integrity_member("digest", AES_DIGEST_SHA256),
+        integrity_member("hash", digest),
+        integrity_member("alg", algorithm),
+        integrity_member("kid", key_id),
+    ]);
+    let mut bytes = Vec::from(SIGNATURE_DOMAIN);
+    encode_integrity_value_into(&context, &mut bytes)?;
+    Ok(AesSignatureInput { context, bytes })
+}
+
+pub fn encode_aes_integrity_value(value: &IntegrityValue) -> Result<Vec<u8>, AesIntegrityError> {
+    let mut bytes = Vec::new();
+    encode_integrity_value_into(value, &mut bytes)?;
+    Ok(bytes)
+}
+
+fn integrity_record_value(record: &TelexRecord, provenance: &str) -> IntegrityValue {
+    let mut fields = record
+        .fields()
+        .iter()
+        .filter(|(field, _)| {
+            provenance == AES_PROVENANCE_INCLUDED || (field != "origin" && field != "span")
+        })
+        .map(|(field, value)| (field.clone(), IntegrityValue::String(value.clone())))
+        .collect::<Vec<_>>();
+    if let Some(datatype) = record.datatype() {
+        fields.retain(|(field, _)| field != "generics" && field != "clarifiers");
+        fields.push((
+            "generics".to_owned(),
+            IntegrityValue::List(
+                datatype
+                    .generics
+                    .iter()
+                    .map(integrity_generic_value)
+                    .collect(),
+            ),
+        ));
+        fields.push((
+            "clarifiers".to_owned(),
+            IntegrityValue::List(
+                datatype
+                    .clarifiers
+                    .iter()
+                    .map(integrity_clarifier_value)
+                    .collect(),
+            ),
+        ));
+    }
+    IntegrityValue::Map(fields)
+}
+
+fn integrity_datatype_value(datatype: &DatatypeDescriptor) -> IntegrityValue {
+    IntegrityValue::Map(vec![
+        integrity_member("datatype", &datatype.datatype),
+        (
+            "generics".to_owned(),
+            IntegrityValue::List(
+                datatype
+                    .generics
+                    .iter()
+                    .map(integrity_generic_value)
+                    .collect(),
+            ),
+        ),
+        (
+            "clarifiers".to_owned(),
+            IntegrityValue::List(
+                datatype
+                    .clarifiers
+                    .iter()
+                    .map(integrity_clarifier_value)
+                    .collect(),
+            ),
+        ),
+    ])
+}
+
+fn integrity_generic_value(argument: &GenericArgument) -> IntegrityValue {
+    match argument {
+        GenericArgument::Datatype(datatype) => integrity_datatype_value(datatype),
+        GenericArgument::NumberLiteral(value) => IntegrityValue::Map(vec![
+            integrity_member("kind", "NumberLiteral"),
+            integrity_member("value", value),
+        ]),
+    }
+}
+
+fn integrity_clarifier_value(clarifier: &DatatypeClarifier) -> IntegrityValue {
+    let kind = match clarifier.kind {
+        ClarifierKind::StringLiteral => "StringLiteral",
+        ClarifierKind::NumberLiteral => "NumberLiteral",
+    };
+    IntegrityValue::Map(vec![
+        integrity_member("kind", kind),
+        integrity_member("value", &clarifier.value),
+    ])
+}
+
+fn encode_integrity_value_into(
+    value: &IntegrityValue,
+    output: &mut Vec<u8>,
+) -> Result<(), AesIntegrityError> {
+    match value {
+        IntegrityValue::Null => output.push(b'n'),
+        IntegrityValue::String(value) => {
+            output.extend_from_slice(format!("s{}:", value.len()).as_bytes());
+            output.extend_from_slice(value.as_bytes());
+        }
+        IntegrityValue::List(values) => {
+            output.extend_from_slice(format!("l{}:", values.len()).as_bytes());
+            for value in values {
+                encode_integrity_value_into(value, output)?;
+            }
+        }
+        IntegrityValue::Map(entries) => {
+            let mut ordered = entries.iter().collect::<Vec<_>>();
+            ordered.sort_by(|left, right| left.0.as_bytes().cmp(right.0.as_bytes()));
+            for pair in ordered.windows(2) {
+                if pair[0].0 == pair[1].0 {
+                    return Err(integrity_error(
+                        "AES_INTEGRITY_INVALID_LOGICAL_VALUE",
+                        format!("Duplicate AES integrity map key '{}'.", pair[0].0),
+                    ));
+                }
+            }
+            output.extend_from_slice(format!("m{}:", ordered.len()).as_bytes());
+            for (key, value) in ordered {
+                encode_integrity_value_into(&IntegrityValue::String(key.clone()), output)?;
+                encode_integrity_value_into(value, output)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn assert_unique_integrity_addresses(records: &[TelexRecord]) -> Result<(), AesIntegrityError> {
+    let mut seen = HashSet::new();
+    for record in records {
+        let (field, address) = if let Some(header) = record.get("header") {
+            ("header", header)
+        } else {
+            ("path", record.get("path").unwrap_or_default())
+        };
+        if !seen.insert(format!("{field}\0{address}")) {
+            return Err(integrity_error(
+                "AES_INTEGRITY_AMBIGUOUS_CANONICAL_ORDER",
+                format!("Canonical-semantic ordering requires unique {field} address '{address}'."),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn compare_integrity_record_addresses(left: &TelexRecord, right: &TelexRecord) -> Ordering {
+    let left_header = left.contains("header");
+    let right_header = right.contains("header");
+    match (left_header, right_header) {
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        _ => {
+            let field = if left_header { "header" } else { "path" };
+            left.get(field)
+                .unwrap_or_default()
+                .as_bytes()
+                .cmp(right.get(field).unwrap_or_default().as_bytes())
+        }
+    }
+}
+
+fn integrity_member(key: &str, value: &str) -> (String, IntegrityValue) {
+    (key.to_owned(), IntegrityValue::String(value.to_owned()))
+}
+
+fn require_integrity_identifier(value: &str, label: &str) -> Result<(), AesIntegrityError> {
+    if value.is_empty() {
+        return Err(integrity_error(
+            "AES_INTEGRITY_CONTEXT_REQUIRED",
+            format!("AES integrity {label} must be an explicit non-empty identifier."),
+        ));
+    }
+    Ok(())
+}
+
+fn is_lower_sha256(value: &str) -> bool {
+    value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn lower_hex(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut result = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        result.push(char::from(HEX[usize::from(byte >> 4)]));
+        result.push(char::from(HEX[usize::from(byte & 0x0f)]));
+    }
+    result
+}
+
+fn integrity_error(code: &'static str, detail: impl Into<String>) -> AesIntegrityError {
+    AesIntegrityError {
+        code,
+        detail: detail.into(),
     }
 }
 

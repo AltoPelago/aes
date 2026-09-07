@@ -43,6 +43,10 @@ copies and do not override those canonical sources.
 - [Portable AES Compatibility Contract v0](specifications/aes.compatibility.md)
   defines explicit legacy adapters, durable read views, and the
   reader-before-writer deployment barrier.
+- [Portable AES Integrity Contract v0](specifications/aes.integrity.md) defines
+  encoding-neutral logical bytes, SHA-256 digests, canonical-semantic and exact
+  ordering policies, optional provenance coverage, and domain-separated
+  signature inputs without treating Telex or Film bytes as the signed form.
 - [Telex v0](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
 - [Film v0 binary encoding proposal](proposals/film.aes.md) records the
@@ -83,8 +87,10 @@ copies and do not override those canonical sources.
   boundaries, and the optional AEON document projection. Stable external
   targets are published separately as `aes-events-cts-v0-snapshot-0.1` and
   `telex-cts-v0-snapshot-0.1` in the shared `aeonite-cts` repository.
-- [`implementations/rust/`](implementations/rust/README.md) is an independent,
-  dependency-free Rust implementation of the same v0 contract.
+- [`implementations/rust/`](implementations/rust/README.md) is an independent
+  Rust implementation of the same v0 event, Telex, and integrity contracts.
+  Its Telex codec has no runtime dependencies; portable SHA-256 integrity uses
+  the audited `sha2` crate.
 
 Run the syntax tests with:
 

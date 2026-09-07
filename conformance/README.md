@@ -20,6 +20,17 @@ Event and profile expectations derive from
 `specifications/aes.events.md`. Telex syntax and canonical-byte expectations
 derive from `specifications/telex.aes.md`.
 
+The separate mutable AES integrity candidate is rooted at:
+
+```text
+integrity/v0/aes-integrity-cts.v0.json
+```
+
+Its vectors derive from `specifications/aes.integrity.md` and compare
+transport-independent logical bytes, SHA-256 digests, ordering and provenance
+policies, scope, and signature-context input. It is not part of either
+published snapshot 0.1 and does not change those stable external targets.
+
 The manifest separates:
 
 - syntax and canonicalization;

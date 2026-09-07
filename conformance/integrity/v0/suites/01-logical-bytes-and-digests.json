@@ -1,0 +1,276 @@
+{
+  "meta": {
+    "suite_id": "logical-bytes-and-digests",
+    "lane": "aes-integrity",
+    "integrity_contract": "aes.integrity.v0",
+    "event_contract": "aes.events.v0",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/aes.integrity.md#2-integrity-input",
+      "specifications/aes.integrity.md#5-ordering-policies",
+      "specifications/aes.integrity.md#7-deterministic-structural-byte-mapping",
+      "specifications/aes.integrity.md#8-digest",
+      "specifications/aes.integrity.md#9-signature-input"
+    ]
+  },
+  "id": "logical-bytes-and-digests",
+  "title": "AES v0 Logical Bytes, Digests, and Signature Inputs",
+  "tests": [
+    {
+      "id": "aes-integrity-001-empty-expanded-context",
+      "description": "An empty body stream binds every effective default and policy",
+      "operation": "digest",
+      "input": {
+        "records": [],
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "f3a6aedb2eaa5533fc4112b5df7517b54a559e521b92a8964f2d2323a5ff3345",
+        "logical_hex": "6165732e696e746567726974792e7630006d393a73363a64696765737473363a73686132353673363a6576656e74737331333a6165732e6576656e74732e763073393a696e746567726974797331363a6165732e696e746567726974792e763073383a6f72646572696e677333313a6165732e6f726465722e63616e6f6e6963616c2d73656d616e7469632e763073373a70726f66696c657331353a6165732e636f6d706c6574652e76307331303a70726f6a656374696f6e6e7331303a70726f76656e616e63657332363a6165732e70726f76656e616e63652e6578636c756465642e763073373a7265636f7264736c303a73353a73636f70657331373a6165732e73636f70652e626f64792e7630",
+        "record_addresses": []
+      },
+      "tags": ["defaults", "empty", "logical-bytes"]
+    },
+    {
+      "id": "aes-integrity-002-canonical-semantic-reorder",
+      "description": "Canonical-semantic policy sorts unique addresses by UTF-8 bytes",
+      "operation": "digest",
+      "input": {
+        "records": [
+          { "path": "$.b", "kind": "NumberLiteral", "value": "2" },
+          { "path": "$.a", "kind": "NumberLiteral", "value": "1" }
+        ],
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "71c3b812be86bc71ae554e383ef9c21abdf99a238a2ffa8ac35987172b480af7",
+        "record_addresses": ["$.a", "$.b"]
+      },
+      "tags": ["canonical-semantic", "ordering"]
+    },
+    {
+      "id": "aes-integrity-003-exact-order-ab",
+      "description": "Exact policy retains the first supplied sequence",
+      "operation": "digest",
+      "input": {
+        "records": [
+          { "path": "$.a", "kind": "NumberLiteral", "value": "1" },
+          { "path": "$.b", "kind": "NumberLiteral", "value": "2" }
+        ],
+        "ordering": "aes.order.exact.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "411ac22604b6abda3757b8cdd6ca47a0745843f9b1831453552d50b0c75c37c8",
+        "record_addresses": ["$.a", "$.b"]
+      },
+      "tags": ["exact", "ordering"]
+    },
+    {
+      "id": "aes-integrity-004-exact-order-ba",
+      "description": "Exact policy produces another digest for the reverse sequence",
+      "operation": "digest",
+      "input": {
+        "records": [
+          { "path": "$.b", "kind": "NumberLiteral", "value": "2" },
+          { "path": "$.a", "kind": "NumberLiteral", "value": "1" }
+        ],
+        "ordering": "aes.order.exact.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "346b92469df0c7ca38b896224bc98225d88e4a6a6311ed9490ec608a48756d8c",
+        "record_addresses": ["$.b", "$.a"]
+      },
+      "tags": ["exact", "ordering"]
+    },
+    {
+      "id": "aes-integrity-005-expanded-datatype-extension",
+      "description": "Expanded datatype components and registered extensions are structural inputs",
+      "operation": "digest",
+      "input": {
+        "records": [
+          {
+            "path": "$.csv",
+            "kind": "SeparatorLiteral",
+            "datatype": "csv",
+            "generics": [{ "datatype": "string", "generics": [], "clarifiers": [] }],
+            "clarifiers": [{ "kind": "StringLiteral", "value": "." }],
+            "value": "one.two",
+            "x.example.note": "🌊"
+          }
+        ],
+        "registered_fields": ["x.example.note"],
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "fba96ca89d52cb06c6fe3f7adcadff2965cc0f9dd856263c1711e00ab3d40329",
+        "logical_hex": "6165732e696e746567726974792e7630006d393a73363a64696765737473363a73686132353673363a6576656e74737331333a6165732e6576656e74732e763073393a696e746567726974797331363a6165732e696e746567726974792e763073383a6f72646572696e677333313a6165732e6f726465722e63616e6f6e6963616c2d73656d616e7469632e763073373a70726f66696c657331353a6165732e636f6d706c6574652e76307331303a70726f6a656374696f6e6e7331303a70726f76656e616e63657332363a6165732e70726f76656e616e63652e6578636c756465642e763073373a7265636f7264736c313a6d373a7331303a636c61726966696572736c313a6d323a73343a6b696e647331333a537472696e674c69746572616c73353a76616c756573313a2e73383a646174617479706573333a63737673383a67656e65726963736c313a6d333a7331303a636c61726966696572736c303a73383a646174617479706573363a737472696e6773383a67656e65726963736c303a73343a6b696e647331363a536570617261746f724c69746572616c73343a7061746873353a242e63737673353a76616c756573373a6f6e652e74776f7331343a782e6578616d706c652e6e6f746573343af09f8c8a73353a73636f70657331373a6165732e73636f70652e626f64792e7630",
+        "record_addresses": ["$.csv"]
+      },
+      "tags": ["datatype", "extension", "unicode"]
+    },
+    {
+      "id": "aes-integrity-006-provenance-excluded",
+      "description": "Semantic provenance policy removes source coordinates",
+      "operation": "digest",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "x", "origin": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "span": "0:1" }],
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "b6cd5c12f84fa07a2e27b552e6cc687d87deb8417c9690036ee6c307b988137c",
+        "record_addresses": ["$.a"]
+      },
+      "tags": ["provenance", "semantic"]
+    },
+    {
+      "id": "aes-integrity-007-provenance-included",
+      "description": "Record provenance policy covers source coordinates",
+      "operation": "digest",
+      "input": {
+        "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "x", "origin": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "span": "0:1" }],
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.included.v0"
+      },
+      "expected": {
+        "digest": "47d47904403bad3ea8b20910be5072d35755ee2019a4a04bc68fdb7287ee39d2",
+        "record_addresses": ["$.a"]
+      },
+      "tags": ["provenance", "record"]
+    },
+    {
+      "id": "aes-integrity-008-document-projection-body-scope",
+      "description": "Body scope filters headers while retaining the selected document projection",
+      "operation": "digest",
+      "input": {
+        "records": [
+          { "header": "$.[\"aeon:mode\"]", "kind": "StringLiteral", "value": "strict" },
+          { "path": "$.a", "kind": "StringLiteral", "value": "x" }
+        ],
+        "projection": "aeon.document.v0",
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "7303f41de26fc933b165f218471fd40c1ff34465218267b157bab76c0e050442",
+        "record_addresses": ["$.a"]
+      },
+      "tags": ["header", "body-scope", "projection"]
+    },
+    {
+      "id": "aes-integrity-009-document-projection-document-scope",
+      "description": "Document scope covers header before body and binds its scope identifier",
+      "operation": "digest",
+      "input": {
+        "records": [
+          { "header": "$.[\"aeon:mode\"]", "kind": "StringLiteral", "value": "strict" },
+          { "path": "$.a", "kind": "StringLiteral", "value": "x" }
+        ],
+        "projection": "aeon.document.v0",
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.document.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "573cdd07b930acc3be4e4a41eb861a87f5514f3cdeb081c21025bac30e190efe",
+        "record_addresses": ["$.[\"aeon:mode\"]", "$.a"]
+      },
+      "tags": ["header", "document-scope", "projection"]
+    },
+    {
+      "id": "aes-integrity-010-unicode-byte-length",
+      "description": "String lengths count UTF-8 bytes rather than host string units",
+      "operation": "digest",
+      "input": {
+        "records": [{ "path": "$.[\"🌊\"]", "kind": "StringLiteral", "value": "é🌊" }],
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "923c91dff08b388eaeafcb58cbc36abe7861a3883538b13ca543073e2d7c124b",
+        "logical_hex": "6165732e696e746567726974792e7630006d393a73363a64696765737473363a73686132353673363a6576656e74737331333a6165732e6576656e74732e763073393a696e746567726974797331363a6165732e696e746567726974792e763073383a6f72646572696e677333313a6165732e6f726465722e63616e6f6e6963616c2d73656d616e7469632e763073373a70726f66696c657331353a6165732e636f6d706c6574652e76307331303a70726f6a656374696f6e6e7331303a70726f76656e616e63657332363a6165732e70726f76656e616e63652e6578636c756465642e763073373a7265636f7264736c313a6d333a73343a6b696e647331333a537472696e674c69746572616c73343a706174687331303a242e5b22f09f8c8a225d73353a76616c756573363ac3a9f09f8c8a73353a73636f70657331373a6165732e73636f70652e626f64792e7630",
+        "record_addresses": ["$.[\"🌊\"]"]
+      },
+      "tags": ["unicode", "utf8", "logical-bytes"]
+    },
+    {
+      "id": "aes-integrity-011-canonical-duplicate-rejected",
+      "description": "Canonical-semantic policy cannot conceal repeated partial-stream writes",
+      "operation": "digest",
+      "input": {
+        "records": [
+          { "path": "$.a", "kind": "NumberLiteral", "value": "1" },
+          { "path": "$.a", "kind": "NumberLiteral", "value": "2" }
+        ],
+        "profile": "aes.partial.v0",
+        "ordering": "aes.order.canonical-semantic.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": { "error_code": "AES_INTEGRITY_AMBIGUOUS_CANONICAL_ORDER" },
+      "tags": ["canonical-semantic", "duplicate", "negative"]
+    },
+    {
+      "id": "aes-integrity-012-exact-duplicate-preserved",
+      "description": "Exact policy retains repeated partial-stream writes in order",
+      "operation": "digest",
+      "input": {
+        "records": [
+          { "path": "$.a", "kind": "NumberLiteral", "value": "1" },
+          { "path": "$.a", "kind": "NumberLiteral", "value": "2" }
+        ],
+        "profile": "aes.partial.v0",
+        "ordering": "aes.order.exact.v0",
+        "scope": "aes.scope.body.v0",
+        "provenance": "aes.provenance.excluded.v0"
+      },
+      "expected": {
+        "digest": "0e521ad27625569c4e0c21926ab865e918f605709e05ec57973108ade2c0ff09",
+        "record_addresses": ["$.a", "$.a"]
+      },
+      "tags": ["exact", "duplicate", "partial"]
+    },
+    {
+      "id": "aes-integrity-013-signature-context-alice",
+      "description": "Signature input binds the digest, algorithm, and first key identity",
+      "operation": "signature-input",
+      "input": {
+        "digest": "f3a6aedb2eaa5533fc4112b5df7517b54a559e521b92a8964f2d2323a5ff3345",
+        "alg": "ed25519",
+        "kid": "alice"
+      },
+      "expected": {
+        "logical_hex": "6165732e7369676e61747572652e7630006d363a73333a616c6773373a6564323535313973363a64696765737473363a73686132353673343a686173687336343a6633613661656462326561613535333366633431313262356466373531376235346135353965353231623932613839363466326432333233613566663333343573393a696e746567726974797331363a6165732e696e746567726974792e763073333a6b696473353a616c69636573393a7369676e61747572657331363a6165732e7369676e61747572652e7630"
+      },
+      "tags": ["signature", "kid", "logical-bytes"]
+    },
+    {
+      "id": "aes-integrity-014-signature-context-bob",
+      "description": "Changing only key identity changes signature input bytes",
+      "operation": "signature-input",
+      "input": {
+        "digest": "f3a6aedb2eaa5533fc4112b5df7517b54a559e521b92a8964f2d2323a5ff3345",
+        "alg": "ed25519",
+        "kid": "bob"
+      },
+      "expected": {
+        "logical_hex": "6165732e7369676e61747572652e7630006d363a73333a616c6773373a6564323535313973363a64696765737473363a73686132353673343a686173687336343a6633613661656462326561613535333366633431313262356466373531376235346135353965353231623932613839363466326432333233613566663333343573393a696e746567726974797331363a6165732e696e746567726974792e763073333a6b696473333a626f6273393a7369676e61747572657331363a6165732e7369676e61747572652e7630"
+      },
+      "tags": ["signature", "kid", "logical-bytes"]
+    }
+  ]
+}

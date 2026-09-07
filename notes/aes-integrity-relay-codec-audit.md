@@ -6,10 +6,11 @@ Status: implementation audit, 2026-09-07
 
 Portable AES encoding paths preserve the named `aes.events.v0` record model,
 effective profile/projection declarations, record order, and expanded datatype
-fields. No reviewed implementation currently defines an encoding-neutral
-portable AES logical-byte or signature contract. Existing hashes and
-fingerprints remain valid only in their explicitly named legacy or
-application-specific domains.
+fields. The follow-up `aes.integrity.v0` contract now defines encoding-neutral
+logical bytes, SHA-256 digests, two explicit ordering policies, coverage and
+provenance policies, and the domain-separated `aes.signature.v0` input.
+Existing hashes and fingerprints remain valid only in their explicitly named
+legacy or application-specific domains; none is silently upgraded.
 
 The audit found one serialized compatibility boundary in Aeon Tonics that
 accepted untagged TypeScript assignment-event JSON. That route now requires and
@@ -44,18 +45,19 @@ interchange route.
 | Aeon Tonics signed-ledger prototype | Separate ledger protocol | Signs its own `aeon.ledger.entry` canonical-JSON payload. Any future AES ledger entry must name and bind an approved exact-order AES integrity contract; the current protocol is not silently upgraded. |
 | Aeon Tooling and CTS JSON fixtures | Internal process/test control | No public serialized portable AES boundary was found. Test-control JSON must not be advertised as an interchange contract. |
 
-## Portable integrity work that remains open
+## Portable integrity follow-up resolution
 
-The existing specifications establish what must be bound but deliberately do
-not yet define the deterministic logical bytes. A separately approved,
-versioned integrity contract must settle all of the following before portable
-AES signing is enabled:
+The audit inventory was resolved by the normative-draft
+`aes.integrity.v0` contract and a candidate CTS lane shared by independent
+JavaScript and Rust implementations:
 
 1. An encoding-neutral deterministic mapping for `aes.events.v0`, including
    closed field presence/absence rules and expanded `datatype`, `generics`, and
    `clarifiers`.
-2. Explicit binding of the effective semantic profile, projection, and limits
-   claim, including defaults that were not written on the Telex wire.
+2. Explicit binding of the effective semantic profile and projection,
+   including defaults that were not written on the Telex wire. Consumer runtime
+   limits are excluded from base event meaning and remain a separate enclosing
+   application claim.
 3. Distinct policies for canonical-semantic ordering and exact supplied-order
    ledger signing. Path sorting is not a general ledger rule.
 4. Header scope: body hashes exclude the header plane, while a full-document
@@ -65,13 +67,15 @@ AES signing is enabled:
 6. Extension-field admission and their deterministic inclusion or rejection.
 7. Domain separation, digest/signature algorithm identifiers, key identity,
    signature encoding, and independent cross-language vectors.
-8. Composition with AEON encryption and signature envelopes, including whether
-   a policy covers plaintext, ciphertext, or a separately defined composition.
+8. Composition with AEON signature envelopes without reinterpreting
+   `aeon.gp.integrity.v1`. Encrypted composition remains intentionally deferred
+   until a profile defines plaintext/ciphertext coverage.
 
-Until that contract exists, implementations must not compute a purported
-portable AES signature by signing canonical Telex bytes, a legacy
+Implementations must not compute a purported portable AES signature by signing
+canonical Telex bytes, a legacy
 `AssignmentEvent` hash, an ASP content fingerprint, or an application journal
-fingerprint.
+fingerprint. They apply `aes.integrity.v0` after decoding and validating the
+transport-neutral records.
 
 ## Definition of done for this audit
 
@@ -82,5 +86,5 @@ fingerprint.
 - The discovered untagged Tonics compatibility boundary now identifies its
   implementation-native contract and rejects ambiguous input.
 - Legacy AEON canonical hash wording no longer calls the result an AES hash.
-- The remaining portable logical-byte/signature contract is recorded as a
-  separate, explicit design and conformance task.
+- The portable logical-byte/signature contract is separate from the audit and
+  now has explicit design, implementation, and conformance artifacts.
