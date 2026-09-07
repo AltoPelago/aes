@@ -2,7 +2,7 @@
 
 Status: living working list
 
-Updated: 2026-09-06
+Updated: 2026-09-07
 
 ## Scope
 
@@ -545,15 +545,160 @@ while the wider consumer audit remains open.
   adapter now exposes direct complete portable records, Telex encoding, and
   AEOS validators for both forms while retaining the legacy AST-shaped API as
   an explicit compatibility path.
-- [ ] SO: update candidate construction, validation, stable-order scopes, and
-  path-addressed operations for flat attributes and expanded nodes.
+
+#### Consolidated SO/ASP mutation status
+
+This is the primary status view for the SO/ASP work. Supporting an AES event in
+Telex, projection, validation, and read/export paths does not imply that ASP v0
+can mutate that event as an independent storage occurrence. Telex/AES
+compatibility is complete for a form when it is preserved or rejected through
+an explicit, versioned boundary; it does not require every representable AES
+form to become an ASP mutation target.
+
+The former broad task to "complete source/event address translation and
+application semantics for expanded node-head and non-scalar inline-descendant
+mutation" is retired. Its completed portion and exact remaining inventory are
+recorded below.
+
+##### Complete
+
+- [x] **Portable addressing foundation:** construct and validate portable
+  candidates with flat attributes, expanded nodes, split datatype components,
+  stable order, and identity independent of path; translate admitted source
+  and event addresses bidirectionally under an immutable source revision.
+- [x] **Scalar replacement:** apply direct and contained scalar replacement,
+  including tuple items, node children, node-head attributes, and nested
+  binding attributes.
+- [x] **Reference retargeting:** translate clone/pointer targets reversibly and
+  apply direct or one-owner contained retargeting.
+- [x] **Tuple-content replacement:** replace a closed tuple fragment, including
+  nested tuples and fragment-local references, while retaining root occurrence
+  metadata.
+- [x] **Flat material-content replacement:** replace ordered direct
+  scalar/reference children of an object or list through an exact multi-owner
+  ASP transaction.
+- [x] **Recursive material-content replacement:** replace nested object/list
+  owners and inline tuple content, preserve child binding-owner identity and
+  the complete datatype component triple, and enforce the selected value-
+  nesting limit.
+- [x] **Operational closure for the admitted applications:** scalar,
+  reference, tuple, flat-material, and recursive-material applications have
+  explicit SO dispatch, atomic revision preconditions, durable fenced receipts,
+  restart reconciliation, and fail-closed candidate/result validation.
+
+##### Remaining Telex/AES compatibility requirements
+
+- [ ] Complete the existing cross-language reverse source/event-path work and
+  its acceptance vectors, including rejection of synthetic node-head reference
+  targets and proof that no legacy child path is silently reinterpreted. This
+  is the remaining work already named in sections 1.2 and 4, not a new mutation
+  application family.
+- [ ] Complete named legacy-to-portable adapters and conversion reports for
+  every supported implementation-specific source contract; ASP is complete,
+  while the parent rollout requirement remains open for the other durable or
+  serialized contracts.
+- [ ] Complete the AES-DB portable projection for value-less containers and
+  explicit descendants while keeping datatype inference, reference resolution,
+  and value-family semantics in their owning layers. The existing ASP-backed
+  strict read view is evidence for this task, not closure of every AES-DB
+  storage/projection path.
+- [ ] Audit relays, canonicalizers, signing paths, and durable codecs for the
+  legacy event shape, and bind semantic hashes/signatures to
+  `aes.events.v0`, the effective profile/projection, ordering policy, and the
+  expanded datatype structure rather than a Telex descriptor string.
+- [ ] Run the existing cross-repository acceptance set for identities, nodes,
+  paths/references, attributes, values, headers, provenance, compatibility,
+  and AEON -> portable AES/Telex -> SO -> ASP -> AES-DB -> portable AES/Telex.
+  A consumer may pass an unsupported-mutation vector by returning the specified
+  stable rejection without side effects.
+
+##### Remaining production-safe SO/ASP requirements
+
+- [ ] Define and register a versioned application/transaction carrier before
+  any public actionable ingress is enabled. It must bind the selected existing
+  application contract, target, preconditions, ordered AES payload, assertions,
+  effective limits, authorization context, and integrity policy. This closes
+  an existing AET/SO boundary requirement; it does not make a bare Telex stream
+  actionable and does not add another mutation family.
+- [ ] Complete origin/span operation semantics against an exact retained source
+  artifact when a selected application claims source-backed provenance.
+  Changed records may continue to drop stale provenance, and applications that
+  make no retention claim may continue to omit it.
+- [ ] Rebuild or invalidate affected AES-DB indexes and verify replay,
+  snapshots, checkpoints, backup, restore, compaction, subtree deletion/move,
+  and mixed legacy/revised reads preserve the admitted portable occurrences.
+- [ ] Define separate canonical-semantic and exact-order ledger signature
+  policies, including deterministic logical bytes and version/profile/order
+  binding, before signatures are used as independently verifiable application
+  evidence.
+
+##### Blocked by a versioned ASP storage/writer contract
+
+- [ ] **Node-head mutation:** direct `NodeHead` tag or occurrence-owned
+  identity, datatype, attribute-set, and provenance mutation is blocked. ASP v0
+  stores one implicit tag and synthesizes the portable `[0]` head; it must not
+  be widened. Existing scalar replacement of a node-head attribute descendant
+  remains admitted. Resume head mutation only after explicit approval of a
+  versioned head-aware record and writer contract with mixed-history vectors.
+- [ ] **Node-literal/subtree replacement:** replacing a `NodeLiteral`, nesting
+  a node in a replacement fragment, or representing zero/multiple heads is
+  blocked by the same head-aware storage dependency.
+- [ ] **Independently annotated inline descendants:** identity, datatype,
+  attributes, or provenance on an inline tuple-item occurrence is blocked
+  because ASP v0 has no independent metadata owner for that occurrence.
+- [ ] **Material ownership inside tuples:** object/list binding owners nested
+  inside an inline tuple are blocked until a versioned storage layout can
+  preserve those owners and their addresses without changing ASP v0 history.
+- [ ] **Native split datatype persistence:** ASP v0 may continue its named,
+  loss-accounted compatibility projection from one canonical combined
+  descriptor. Persisting `datatype`, `generics`, and `clarifiers` independently
+  requires a versioned record/writer contract.
+- [ ] **Revised span/source storage:** any change to persisted span units or
+  checksummed source-artifact identity requires versioned records and explicit
+  migration/read-view behavior; historical logs must not be silently rewritten.
+
+##### Optional future mutation capabilities
+
+- [ ] Admit recursive attribute trees on inserted/replaced material child
+  owners; they currently fail with
+  `AES_COMPAT_MATERIAL_ATTRIBUTES_UNSUPPORTED`.
+- [ ] Define migration or retention semantics for descendant contracts during
+  material replacement; candidates containing them currently fail closed.
+- [ ] Add root occurrence-metadata replacement to tuple/material applications;
+  the current content-replacement contracts deliberately retain target-owned
+  root identity, datatype, attributes, provenance, and contract.
+- [ ] Add create, remove, insert, move, merge, or general subtree operations.
+  The current named application set is replacement/retarget-only.
+- [ ] Generalize beyond the first registered application-specific carrier, add
+  Wire/CLI mutation routes, or add a self-contained Telex transaction mapping
+  after the versioned carrier and security decisions are approved.
+
+##### Deliberately out of scope
+
+- [x] A bare `telex.aes=0` stream is never mutation authority. Telex import and
+  export remain non-actionable; trusted host policy and a versioned application
+  envelope select an operation.
+- [x] Structural identity does not become path identity, and transported
+  `origin`/`span` does not become authorization, ordering, or mutation identity.
+- [x] AEON signature/encryption conventions remain a security envelope around
+  covered application material, not fields inferred from ordinary AES events.
+- [x] ASP v0 historical records and writers are not silently extended to make
+  deferred forms appear supported.
+
+<details>
+<summary>Implementation record: completed SO/ASP mutation milestones (A.18-A.38)</summary>
+
+- [x] SO: update candidate construction, validation, stable-order scopes, and
+  path-addressed operations for the currently admitted flat-attribute,
+  expanded-node descendant, and material-content replacement forms.
   - [x] ASP-hosted candidate construction and validation emit flat attributes,
     expanded node paths, split datatype components, and independently retained
     identities. Existing visible stable-order projections feed the same adapter
     and preserve the identity-to-index association and record order.
-  - [ ] Complete source/event address translation and application semantics for
-    expanded node-head and non-scalar inline-descendant mutation before those
-    paths are accepted as SO or ASP operation targets.
+  - [x] Complete source/event address translation and application semantics for
+    the admitted scalar, reference, tuple, flat-material, and recursive-material
+    targets. Unsupported node-head and inline-owner forms remain explicitly
+    classified in the primary checklist above.
     - [x] ASP reader-side prerequisite: a named read-context path index maps
       explicit structural source routes bidirectionally to portable event
       paths, covers recursively expanded node heads, and rejects ambiguous
@@ -824,44 +969,20 @@ while the wider consumer audit remains open.
       host provenance rather than transported authority, and attribute trees
       fail with `AES_COMPAT_MATERIAL_ATTRIBUTES_UNSUPPORTED` pending their own
       inverse. Node-head storage and material owners inside tuples remain open.
-- [ ] ASP: preserve kind, canonical value, all three datatype components,
-  identity, and provenance without rebuilding source lexemes.
-  - [ ] ASP currently stores one combined datatype descriptor and reparses it
-    at the portable boundary; persist the three AES components independently.
-    The named ASP v0 compatibility reader now reports this expansion explicitly
-    and leaves native three-component storage as a later, versioned writer
-    contract rather than rewriting legacy history.
-  - [x] Add the missing `SansaAddressLiteral` value family or define an explicit
-    versioned rejection boundary for ASP profiles that cannot store it.
-    ASP now validates and stores the canonical address as a distinct value kind;
-    JSON and compact AEON codecs, indexed reference tokenization, log replay,
-    snapshots, AEOS reconstruction, SANSA query activation, conservative SANSA
-    lowering, and portable AES export retain the distinction. This corrects the
-    draft profile's existing all-value-family claim without enabling portable
-    AES transaction ingress.
-  - [ ] Extend inline `NodeLiteral` storage if node-head identity, datatype, or
-    source span must survive an ASP round trip; the current model can only
-    synthesize an unannotated head from the tag. The compatibility reader marks
-    that synthesized `NodeHead` in its conversion report; it does not claim the
-    missing node-head metadata was preserved. The persistence audit confirms
-    this cannot be added transparently to ASP v0: JSON, compact AEON,
-    snapshots, and historical logs share the legacy value contract, while the
-    compact AEON parser currently discards node-head metadata. Introduce it only
-    through a versioned record/writer contract with mixed-history vectors.
-- [ ] ASP: update operations and origin handling for expanded paths and
-  source-backed spans.
-- [ ] AES-DB: reconstruct value-less containers and explicit descendants while
-  remaining neutral on datatype inference, reference resolution, and
-  value-family semantics.
-- [ ] Audit relays, canonicalizers, signing paths, and durable codecs for
-  assumptions about the legacy event shape.
-- [ ] Update semantic hashes and signatures to bind expanded datatype structure
-  rather than a Telex-specific combined descriptor string.
+
+</details>
+
+The implementation record also closed the previously missing
+`SansaAddressLiteral` ASP value-family boundary: JSON and compact AEON codecs,
+indexed references, replay, snapshots, AEOS/SANSA reconstruction, and portable
+export retain it as a distinct canonical value kind. Remaining work formerly
+listed under broad ASP bullets is now classified in the primary checklist
+above.
 
 ## 3. Compatibility and stored-data migration
 
 - [x] Define a versioned compatibility projection from legacy
-  legacy `kind=node,value=tag` records to an outer `NodeLiteral` plus indexed
+  `kind=node,value=tag` records to an outer `NodeLiteral` plus indexed
   `NodeHead`.
 - [x] Define compatibility behavior for stored events created before stable
   structural identity was required: preserve a present identity and leave a
