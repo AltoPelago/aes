@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "suite_id": "transaction-body-and-integrity",
+    "lane": "aes-transaction",
+    "transaction_contract": "aes.transaction.v0",
+    "envelope_contract": "aes.transaction.envelope.v0",
+    "integrity_contract": "aes.transaction.integrity.v0",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/aes.transactions.md#3-transaction-body",
+      "specifications/aes.transactions.md#6-initial-scalar-value-replacement-application",
+      "specifications/aes.transactions.md#7-transaction-integrity"
+    ]
+  },
+  "id": "transaction-body-and-integrity",
+  "title": "AES v0 Transaction Body, Envelope, and Integrity",
+  "tests": [
+    {
+      "id": "aes-transaction-001-scalar-body-digest",
+      "operation": "digest",
+      "input": { "body_ref": "scalar" },
+      "expected": {
+        "digest": "6a9651091dd10bacecf54c69c8dafe151dabd74ddbc809174cc9c250c35bbfa3",
+        "logical_hex": "6165732e7472616e73616374696f6e2e696e746567726974792e7630006d31373a7331313a6170706c69636174696f6e6d313a73383a636f6e74726163747334313a6165732e6170706c69636174696f6e2e6173702e7363616c61722d7265706c6163656d656e742e76307331303a617373657274696f6e736d323a7331303a636f6e7461696e6572736c303a7331303a6576656e74436f756e7473313a3173373a617474656d707473393a617474656d70742d317331333a617574686f72697a6174696f6e6d323a73373a636f6e746578747331313a686f73742d617574682d3173383a636f6e74726163747333333a6165732e617574686f72697a6174696f6e2e686f73742d636f6e746578742e763073363a6576656e74737331333a6165732e6576656e74732e763073323a696473343a74782d3173393a696e746567726974796d323a73383a636f6e74726163747332383a6165732e7472616e73616374696f6e2e696e746567726974792e763073363a64696765737473363a73686132353673363a696e74656e7473383a696e74656e742d3173363a6c696d6974736d333a73383a636f6e74726163747331393a6165732e6c696d6974732e636c61696d2e763073323a69647332373a616c746f70656c61676f2e61656f6e69632d6c696d6974732e763173373a76657273696f6e73353a312e302e3073383a6f72646572696e677331383a6165732e6f726465722e65786163742e76307331333a707265636f6e646974696f6e736c313a6d333a73383a636f6e74726163747333323a6165732e707265636f6e646974696f6e2e6173702d7265766973696f6e2e763073383a7265766973696f6e73313a3773353a73636f706573313a247331313a7072657061726174696f6e6d313a73383a636f6e74726163747332373a6165732e7072657061726174696f6e2e6964656e746974792e763073373a70726f66696c657331343a6165732e7061727469616c2e76307331303a70726f6a656374696f6e6e73373a7265636f7264736c313a6d333a73343a6b696e647331333a537472696e674c69746572616c73343a7061746873383a242e73746174757373353a76616c756573353a726561647973363a7461726765746d333a73383a626f756e6461727973313a2473383a636f6e74726163747331373a6165732e7461726765742e6173702e763073323a69647331303a64617461626173652d317331313a7472616e73616374696f6e7331383a6165732e7472616e73616374696f6e2e7630"
+      }
+    },
+    {
+      "id": "aes-transaction-002-target-binding",
+      "operation": "digest",
+      "input": { "body_ref": "scalar", "patch": { "target.id": "database-2" } },
+      "expected": { "digest": "080d880a980217b21f9cef09c77fd559f556af35a58e25add98dc1ecbf559065" }
+    },
+    {
+      "id": "aes-transaction-003-registered-extension-binding",
+      "operation": "digest",
+      "input": { "body_ref": "scalar", "patch": { "x.example.note": "bound" }, "registered_fields": ["x.example.note"] },
+      "expected": { "digest": "5037f5cf843a1c42b5f7a801c83b73bdadf21037cfa345f9e92af8100fce6cac" }
+    },
+    {
+      "id": "aes-transaction-004-event-count-mismatch",
+      "operation": "validate-body",
+      "input": { "body_ref": "scalar", "patch": { "assertions.eventCount": "2" } },
+      "expected": { "valid": false, "diagnostic_codes": ["AES_TRANSACTION_ASSERTION_FAILED", "AES_TRANSACTION_APPLICATION_INVALID"] }
+    },
+    {
+      "id": "aes-transaction-005-identity-collision",
+      "operation": "validate-body",
+      "input": { "body_ref": "scalar", "patch": { "attempt": "tx-1" } },
+      "expected": { "valid": false, "diagnostic_codes": ["AES_TRANSACTION_BODY_INVALID"] }
+    },
+    {
+      "id": "aes-transaction-006-scalar-widening-rejected",
+      "operation": "validate-body",
+      "input": { "body_ref": "scalar", "patch": { "records.0.datatype": "string", "records.0.generics": [], "records.0.clarifiers": [] } },
+      "expected": { "valid": false, "diagnostic_codes": ["AES_TRANSACTION_APPLICATION_INVALID"] }
+    },
+    {
+      "id": "aes-transaction-007-unregistered-extension",
+      "operation": "validate-body",
+      "input": { "body_ref": "scalar", "patch": { "x.example.note": "bound" } },
+      "expected": { "valid": false, "diagnostic_codes": ["AES_TRANSACTION_EXTENSION_UNREGISTERED"] }
+    },
+    {
+      "id": "aes-transaction-008-unsigned-inspection",
+      "operation": "validate-envelope",
+      "input": { "body_ref": "scalar", "evidence": null },
+      "expected": { "valid": true, "evidence_verified": false, "diagnostic_codes": [] }
+    },
+    {
+      "id": "aes-transaction-009-required-evidence",
+      "operation": "validate-envelope",
+      "input": { "body_ref": "scalar", "evidence": null, "require_evidence": true },
+      "expected": { "valid": false, "evidence_verified": false, "diagnostic_codes": ["AES_TRANSACTION_INTEGRITY_INVALID"] }
+    },
+    {
+      "id": "aes-transaction-010-digest-evidence",
+      "operation": "validate-envelope",
+      "input": { "body_ref": "scalar", "evidence_ref": "scalar-digest", "require_evidence": true },
+      "expected": { "valid": true, "evidence_verified": true, "diagnostic_codes": [] }
+    },
+    {
+      "id": "aes-transaction-011-support-gate",
+      "operation": "inspect-envelope",
+      "input": { "body_ref": "scalar", "evidence_ref": "scalar-digest", "require_evidence": true },
+      "expected": { "valid": true, "supported": false, "evidence_verified": true, "ready_for_authorization": false, "actionable": false, "diagnostic_codes": ["AES_TRANSACTION_UNSUPPORTED_CONTRACT"] }
+    },
+    {
+      "id": "aes-transaction-012-registered-support",
+      "operation": "inspect-envelope",
+      "input": { "body_ref": "scalar", "evidence_ref": "scalar-digest", "require_evidence": true, "support_ref": "scalar" },
+      "expected": { "valid": true, "supported": true, "evidence_verified": true, "ready_for_authorization": true, "actionable": false, "diagnostic_codes": [] }
+    },
+    {
+      "id": "aes-transaction-013-tampered-evidence",
+      "operation": "validate-envelope",
+      "input": { "body_ref": "scalar", "evidence_ref": "tampered" },
+      "expected": { "valid": false, "evidence_verified": false, "diagnostic_codes": ["AES_TRANSACTION_INTEGRITY_MISMATCH"] }
+    },
+    {
+      "id": "aes-transaction-014-signature-context",
+      "operation": "signature-input",
+      "input": { "digest": "6a9651091dd10bacecf54c69c8dafe151dabd74ddbc809174cc9c250c35bbfa3", "alg": "ed25519", "kid": "alice" },
+      "expected": {
+        "logical_hex": "6165732e7472616e73616374696f6e2e7369676e61747572652e7630006d363a73333a616c6773373a6564323535313973363a64696765737473363a73686132353673343a686173687336343a3661393635313039316464313062616365636635346336396338646166653135316461626437346464626338303931373463633963323530633335626266613373393a696e746567726974797332383a6165732e7472616e73616374696f6e2e696e746567726974792e763073333a6b696473353a616c69636573393a7369676e61747572657332383a6165732e7472616e73616374696f6e2e7369676e61747572652e7630"
+      }
+    }
+  ]
+}

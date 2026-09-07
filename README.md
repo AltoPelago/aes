@@ -35,8 +35,9 @@ publication sources live under `sources/aes/v0/` in
 [`aeonite-specs`](../../aeonite-org/aeonite-specs/). The AES v0 index, portable
 event contract, compatibility contract, and Telex encoding are published;
 their declared lifecycle and normativity govern v0. The Aeonic Semantic
-Language remains a proposal. The Markdown documents here are working/reference
-copies and do not override those canonical sources.
+Language remains a proposal. The integrity and Assignment Event Transaction
+contracts are normative drafts. The Markdown documents here are
+working/reference copies and do not override those canonical sources.
 
 - [Portable AES Event Contract v0](specifications/aes.events.md) owns the
   transport-neutral record, profile, projection, and fidelity rules.
@@ -47,6 +48,10 @@ copies and do not override those canonical sources.
   encoding-neutral logical bytes, SHA-256 digests, canonical-semantic and exact
   ordering policies, optional provenance coverage, and domain-separated
   signature inputs without treating Telex or Film bytes as the signed form.
+- [Assignment Event Transaction Contract v0](specifications/aes.transactions.md)
+  defines the non-actionable logical transaction envelope, exact-order
+  transaction integrity, trusted-host boundaries, and the initial narrow ASP
+  scalar-value replacement application without changing Telex framing.
 - [Telex v0](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
 - [Film v0 binary encoding proposal](proposals/film.aes.md) records the

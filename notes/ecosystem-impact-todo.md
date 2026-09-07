@@ -657,12 +657,20 @@ recorded below.
 
 ##### Remaining production-safe SO/ASP requirements
 
-- [ ] Define and register a versioned application/transaction carrier before
+- [x] Define and register a versioned application/transaction carrier before
   any public actionable ingress is enabled. It must bind the selected existing
   application contract, target, preconditions, ordered AES payload, assertions,
   effective limits, authorization context, and integrity policy. This closes
   an existing AET/SO boundary requirement; it does not make a bare Telex stream
-  actionable and does not add another mutation family.
+  actionable and does not add another mutation family. The normative-draft
+  `aes.transaction.v0` body, `aes.transaction.envelope.v0` logical carrier,
+  `aes.transaction.integrity.v0` digest, and registered
+  `aes.application.asp.scalar-replacement.v0` contract now have 14 shared
+  candidate vectors passing in JavaScript and Rust. The ASP library bridge
+  lowers only an independently validated, supported, integrity-verified scalar
+  AET into the existing closed SO request. Inspection still returns
+  `actionable=false`; Wire, CLI, bare-event, and Telex mutation ingress remain
+  absent.
 - [ ] Complete origin/span operation semantics against an exact retained source
   artifact when a selected application claims source-backed provenance.
   Changed records may continue to drop stale provenance, and applications that
@@ -673,9 +681,9 @@ recorded below.
 - [x] Define separate canonical-semantic and exact-order AES signature policies,
   including deterministic logical bytes and version/profile/order binding.
   `aes.integrity.v0` owns event-stream evidence and `aes.signature.v0` binds its
-  digest, signature algorithm, and key identity. A transaction signature still
-  requires the separate AET carrier and transaction-integrity contract below;
-  this completion does not make a bare stream actionable.
+  digest, signature algorithm, and key identity. The separate AET contract now
+  defines transaction integrity and signature input; neither contract makes a
+  bare stream actionable.
 
 ##### Blocked by a versioned ASP storage/writer contract
 
@@ -760,7 +768,7 @@ recorded below.
       non-actionable, names no application contract, and produces no ASP
       operation or transaction.
     - [x] First named ASP application candidate: the closed
-      `aes.application.asp.scalar-replacement.v0-candidate` request admits only
+      `aes.application.asp.scalar-replacement.v0` request admits only
       value replacement of one existing scalar occurrence. Direct targets map
       to their native ASP operation; contained tuple items, node children,
       node-head attributes, and nested binding attributes rebuild exactly one

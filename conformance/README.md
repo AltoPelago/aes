@@ -31,6 +31,17 @@ transport-independent logical bytes, SHA-256 digests, ordering and provenance
 policies, scope, and signature-context input. It is not part of either
 published snapshot 0.1 and does not change those stable external targets.
 
+The separate mutable Assignment Event Transaction candidate is rooted at:
+
+```text
+transactions/v0/aes-transaction-cts.v0.json
+```
+
+It covers the transport-neutral transaction body and logical envelope,
+exact-order transaction integrity, support-versus-authority gating, and the
+initial narrow ASP scalar-value replacement application. It does not change
+Telex v0 framing or enable bare-stream, Wire, or CLI mutation ingress.
+
 The manifest separates:
 
 - syntax and canonicalization;

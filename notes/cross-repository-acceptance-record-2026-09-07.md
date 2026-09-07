@@ -27,18 +27,24 @@ replacement returns `AES_COMPAT_NODE_HEAD_STORAGE_REQUIRED`, writes nothing,
 and leaves the journal empty. This is an accepted fail-closed result, not an
 acceptance gap.
 
+The later logical AET carrier lane also passes without opening transport
+ingress. JavaScript and Rust agree on all 14 candidate transaction vectors, and
+the ASP bridge admits only an independently validated, supported,
+integrity-verified scalar AET into the existing named SO application path.
+Generic inspection remains non-actionable.
+
 ## Executed lanes
 
 | Repository/lane | Result |
 | --- | --- |
-| AltoPelago AES JavaScript, shared immutable AES Events and Telex CTS | 93 tests passed, including all 38 AES Events and 50 Telex vectors |
-| AltoPelago AES Rust, shared immutable AES Events and Telex CTS | all conformance, completeness, and limits tests passed |
+| AltoPelago AES JavaScript, shared immutable CTS plus integrity and AET candidate lanes | 218 tests passed, including all 38 AES Events, 50 Telex, 14 integrity, and 14 AET vectors |
+| AltoPelago AES Rust, shared immutable CTS plus integrity and AET candidate lanes | all conformance, completeness, limits, integrity, and transaction tests passed; Clippy is warning-free |
 | AEON TypeScript AES Events CTS | 38 vectors passed |
 | AEON TypeScript Telex CTS | 50 vectors passed |
 | AEON Python Telex/AES tests under the required bundled Python runtime | 12 tests passed |
 | AEON PHP AES suite | 91 tests and 256 assertions passed |
 | SANSA full suite | 257 tests passed |
-| ASP full suite, including the new source-derived round trip | 1,106 tests passed |
+| ASP full suite, including the source-derived round trip and hardened AET scalar bridge | 1,109 tests passed; 62 conformance cases passed |
 | AEON TypeScript integrity package | 14 tests passed |
 | AEON TypeScript CLI | 96 tests passed |
 | AEON Rust CLI | 123 tests passed; `cargo fmt --check` passed |
@@ -46,7 +52,7 @@ acceptance gap.
 
 The first sandboxed ASP full-suite run could not bind loopback test servers and
 reported eight `listen EPERM` failures. The same unmodified suite was rerun with
-loopback access and passed all 1,106 tests; these were environment restrictions,
+loopback access and passed all 1,109 tests; these were environment restrictions,
 not implementation failures.
 
 ## Coverage confirmed by the existing lanes
@@ -78,9 +84,9 @@ and mixed historical record-version readers. Those additions should advance a
 development CTS and later publish a new immutable snapshot; they do not mutate
 snapshot 0.1.
 
-Production-safe generic AET ingress, transaction-level integrity and encryption,
-source-backed provenance mutation, index lifecycle closure, and head-aware ASP
-storage remain separate unchecked requirements. Base portable event-stream
-logical bytes now belong to `aes.integrity.v0`; that later completion does not
-make them part of this earlier read/export and supported-application acceptance
-run.
+Public AET ingress and encryption, source-backed provenance mutation, index
+lifecycle closure, and head-aware ASP storage remain separate unchecked
+requirements. Base event-stream integrity now belongs to `aes.integrity.v0`,
+while the later `aes.transaction.v0` draft supplies the support-gated logical
+carrier and transaction digest. Neither later completion changes this earlier
+read/export and supported-application acceptance run.

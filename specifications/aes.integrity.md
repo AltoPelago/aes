@@ -28,7 +28,8 @@ This document owns:
 
 It does not define event validity, Telex or Film bytes, private-key handling,
 trusted-key discovery, algorithm approval, authorization, encryption, ledger
-storage, or Assignment Event Transaction envelopes.
+storage, or Assignment Event Transaction envelopes. Those are defined by the
+separate [`aes.transaction.v0`](./aes.transactions.md) draft.
 
 `aeon.gp.integrity.v1` remains the AEON final-document-state hash. Its existing
 path/value serialization and signatures are not portable AES evidence and are
@@ -165,10 +166,10 @@ performed.
 The complete logical bytes are:
 
 ```text
-UTF8("aes.integrity.v0\\0") || E(integrity-input-map)
+UTF8("aes.integrity.v0") || 0x00 || E(integrity-input-map)
 ```
 
-Here `\\0` is one zero octet, not two visible characters. Implementations reject
+Here `0x00` is one zero octet. Implementations reject
 unpaired UTF-16 surrogates or any other input that is not a Unicode scalar
 sequence rather than replacing it during UTF-8 encoding.
 
@@ -212,7 +213,7 @@ The signature-context map has exactly:
 Signature input bytes are:
 
 ```text
-UTF8("aes.signature.v0\\0") || E(signature-context-map)
+UTF8("aes.signature.v0") || 0x00 || E(signature-context-map)
 ```
 
 `sig` is excluded to avoid recursion. Binding `alg` and `kid` prevents metadata
@@ -232,11 +233,11 @@ The envelope remains outside the covered AES record stream. For document scope,
 the `aeon.document.v0` header plane and body plane are covered, while the
 security envelope containing the evidence is excluded to avoid recursion.
 
-Signing does not authorize an AES application or ASP write. An Assignment Event
-Transaction integrity contract may embed this exact event-stream digest, but it
-must additionally bind transaction identity, target, application/preparation
-contracts, preconditions, assertions, effective limits claims, authorization
-context, and extensions. That broader transaction digest is not defined here.
+Signing does not authorize an AES application or ASP write. The separate
+`aes.transaction.integrity.v0` contract reuses this structural mapping while
+binding transaction identity, target, application/preparation contracts,
+preconditions, assertions, effective limits claims, authorization context, and
+extensions under a distinct domain.
 
 Encryption composition remains deferred. A profile must state whether this
 contract covers plaintext or a separately defined authenticated ciphertext

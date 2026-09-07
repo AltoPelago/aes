@@ -59,9 +59,21 @@ pub const AES_PROVENANCE_EXCLUDED: &str = "aes.provenance.excluded.v0";
 pub const AES_PROVENANCE_INCLUDED: &str = "aes.provenance.included.v0";
 pub const AES_DIGEST_SHA256: &str = "sha256";
 pub const AES_SIGNATURE_CONTRACT: &str = "aes.signature.v0";
+pub const AES_TRANSACTION_CONTRACT: &str = "aes.transaction.v0";
+pub const AES_TRANSACTION_ENVELOPE: &str = "aes.transaction.envelope.v0";
+pub const AES_TRANSACTION_INTEGRITY: &str = "aes.transaction.integrity.v0";
+pub const AES_TRANSACTION_SIGNATURE: &str = "aes.transaction.signature.v0";
+pub const AES_SCALAR_REPLACEMENT_APPLICATION: &str = "aes.application.asp.scalar-replacement.v0";
+pub const AES_ASP_TARGET: &str = "aes.target.asp.v0";
+pub const AES_ASP_REVISION_PRECONDITION: &str = "aes.precondition.asp-revision.v0";
+pub const AES_IDENTITY_PREPARATION: &str = "aes.preparation.identity.v0";
+pub const AES_HOST_AUTHORIZATION: &str = "aes.authorization.host-context.v0";
+pub const AES_LIMITS_CLAIM: &str = "aes.limits.claim.v0";
 
 const INTEGRITY_DOMAIN: &[u8] = b"aes.integrity.v0\0";
 const SIGNATURE_DOMAIN: &[u8] = b"aes.signature.v0\0";
+const TRANSACTION_DOMAIN: &[u8] = b"aes.transaction.integrity.v0\0";
+const TRANSACTION_SIGNATURE_DOMAIN: &[u8] = b"aes.transaction.signature.v0\0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TelexLimits {
@@ -247,6 +259,164 @@ impl fmt::Display for AesIntegrityError {
 }
 
 impl Error for AesIntegrityError {}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionApplication {
+    pub contract: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionTarget {
+    pub contract: String,
+    pub id: String,
+    pub boundary: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionPrecondition {
+    pub contract: String,
+    pub scope: String,
+    pub revision: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionPreparation {
+    pub contract: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionAuthorization {
+    pub contract: String,
+    pub context: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionLimitsClaim {
+    pub contract: String,
+    pub id: String,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionContainerAssertion {
+    pub path: String,
+    pub payload_direct_item_count: String,
+    pub result_direct_item_count: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionAssertions {
+    pub event_count: String,
+    pub containers: Vec<AesTransactionContainerAssertion>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionIntegrityPolicy {
+    pub contract: String,
+    pub digest: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionBody {
+    pub transaction: String,
+    pub id: String,
+    pub intent: String,
+    pub attempt: String,
+    pub events: String,
+    pub profile: String,
+    pub projection: Option<String>,
+    pub ordering: String,
+    pub application: AesTransactionApplication,
+    pub target: AesTransactionTarget,
+    pub preconditions: Vec<AesTransactionPrecondition>,
+    pub preparation: AesTransactionPreparation,
+    pub authorization: AesTransactionAuthorization,
+    pub limits: AesTransactionLimitsClaim,
+    pub assertions: AesTransactionAssertions,
+    pub records: Vec<TelexRecord>,
+    pub integrity: AesTransactionIntegrityPolicy,
+    pub extensions: Vec<(String, IntegrityValue)>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionSignatureEntry {
+    pub signature: String,
+    pub algorithm: String,
+    pub key_id: String,
+    pub value: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionEvidence {
+    pub integrity: String,
+    pub digest: String,
+    pub hash: String,
+    pub signatures: Vec<AesTransactionSignatureEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionEnvelope {
+    pub envelope: String,
+    pub body: AesTransactionBody,
+    pub evidence: Option<AesTransactionEvidence>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionDiagnostic {
+    pub code: &'static str,
+    pub message: String,
+    pub path: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionValidation {
+    pub valid: bool,
+    pub evidence_verified: bool,
+    pub diagnostics: Vec<AesTransactionDiagnostic>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AesTransactionSupport {
+    pub applications: Vec<String>,
+    pub targets: Vec<String>,
+    pub preconditions: Vec<String>,
+    pub preparations: Vec<String>,
+    pub authorizations: Vec<String>,
+    pub limit_sets: Vec<String>,
+    pub integrity_contracts: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionInspection {
+    pub valid: bool,
+    pub supported: bool,
+    pub evidence_verified: bool,
+    pub ready_for_authorization: bool,
+    pub actionable: bool,
+    pub diagnostics: Vec<AesTransactionDiagnostic>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionDigest {
+    pub bytes: Vec<u8>,
+    pub algorithm: String,
+    pub digest: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesTransactionError {
+    pub code: &'static str,
+    pub detail: String,
+    pub diagnostics: Vec<AesTransactionDiagnostic>,
+}
+
+impl fmt::Display for AesTransactionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.detail)
+    }
+}
+
+impl Error for AesTransactionError {}
 
 pub fn encode_aes_integrity(
     records: &[TelexRecord],
@@ -604,6 +774,681 @@ fn integrity_error(code: &'static str, detail: impl Into<String>) -> AesIntegrit
     AesIntegrityError {
         code,
         detail: detail.into(),
+    }
+}
+
+pub fn validate_aes_transaction_body(
+    body: &AesTransactionBody,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+) -> AesTransactionValidation {
+    let mut diagnostics = Vec::new();
+    transaction_exact(
+        &body.transaction,
+        AES_TRANSACTION_CONTRACT,
+        "transaction",
+        &mut diagnostics,
+    );
+    transaction_exact(&body.events, AES_EVENT_CONTRACT, "events", &mut diagnostics);
+    transaction_exact(
+        &body.ordering,
+        AES_EXACT_ORDER,
+        "ordering",
+        &mut diagnostics,
+    );
+    for (path, value) in [
+        ("id", body.id.as_str()),
+        ("intent", body.intent.as_str()),
+        ("attempt", body.attempt.as_str()),
+        ("profile", body.profile.as_str()),
+        ("application.contract", body.application.contract.as_str()),
+        ("target.contract", body.target.contract.as_str()),
+        ("target.id", body.target.id.as_str()),
+        ("target.boundary", body.target.boundary.as_str()),
+        ("preparation.contract", body.preparation.contract.as_str()),
+        (
+            "authorization.contract",
+            body.authorization.contract.as_str(),
+        ),
+        ("authorization.context", body.authorization.context.as_str()),
+        ("limits.id", body.limits.id.as_str()),
+        ("limits.version", body.limits.version.as_str()),
+    ] {
+        transaction_identifier(value, path, &mut diagnostics);
+    }
+    if body.id == body.intent || body.id == body.attempt || body.intent == body.attempt {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_BODY_INVALID",
+            "Transaction, intent, and attempt identities must be distinct.",
+            Some("id"),
+        ));
+    }
+    if let Some(projection) = &body.projection {
+        transaction_identifier(projection, "projection", &mut diagnostics);
+    }
+    transaction_exact(
+        &body.limits.contract,
+        AES_LIMITS_CLAIM,
+        "limits.contract",
+        &mut diagnostics,
+    );
+    transaction_exact(
+        &body.integrity.contract,
+        AES_TRANSACTION_INTEGRITY,
+        "integrity.contract",
+        &mut diagnostics,
+    );
+    transaction_exact(
+        &body.integrity.digest,
+        AES_DIGEST_SHA256,
+        "integrity.digest",
+        &mut diagnostics,
+    );
+    for (index, precondition) in body.preconditions.iter().enumerate() {
+        transaction_identifier(
+            &precondition.contract,
+            &format!("preconditions[{index}].contract"),
+            &mut diagnostics,
+        );
+        transaction_identifier(
+            &precondition.scope,
+            &format!("preconditions[{index}].scope"),
+            &mut diagnostics,
+        );
+        if !is_unsigned_decimal(&precondition.revision) {
+            diagnostics.push(transaction_diagnostic(
+                "AES_TRANSACTION_BODY_INVALID",
+                "Precondition revision must be a canonical unsigned decimal string.",
+                Some(&format!("preconditions[{index}].revision")),
+            ));
+        }
+    }
+    if !is_unsigned_decimal(&body.assertions.event_count) {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_BODY_INVALID",
+            "assertions.eventCount must be a canonical unsigned decimal string.",
+            Some("assertions.eventCount"),
+        ));
+    } else if body.assertions.event_count != body.records.len().to_string() {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_ASSERTION_FAILED",
+            "eventCount does not match records length.",
+            Some("assertions.eventCount"),
+        ));
+    }
+    for (index, assertion) in body.assertions.containers.iter().enumerate() {
+        transaction_identifier(
+            &assertion.path,
+            &format!("assertions.containers[{index}].path"),
+            &mut diagnostics,
+        );
+        for (field, value) in [
+            (
+                "payloadDirectItemCount",
+                assertion.payload_direct_item_count.as_str(),
+            ),
+            (
+                "resultDirectItemCount",
+                assertion.result_direct_item_count.as_str(),
+            ),
+        ] {
+            if !is_unsigned_decimal(value) {
+                diagnostics.push(transaction_diagnostic(
+                    "AES_TRANSACTION_BODY_INVALID",
+                    "Container count must be a canonical unsigned decimal string.",
+                    Some(&format!("assertions.containers[{index}].{field}")),
+                ));
+            }
+        }
+    }
+    for (field, _) in &body.extensions {
+        if !is_transaction_extension_field(field) || !registered_fields.contains(&field.as_str()) {
+            diagnostics.push(transaction_diagnostic(
+                "AES_TRANSACTION_EXTENSION_UNREGISTERED",
+                format!("Transaction body field '{field}' is not registered."),
+                Some(field),
+            ));
+        }
+    }
+    let events = validate_telex_records_with_projection(
+        &body.records,
+        &body.profile,
+        body.projection.as_deref(),
+        registered_event_fields,
+    );
+    diagnostics.extend(events.diagnostics.into_iter().map(|item| {
+        transaction_diagnostic(
+            "AES_TRANSACTION_EVENT_INVALID",
+            format!("{}: {}", item.code, item.message),
+            item.path.as_deref(),
+        )
+    }));
+    if body.application.contract == AES_SCALAR_REPLACEMENT_APPLICATION {
+        validate_scalar_transaction(body, &mut diagnostics);
+    }
+    let logical = transaction_body_value(body);
+    if let Err(error) = encode_aes_integrity_value(&logical) {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_BODY_INVALID",
+            error.detail,
+            None,
+        ));
+    }
+    AesTransactionValidation {
+        valid: diagnostics.is_empty(),
+        evidence_verified: false,
+        diagnostics,
+    }
+}
+
+pub fn compute_aes_transaction_digest(
+    body: &AesTransactionBody,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+) -> Result<AesTransactionDigest, AesTransactionError> {
+    let validation =
+        validate_aes_transaction_body(body, registered_fields, registered_event_fields);
+    if !validation.valid {
+        return Err(transaction_error(
+            "AES_TRANSACTION_BODY_INVALID",
+            "Cannot digest an invalid AES transaction body.",
+            validation.diagnostics,
+        ));
+    }
+    let mut bytes = Vec::from(TRANSACTION_DOMAIN);
+    encode_integrity_value_into(&transaction_body_value(body), &mut bytes)
+        .map_err(|error| transaction_error(error.code, error.detail, Vec::new()))?;
+    let digest = Sha256::digest(&bytes);
+    Ok(AesTransactionDigest {
+        bytes,
+        algorithm: AES_DIGEST_SHA256.to_owned(),
+        digest: lower_hex(&digest),
+    })
+}
+
+pub fn verify_aes_transaction_digest(
+    body: &AesTransactionBody,
+    expected: &str,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+) -> Result<bool, AesTransactionError> {
+    if !is_lower_sha256(expected) {
+        return Err(transaction_error(
+            "AES_TRANSACTION_INTEGRITY_INVALID",
+            "Transaction digest must be 64 lowercase hexadecimal digits.",
+            Vec::new(),
+        ));
+    }
+    Ok(
+        compute_aes_transaction_digest(body, registered_fields, registered_event_fields)?.digest
+            == expected,
+    )
+}
+
+pub fn encode_aes_transaction_signature_input(
+    digest: &str,
+    algorithm: &str,
+    key_id: &str,
+) -> Result<AesSignatureInput, AesTransactionError> {
+    if !is_lower_sha256(digest) || algorithm.is_empty() || key_id.is_empty() {
+        return Err(transaction_error(
+            "AES_TRANSACTION_SIGNATURE_INVALID",
+            "Transaction signature context is invalid.",
+            Vec::new(),
+        ));
+    }
+    let context = IntegrityValue::Map(vec![
+        integrity_member("signature", AES_TRANSACTION_SIGNATURE),
+        integrity_member("integrity", AES_TRANSACTION_INTEGRITY),
+        integrity_member("digest", AES_DIGEST_SHA256),
+        integrity_member("hash", digest),
+        integrity_member("alg", algorithm),
+        integrity_member("kid", key_id),
+    ]);
+    let mut bytes = Vec::from(TRANSACTION_SIGNATURE_DOMAIN);
+    encode_integrity_value_into(&context, &mut bytes)
+        .map_err(|error| transaction_error(error.code, error.detail, Vec::new()))?;
+    Ok(AesSignatureInput { context, bytes })
+}
+
+pub fn validate_aes_transaction_envelope(
+    envelope: &AesTransactionEnvelope,
+    require_evidence: bool,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+) -> AesTransactionValidation {
+    let mut body =
+        validate_aes_transaction_body(&envelope.body, registered_fields, registered_event_fields);
+    let body_valid = body.valid;
+    if envelope.envelope != AES_TRANSACTION_ENVELOPE {
+        body.diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_ENVELOPE_INVALID",
+            "Transaction envelope identifier is invalid.",
+            Some("envelope"),
+        ));
+    }
+    match &envelope.evidence {
+        None if require_evidence => body.diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_INTEGRITY_INVALID",
+            "Trusted policy requires transaction integrity evidence.",
+            Some("evidence"),
+        )),
+        None => {}
+        Some(evidence) => {
+            let diagnostic_count = body.diagnostics.len();
+            validate_transaction_evidence(evidence, &mut body.diagnostics);
+            if body_valid
+                && body.diagnostics.len() == diagnostic_count
+                && is_lower_sha256(&evidence.hash)
+            {
+                match verify_aes_transaction_digest(
+                    &envelope.body,
+                    &evidence.hash,
+                    registered_fields,
+                    registered_event_fields,
+                ) {
+                    Ok(true) => body.evidence_verified = true,
+                    Ok(false) => body.diagnostics.push(transaction_diagnostic(
+                        "AES_TRANSACTION_INTEGRITY_MISMATCH",
+                        "Transaction integrity digest does not match the body.",
+                        Some("evidence.hash"),
+                    )),
+                    Err(_) => {}
+                }
+            }
+        }
+    }
+    body.valid = body.diagnostics.is_empty();
+    body
+}
+
+pub fn inspect_aes_transaction_envelope(
+    envelope: &AesTransactionEnvelope,
+    require_evidence: bool,
+    support: &AesTransactionSupport,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+) -> AesTransactionInspection {
+    let validation = validate_aes_transaction_envelope(
+        envelope,
+        require_evidence,
+        registered_fields,
+        registered_event_fields,
+    );
+    let mut diagnostics = validation.diagnostics;
+    let unsupported = transaction_unsupported(&envelope.body, support);
+    let supported = unsupported.is_empty();
+    diagnostics.extend(unsupported);
+    let ready_for_authorization =
+        validation.valid && supported && (!require_evidence || validation.evidence_verified);
+    AesTransactionInspection {
+        valid: validation.valid,
+        supported,
+        evidence_verified: validation.evidence_verified,
+        ready_for_authorization,
+        actionable: false,
+        diagnostics,
+    }
+}
+
+fn transaction_body_value(body: &AesTransactionBody) -> IntegrityValue {
+    let mut members = vec![
+        integrity_member("transaction", &body.transaction),
+        integrity_member("id", &body.id),
+        integrity_member("intent", &body.intent),
+        integrity_member("attempt", &body.attempt),
+        integrity_member("events", &body.events),
+        integrity_member("profile", &body.profile),
+        (
+            "projection".to_owned(),
+            body.projection
+                .as_ref()
+                .map_or(IntegrityValue::Null, |value| {
+                    IntegrityValue::String(value.clone())
+                }),
+        ),
+        integrity_member("ordering", &body.ordering),
+        (
+            "application".to_owned(),
+            IntegrityValue::Map(vec![integrity_member(
+                "contract",
+                &body.application.contract,
+            )]),
+        ),
+        (
+            "target".to_owned(),
+            IntegrityValue::Map(vec![
+                integrity_member("contract", &body.target.contract),
+                integrity_member("id", &body.target.id),
+                integrity_member("boundary", &body.target.boundary),
+            ]),
+        ),
+        (
+            "preconditions".to_owned(),
+            IntegrityValue::List(
+                body.preconditions
+                    .iter()
+                    .map(|item| {
+                        IntegrityValue::Map(vec![
+                            integrity_member("contract", &item.contract),
+                            integrity_member("scope", &item.scope),
+                            integrity_member("revision", &item.revision),
+                        ])
+                    })
+                    .collect(),
+            ),
+        ),
+        (
+            "preparation".to_owned(),
+            IntegrityValue::Map(vec![integrity_member(
+                "contract",
+                &body.preparation.contract,
+            )]),
+        ),
+        (
+            "authorization".to_owned(),
+            IntegrityValue::Map(vec![
+                integrity_member("contract", &body.authorization.contract),
+                integrity_member("context", &body.authorization.context),
+            ]),
+        ),
+        (
+            "limits".to_owned(),
+            IntegrityValue::Map(vec![
+                integrity_member("contract", &body.limits.contract),
+                integrity_member("id", &body.limits.id),
+                integrity_member("version", &body.limits.version),
+            ]),
+        ),
+        (
+            "assertions".to_owned(),
+            IntegrityValue::Map(vec![
+                integrity_member("eventCount", &body.assertions.event_count),
+                (
+                    "containers".to_owned(),
+                    IntegrityValue::List(
+                        body.assertions
+                            .containers
+                            .iter()
+                            .map(|item| {
+                                IntegrityValue::Map(vec![
+                                    integrity_member("path", &item.path),
+                                    integrity_member(
+                                        "payloadDirectItemCount",
+                                        &item.payload_direct_item_count,
+                                    ),
+                                    integrity_member(
+                                        "resultDirectItemCount",
+                                        &item.result_direct_item_count,
+                                    ),
+                                ])
+                            })
+                            .collect(),
+                    ),
+                ),
+            ]),
+        ),
+        (
+            "records".to_owned(),
+            IntegrityValue::List(
+                body.records
+                    .iter()
+                    .map(|record| integrity_record_value(record, AES_PROVENANCE_INCLUDED))
+                    .collect(),
+            ),
+        ),
+        (
+            "integrity".to_owned(),
+            IntegrityValue::Map(vec![
+                integrity_member("contract", &body.integrity.contract),
+                integrity_member("digest", &body.integrity.digest),
+            ]),
+        ),
+    ];
+    members.extend(body.extensions.iter().cloned());
+    IntegrityValue::Map(members)
+}
+
+fn validate_scalar_transaction(
+    body: &AesTransactionBody,
+    diagnostics: &mut Vec<AesTransactionDiagnostic>,
+) {
+    if body.profile != PARTIAL_AES_PROFILE || body.projection.is_some() {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_APPLICATION_INVALID",
+            "Scalar replacement requires aes.partial.v0 body-only event context.",
+            Some("profile"),
+        ));
+    }
+    if body.target.contract != AES_ASP_TARGET || body.target.boundary != "$" {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_APPLICATION_INVALID",
+            "Scalar replacement requires the root-boundary ASP target contract.",
+            Some("target"),
+        ));
+    }
+    if body.preconditions.len() != 1
+        || body.preconditions[0].contract != AES_ASP_REVISION_PRECONDITION
+        || body.preconditions[0].scope != "$"
+    {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_APPLICATION_INVALID",
+            "Scalar replacement requires one root ASP revision precondition.",
+            Some("preconditions"),
+        ));
+    }
+    if body.preparation.contract != AES_IDENTITY_PREPARATION
+        || body.authorization.contract != AES_HOST_AUTHORIZATION
+    {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_APPLICATION_INVALID",
+            "Scalar replacement requires identity preparation and host authorization context.",
+            Some("application"),
+        ));
+    }
+    if body.assertions.event_count != "1"
+        || !body.assertions.containers.is_empty()
+        || body.records.len() != 1
+    {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_APPLICATION_INVALID",
+            "Scalar replacement carries exactly one record and no container assertions.",
+            Some("records"),
+        ));
+        return;
+    }
+    let record = &body.records[0];
+    let allowed_fields = ["path", "kind", "value"];
+    let kind = record.get("kind").unwrap_or_default();
+    let scalar_kinds = [
+        "StringLiteral",
+        "NumberLiteral",
+        "InfinityLiteral",
+        "NaNLiteral",
+        "BooleanLiteral",
+        "ToggleLiteral",
+        "NullLiteral",
+        "HexLiteral",
+        "RadixLiteral",
+        "EncodingLiteral",
+        "SeparatorLiteral",
+        "SansaAddressLiteral",
+        "DateLiteral",
+        "TimeLiteral",
+        "DateTimeLiteral",
+        "WTCDateTimeLiteral",
+    ];
+    if record
+        .fields()
+        .iter()
+        .any(|(field, _)| !allowed_fields.contains(&field.as_str()))
+        || record.datatype().is_some()
+        || !scalar_kinds.contains(&kind)
+        || record.get("value").is_none()
+    {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_APPLICATION_INVALID",
+            "Scalar replacement record must contain only path, admitted scalar kind, and string value.",
+            Some("records[0]"),
+        ));
+    }
+}
+
+fn validate_transaction_evidence(
+    evidence: &AesTransactionEvidence,
+    diagnostics: &mut Vec<AesTransactionDiagnostic>,
+) {
+    if evidence.integrity != AES_TRANSACTION_INTEGRITY
+        || evidence.digest != AES_DIGEST_SHA256
+        || !is_lower_sha256(&evidence.hash)
+    {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_INTEGRITY_INVALID",
+            "Transaction integrity evidence is invalid.",
+            Some("evidence"),
+        ));
+    }
+    for (index, signature) in evidence.signatures.iter().enumerate() {
+        if signature.signature != AES_TRANSACTION_SIGNATURE
+            || signature.algorithm.is_empty()
+            || signature.key_id.is_empty()
+            || signature.value.is_empty()
+        {
+            diagnostics.push(transaction_diagnostic(
+                "AES_TRANSACTION_SIGNATURE_INVALID",
+                "Transaction signature entry is invalid.",
+                Some(&format!("evidence.signatures[{index}]")),
+            ));
+        }
+    }
+}
+
+fn transaction_unsupported(
+    body: &AesTransactionBody,
+    support: &AesTransactionSupport,
+) -> Vec<AesTransactionDiagnostic> {
+    let mut required = vec![
+        (
+            "application",
+            body.application.contract.as_str(),
+            &support.applications,
+        ),
+        ("target", body.target.contract.as_str(), &support.targets),
+        (
+            "preparation",
+            body.preparation.contract.as_str(),
+            &support.preparations,
+        ),
+        (
+            "authorization",
+            body.authorization.contract.as_str(),
+            &support.authorizations,
+        ),
+        (
+            "integrity",
+            body.integrity.contract.as_str(),
+            &support.integrity_contracts,
+        ),
+    ];
+    let limit_set = format!("{}@{}", body.limits.id, body.limits.version);
+    let mut diagnostics = Vec::new();
+    for (component, contract, supported) in required.drain(..) {
+        if !supported.iter().any(|candidate| candidate == contract) {
+            diagnostics.push(unsupported_transaction(component, contract));
+        }
+    }
+    if !support.limit_sets.contains(&limit_set) {
+        diagnostics.push(unsupported_transaction("limits", &limit_set));
+    }
+    for precondition in &body.preconditions {
+        if !support.preconditions.contains(&precondition.contract) {
+            diagnostics.push(unsupported_transaction(
+                "precondition",
+                &precondition.contract,
+            ));
+        }
+    }
+    diagnostics
+}
+
+fn unsupported_transaction(component: &str, contract: &str) -> AesTransactionDiagnostic {
+    transaction_diagnostic(
+        "AES_TRANSACTION_UNSUPPORTED_CONTRACT",
+        format!("Unsupported {component} contract '{contract}'."),
+        Some(component),
+    )
+}
+
+fn transaction_exact(
+    value: &str,
+    expected: &str,
+    path: &str,
+    diagnostics: &mut Vec<AesTransactionDiagnostic>,
+) {
+    if value != expected {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_BODY_INVALID",
+            format!("{path} must be '{expected}'."),
+            Some(path),
+        ));
+    }
+}
+
+fn transaction_identifier(
+    value: &str,
+    path: &str,
+    diagnostics: &mut Vec<AesTransactionDiagnostic>,
+) {
+    if value.is_empty() || value.chars().count() > 256 {
+        diagnostics.push(transaction_diagnostic(
+            "AES_TRANSACTION_BODY_INVALID",
+            format!("{path} must contain 1 to 256 Unicode scalar values."),
+            Some(path),
+        ));
+    }
+}
+
+fn is_unsigned_decimal(value: &str) -> bool {
+    value == "0"
+        || (!value.is_empty()
+            && !value.starts_with('0')
+            && value.bytes().all(|byte| byte.is_ascii_digit()))
+}
+
+fn is_transaction_extension_field(value: &str) -> bool {
+    let segments = value.split('.').collect::<Vec<_>>();
+    segments.len() >= 3
+        && segments[0] == "x"
+        && segments[1..].iter().all(|segment| {
+            !segment.is_empty()
+                && segment.as_bytes()[0].is_ascii_lowercase()
+                && segment
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        })
+}
+
+fn transaction_diagnostic(
+    code: &'static str,
+    message: impl Into<String>,
+    path: Option<&str>,
+) -> AesTransactionDiagnostic {
+    AesTransactionDiagnostic {
+        code,
+        message: message.into(),
+        path: path.map(str::to_owned),
+    }
+}
+
+fn transaction_error(
+    code: &'static str,
+    detail: impl Into<String>,
+    diagnostics: Vec<AesTransactionDiagnostic>,
+) -> AesTransactionError {
+    AesTransactionError {
+        code,
+        detail: detail.into(),
+        diagnostics,
     }
 }
 

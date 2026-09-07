@@ -21,6 +21,12 @@ plane; it remains independent of the complete/partial AES profile selection.
 Optional source provenance is record-local: `origin` may stand alone, while
 `span` requires a canonical SHA-256 origin.
 
+The crate also implements the candidate transport-neutral
+`aes.transaction.v0` body, support-gated logical envelope, exact-order
+transaction digest, and signature input. Generic inspection can report that a
+verified transaction is ready for trusted authorization, but always reports
+`actionable=false`.
+
 The Telex codec has no runtime dependencies. Portable integrity uses the
 `sha2` crate for SHA-256 rather than implementing a cryptographic primitive in
 this repository. `serde_json` is a test-only dependency used to load the
