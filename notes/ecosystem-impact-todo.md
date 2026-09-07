@@ -2,7 +2,7 @@
 
 Status: living working list
 
-Updated: 2026-09-07
+Updated: 2026-09-08
 
 ## Scope
 
@@ -47,7 +47,7 @@ surfaces until these gates are complete.
   validation vectors and `telex-cts-v0-snapshot-0.1` freezes 50 encoding and
   format-limit vectors, each with per-suite SHA-256 digests. JavaScript and
   Rust pass both published targets independently; the AEON-to-AES projection
-  candidate passes 67/67 in TypeScript, Rust, Python, and PHP.
+  candidate passes 79/79 in TypeScript, Rust, Python, and PHP.
 - [x] Define reader-first compatibility rules before any producer emits the
   revised shape into durable stores or cross-service interfaces.
 
@@ -266,10 +266,18 @@ while the wider consumer audit remains open.
     nested, and node-head attributes as ordinary flat events in source preorder;
     the inspect transport keeps the prior nested form as an explicit legacy
     compatibility adapter.
-- [ ] Verify prefix-completeness and container-compatibility rules for
-  attribute paths without synthesizing phantom parent bindings.
-- [ ] Update SANSA, SO, ASP, AES-DB, validators, SDKs, and editing tools that
-  currently expect attributes to be nested inside a parent event.
+- [x] Verify prefix-completeness and container-compatibility rules for
+  attribute paths without synthesizing phantom parent bindings. The shared
+  complete/partial AES suites require material ancestry while treating an
+  attribute selector and key as one structural step; JavaScript and Rust
+  validators pass the immutable vectors independently, and all four source
+  projections pass the flat-attribute AES lane.
+- [x] Update SANSA, SO, ASP, AES-DB, validators, SDKs, and editing tools that
+  previously expected attributes to be nested inside a parent event. Their
+  portable paths now consume ordinary `.@` records, while explicitly named
+  legacy adapters retain nested maps only at compatibility boundaries. The
+  consolidated SO/ASP and cross-repository acceptance records cover recursive
+  attribute selection, mutation, durable replay, and re-export.
 
 ### 1.4 Datatypes and values
 
@@ -473,7 +481,8 @@ while the wider consumer audit remains open.
   header completeness.
 - [x] Add shared fixtures for structured headers, shorthand headers, header
   conflicts, body-only streams, and an explicitly selected empty document
-  projection, plus a quoted top-level `"aeon:*"` payload collision. All six
+  projection, plus a same-name quoted top-level `"aeon:*"` payload/header
+  collision. All six
   mutable CTS vectors pass in TypeScript, Rust, Python, and PHP.
 - [x] TypeScript, Rust, Python, and PHP: `inspect --json --portable-aes` exposes
   the portable projection as a body-only event stream. TypeScript excludes its
@@ -499,14 +508,18 @@ while the wider consumer audit remains open.
   names, and source-to-finalizer call sites pass the retained header model.
   Quoted `aeon:*` payload keys therefore remain body records at these portable
   boundaries while `compile().events` remains the unchanged native event API.
-  - [ ] Replace the residual prefix-only classification in event-only native
-    consumers such as direct AEOS validation and legacy inspect rendering once
-    native assignment events carry explicit source-plane identity. This is a
-    production-hardening item, not a Telex/AES compatibility blocker: named
-    portable adapters accept retained `headerFieldNames`, and decoded Telex
-    already distinguishes `header` from `path` structurally.
+  - [x] Replace residual prefix-only classification in event-only native
+    consumers. TypeScript, Rust, Python, and PHP assignment occurrences now
+    carry explicit header/body source-plane identity through expanded inline
+    descendants. Direct AEOS validation, portable adapters, finalizers, SDK
+    bridges, and legacy inspect rendering consume that identity. Compatibility
+    fallbacks retain key-prefix classification only for older externally
+    supplied event records that do not carry the new metadata. Legacy inspect
+    output shape and its intentionally visible structured-header descendants
+    remain unchanged.
 - [x] **Telex/AES compatibility:** add a shared source-projection fixture in
-  which a real header coexists with a quoted top-level `"aeon:*"` payload key.
+  which a real header and a quoted top-level body binding use the same
+  `"aeon:*"` key and textual address.
   TypeScript, Rust, Python, and PHP now use retained header identity at their
   source-aware portable boundaries and preserve that payload key in the body
   plane. The mutable shared fixture passes in all four implementations.
@@ -1246,7 +1259,8 @@ above.
 - [x] Headers: six mutable shared fixtures cover structured and shorthand
   normalization, fail-closed mixed-form conflict, default body-only output, and
   explicit document projection with an empty header plane, plus disambiguation
-  of a quoted top-level `"aeon:*"` payload key from the control plane. All 79
+  of a same-name quoted top-level `"aeon:*"` payload key from the control
+  plane. All 79
   AES projection vectors pass in TypeScript, Rust, Python, and PHP; released
   CTS snapshots remain unchanged.
 - [x] End to end: the ASP acceptance lane covers AEON source -> portable

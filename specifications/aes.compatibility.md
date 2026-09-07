@@ -97,6 +97,15 @@ omit local spans that lack an immutable origin. Existing same-process
 projection helpers are conveniences and are not substitutes for a named
 compatibility result at a serialized boundary.
 
+Current native assignment-event producers additionally retain an occurrence's
+source plane as `header` or `body`. This is implementation-contract metadata,
+not a field in `aes.events.v0`: portable records express the distinction with
+their mutually exclusive `header` and `path` address fields. Native consumers
+must prefer explicit source-plane identity over key spelling. A compatibility
+reader may infer legacy header records from the implementation's retained
+header model only when an older event lacks source-plane metadata; an `aeon:`
+key prefix alone must never override an explicit body-plane classification.
+
 ## 3. Legacy to portable projection
 
 ### 3.1 Nodes and paths
