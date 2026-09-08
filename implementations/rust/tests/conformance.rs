@@ -61,7 +61,7 @@ fn passes_selected_v0_telex_vectors() {
 
     assert_eq!(
         count,
-        if released { 50 } else { 88 },
+        if released { 50 } else { 100 },
         "unexpected v0 vector count"
     );
 }
@@ -268,6 +268,12 @@ fn vector_limits(vector: &Value) -> TelexLimits {
             "max_decoded_payload_bytes" => limits.max_decoded_payload_bytes = value,
             "max_path_depth" => limits.max_path_depth = value,
             "max_path_characters" => limits.max_path_characters = value,
+            "max_attribute_depth" => limits.max_attribute_depth = value,
+            "max_value_nesting_depth" => limits.max_value_nesting_depth = value,
+            "max_string_codepoints" => limits.max_string_codepoints = value,
+            "max_key_segment_codepoints" => limits.max_key_segment_codepoints = value,
+            "max_list_items" => limits.max_list_items = value,
+            "max_tuple_items" => limits.max_tuple_items = value,
             "max_generic_depth" => limits.max_generic_depth = value,
             "max_generic_arguments" => limits.max_generic_arguments = value,
             "max_clarifier_values" => limits.max_clarifier_values = value,

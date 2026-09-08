@@ -27,6 +27,12 @@ test('publishes the AltoPelago Telex limit defaults', () => {
     maxDecodedPayloadBytes: 33_554_432,
     maxPathDepth: 1_024,
     maxPathCharacters: 8_192,
+    maxAttributeDepth: 1,
+    maxValueNestingDepth: 256,
+    maxStringCodepoints: 1_048_576,
+    maxKeySegmentCodepoints: 1_024,
+    maxListItems: 65_536,
+    maxTupleItems: 65_536,
     maxGenericDepth: 1,
     maxGenericArguments: 32,
     maxClarifierValues: 1,
@@ -40,6 +46,57 @@ test('publishes the AltoPelago Telex limit defaults', () => {
       && error.observed === 12
       && error.limit === 11,
   );
+});
+
+test('enforces shared structural limits on direct portable records', () => {
+  const cases = [
+    {
+      counter: 'max_attribute_depth',
+      records: [{ path: '$.a.@.x.@.y', kind: 'NumberLiteral', value: '1' }],
+      options: { profile: 'aes.partial.v0', maxAttributeDepth: 1 },
+    },
+    {
+      counter: 'max_value_nesting_depth',
+      records: [
+        { path: '$.a', kind: 'ObjectNode' },
+        { path: '$.a.b', kind: 'ObjectNode' },
+      ],
+      options: { maxValueNestingDepth: 1 },
+    },
+    {
+      counter: 'max_string_codepoints',
+      records: [{ path: '$.a', kind: 'StringLiteral', value: '😀x' }],
+      options: { maxStringCodepoints: 1 },
+    },
+    {
+      counter: 'max_key_segment_codepoints',
+      records: [{ path: '$.["😀x"]', kind: 'NumberLiteral', value: '1' }],
+      options: { maxKeySegmentCodepoints: 1 },
+    },
+    {
+      counter: 'max_list_items',
+      records: [
+        { path: '$.a', kind: 'ListNode' },
+        { path: '$.a[0]', kind: 'NumberLiteral', value: '1' },
+        { path: '$.a[1]', kind: 'NumberLiteral', value: '2' },
+      ],
+      options: { maxListItems: 1 },
+    },
+    {
+      counter: 'max_tuple_items',
+      records: [
+        { path: '$.a', kind: 'TupleLiteral' },
+        { path: '$.a[0]', kind: 'NumberLiteral', value: '1' },
+        { path: '$.a[1]', kind: 'NumberLiteral', value: '2' },
+      ],
+      options: { maxTupleItems: 1 },
+    },
+  ];
+  for (const item of cases) {
+    const result = validateTelexRecords(item.records, item.options);
+    assert.equal(result.valid, false, item.counter);
+    assert.ok(result.diagnostics.some((diagnostic) => diagnostic.counter === item.counter), item.counter);
+  }
 });
 
 test('round-trips records and canonicalizes core field order', () => {

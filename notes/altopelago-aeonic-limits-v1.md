@@ -275,11 +275,11 @@ claims support for the concrete common set.
 | Area | Existing controls and defaults |
 | --- | --- |
 | AEON Core | TypeScript, Rust, Python, and PHP expose the shared structural and AEON-format counters, closed v1 loaders, normalized compiler views, and deterministic exhaustion diagnostics |
-| AEON WASM | input bytes `1 MiB`; attribute, separator/clarifier, and generic depth `1` |
+| AEON WASM | AEON source processing retains its local defaults; Telex calls expose all normalized Telex and shared structural numeric options |
 | AES datatype codec | JavaScript and Rust accept normalized generic depth, generic argument, clarifier, and total-component limits; the published defaults are `1`, `32`, `1`, and `64` |
-| Finalization | TypeScript, Rust, and Python consume materialized weight and reference depth from the common limits file; explicit command values override the file |
+| Finalization | TypeScript, Rust, Python, and PHP enforce materialized weight and reference depth; all four loaders expose the processing subset, while not every Telex CLI/API route selects it yet |
 | TypeScript framing transport | frame `16 MiB`, buffer `32 MiB`, inspected header `64 KiB`; canonical options are `maxFrameBytes`, `maxBufferBytes`, and `maxHeaderBytes` |
-| Telex | JavaScript and Rust enforce the published input, line, field, event, decoded-payload, path, and datatype limits; both consume normalized caller-selected values |
+| Telex and direct portable AES | TypeScript/JavaScript, Rust, Python, and PHP enforce the complete Telex-format and shared structural counter set; TypeScript, Rust, and Python CLIs load the common file directly |
 
 `max_generic_depth` is narrow in the current AEON parsers: it controls only
 recursive datatype annotations wherever a datatype may occur. Generic-array
@@ -295,13 +295,13 @@ through their normalized limits-file configuration. The concrete set adopts
 those established floors while retaining the existing default value-nesting
 limit of `256`.
 
-The first rollout covers AEON parsing and compilation in TypeScript, Rust, and
-Python plus Telex decoding, encoding, and portable validation in JavaScript and
-Rust. The consolidated experimental next Core CTS includes at-limit and
+The first rollout covers AEON parsing and compilation in TypeScript, Rust,
+Python, and PHP plus Telex decoding, encoding, and portable validation in all
+four ecosystems. The consolidated experimental next Core CTS includes at-limit and
 one-over vectors for all 16 AEON parsing and compilation counters, corrects
 four superseded released-snapshot limit expectations without modifying that
-snapshot, and passes in all four implementations. The finalization limits CTS covers reference depth and
-materialized weight in those same implementations. The transport limits CTS
+snapshot, and passes in all four implementations. The finalization limits CTS
+covers reference depth and materialized weight. The transport limits CTS
 covers frame encoding/decoding, buffering, and header inspection in the current
 TypeScript transport implementation. During that rollout, the duplicate Rust datatype-shape
 guard was corrected to use the shared convention: one generic application has
@@ -313,15 +313,16 @@ diagnostics and configuration use `max_clarifier_values` and
 `max_value_nesting_depth`; removing the aliases is a future breaking API change,
 not a second limit migration.
 
-The PHP compiler status and remaining non-compiler gaps are recorded in
-[`php-aeonic-limits-audit.md`](php-aeonic-limits-audit.md).
+The PHP compiler rollout is recorded in
+[`php-aeonic-limits-audit.md`](php-aeonic-limits-audit.md). The completed
+cross-language ingress inventory and exact remaining interchange gaps are in
+[`non-aeon-ingress-limits-audit.md`](non-aeon-ingress-limits-audit.md).
 
-Remaining work includes PHP finalization and interchange surfaces,
-source-backed provenance audit limits, other direct AES ingress, Film, and
-future non-TypeScript framing implementations. The audit must continue to
-find hard-coded allocation, recursion, collection, and input guards: every
-discovered guard is either mapped to this contract, documented as a runtime
-safety ceiling, or explicitly classified as belonging to another limits
+Remaining work includes effective identity/version inspection, selected
+SDK/runtime convenience routes, source-backed provenance operational limits,
+Film, and future non-TypeScript framing implementations. Every audited
+hard-coded allocation, recursion, collection, and input guard is now either
+mapped here or classified as a runtime safety ceiling or another limits
 contract.
 
 ## 9. Required implementation behavior

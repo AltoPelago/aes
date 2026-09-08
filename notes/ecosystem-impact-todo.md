@@ -336,7 +336,7 @@ while the wider consumer audit remains open.
   limits and semantic profiles independently.
 - [x] Exclude AEOS schema-validation and SANSA evaluation budgets from this
   limits contract.
-- [ ] Complete an implementation audit for public and hard-coded resource
+- [x] Complete an implementation audit for public and hard-coded resource
   guards in TypeScript, Rust, Python, and PHP.
   - [x] TypeScript, Rust, and Python AEON parsing/compilation counters are
     mapped to the normalized limits file and exercised through shared vectors.
@@ -344,14 +344,21 @@ while the wider consumer audit remains open.
     canonical names, and all 16 AEON compiler counters are implemented. The
     complete consolidated Core-next protocol target passes 265/265; future
     finalization, Telex, and transport surfaces remain open.
-  - [ ] Non-AEON ingress still requires the same audit.
+  - [x] Non-AEON ingress is inventoried in
+    `non-aeon-ingress-limits-audit.md`. All six previously missing structural
+    checks now pass in the four language implementations; remaining effective
+    configuration and provenance operational gaps are listed there without
+    misclassifying AEOS, SANSA, ASP, or transport budgets.
 - [x] Approve and publish the first concrete AltoPelago `1.0.0` limits values
   and the fixed bootstrap policy used to load an AEON-encoded limits file.
 - [ ] Add a shared limits loader, normalized effective-configuration view, and
   deterministic exhaustion diagnostics to every AltoPelago implementation.
   TypeScript, Rust, Python, and PHP now implement the AEON compiler subset;
-  TypeScript, Rust, and Python also implement finalization, while TypeScript
-  exposes normalized framing values. Other direct AES ingress remains open.
+  all four implement finalization, while TypeScript exposes normalized framing
+  values. All four map the common file into Telex options; TypeScript, Rust, and
+  Python route it through their Telex CLIs. All four still need inspectable
+  limit-set identity at the portable boundary, and selected SDK/runtime routes
+  remain open.
 - [x] Rename or adapt `maxSeparatorDepth` / `max_separator_depth` to the shared
   `max_clarifier_values` counter without creating a second semantic limit.
   TypeScript, Rust, and Python retain the former names only as migration aliases.
@@ -362,14 +369,15 @@ while the wider consumer audit remains open.
   canonical/reference path length, and structured-comment payload length.
 - [x] Remove the TypeScript and Python canonicalizers' hard-coded generic and
   clarifier limit values; use the effective consumer-selected limits.
-- [x] Implement all required Telex bounds: input bytes, line bytes, fields per
-  event, event count, decoded payload bytes, path depth, generic depth, and
-  datatype component count. The JavaScript and Rust reference codecs consume
-  normalized effective limits; limits-file loading remains a trusted caller concern.
-- [ ] Add shared at-limit and one-over-limit vectors for every published
-  counter. Telex v0, all 16 AEON parsing/compilation counters, reference
-  resolution, materialization, and transport framing are covered by
-  language-neutral suites; future Film counters remain.
+- [x] Implement the Telex-format and shared AES structural bounds in
+  TypeScript/JavaScript, Rust, Python, and PHP. This covers input, line, field,
+  event, decoded-payload, path, datatype, attribute, value-nesting, string, key,
+  list-item, and tuple-item counters with normalized caller values.
+- [x] Add shared at-limit and one-over-limit vectors for every currently
+  published counter. The mutable Telex v0 candidate now contains 100 vectors,
+  including all six direct-AES structural pairs, while the immutable released
+  snapshot remains unchanged. The Core-next, finalization, and transport suites
+  cover the other v1 counters; future Film-specific counters remain future work.
 
 ### 1.6 Spans and provenance
 

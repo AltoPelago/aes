@@ -63,7 +63,8 @@ The manifest separates:
 - optional record-local origin and non-empty span validation;
 - WTC anchor/reference preservation and consumer-authority boundaries; and
 - inclusive at-limit and rejecting one-over-limit behavior for every Telex v0
-  resource counter.
+  format counter and every shared AES structural counter applied at Telex
+  ingress.
 
 Syntax vectors also distinguish canonical empty-stream EOF, tolerant Unicode
 escape spelling, bare CR, raw LF framing, and exact field-name segment grammar.
@@ -86,7 +87,7 @@ each test:
 - `canonicalize`: return canonical Telex text without reordering events; or
 - `validate`: return the effective profile and semantic diagnostic codes.
 
-These 88 integrated vectors remain the mutable development candidate. The
+These 100 integrated vectors remain the mutable development candidate. The
 candidate uses a `-dev` version and carries no `snapshot_id` or
 `spec_snapshot_id`. A repository commit identifies an exact development state,
 but external conformance claims must not treat this working path as stable.

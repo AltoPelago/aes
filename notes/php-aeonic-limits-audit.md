@@ -1,6 +1,7 @@
 # PHP Aeonic limits audit
 
-Status: AEON compiler rollout complete, 2026-09-06.
+Status: AEON compiler rollout complete, 2026-09-06; interchange status updated
+2026-09-08.
 
 Scope: `altopelago/aeon-php` against `altopelago.aeonic-limits.v1` version
 `1.0.0`. This is an implementation-status record, not a second limits contract.
@@ -10,8 +11,9 @@ Scope: `altopelago/aeon-php` against `altopelago.aeonic-limits.v1` version
 PHP now implements the closed common limits file, normalized effective
 configuration, canonical option names, and all 16 AEON parsing/compilation
 counters. The legacy clarifier and value-nesting option names remain explicit
-migration aliases. PHP finalization, Telex, and framing transport surfaces do
-not yet exist, so their counters remain inapplicable rather than claimed.
+migration aliases. Since the original audit, PHP has added Telex, direct
+portable AES validation, AEOS ingress, and portable JSON finalization. Framing
+transport still does not exist.
 
 PHP generic depth now uses the shared convention: `list<int>` has depth `0`
 and `list<list<int>>` has depth `1`. Generic argument count and total datatype
@@ -42,12 +44,12 @@ header recognition after a leading shebang.
 | `max_tuple_items` | enforced | `maxTupleItems`, default `65536` |
 | `max_path_characters` | enforced | `maxPathCharacters`, default `8192` |
 | `max_events` | enforced | `maxEvents`, default `100000` |
-| `max_reference_depth` | missing | PHP currently has no shared finalization/materialization implementation |
-| `max_materialized_weight` | missing | PHP currently has no shared finalization/materialization implementation |
+| `max_reference_depth` | enforced | portable JSON finalization; `AeonicLimits::finalizationOptions()` maps the common file |
+| `max_materialized_weight` | enforced | portable JSON finalization; `AeonicLimits::finalizationOptions()` maps the common file |
 | AEON `max_input_bytes` | enforced | `maxInputBytes`, default `16 MiB`; `maxBytes` remains an alias |
 | AEON `max_numeric_literal_characters` | enforced | `maxNumericLiteralCharacters`, default `1024` |
 | AEON `max_structured_comment_characters` | enforced | `maxStructuredCommentCharacters`, default `1048576` |
-| Telex format counters | not applicable yet | no PHP Telex codec |
+| Telex format counters | enforced | PHP Telex parse/encode and `AeonicLimits::telexOptions()` |
 | transport counters | not applicable yet | no PHP framing/header-inspection transport package |
 
 ## Hard-coded and separate limits
@@ -61,5 +63,7 @@ header recognition after a leading shebang.
 
 ## Remaining rollout
 
-1. Add finalization, Telex, and transport counters when those PHP surfaces
-   exist; absence must not be advertised as conformance.
+1. Add an inspectable portable-boundary effective view that retains the selected
+   limits identity, version, claims, and normalized values.
+2. Add framing counters if a PHP transport framing surface is introduced;
+   absence must not be advertised as conformance.

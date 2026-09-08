@@ -188,6 +188,102 @@
       "input": { "limits": { "max_datatype_components": 2 }, "telex": "telex.aes=0\n\npath=$.a\nkind=TupleLiteral\ndatatype=tuple<int, 2>\n" },
       "expected": { "ok": false, "error": { "code": "TELEX_DATATYPE_LIMIT", "line": 5 } },
       "tags": ["limits", "max-datatype-components", "failure"]
+    },
+    {
+      "id": "telex-limit-023-attribute-depth-at-limit",
+      "description": "The longest uninterrupted attribute transition run may equal max_attribute_depth; ordinary descendants reset the run",
+      "operation": "validate",
+      "input": { "limits": { "max_attribute_depth": 1 }, "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.@.x.b.@.y\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "valid": true, "profile": "aes.partial.v0", "diagnostic_codes": [] },
+      "tags": ["limits", "max-attribute-depth", "boundary", "partial"]
+    },
+    {
+      "id": "telex-limit-024-attribute-depth-one-over",
+      "description": "An uninterrupted attribute transition run exceeding max_attribute_depth produces a portable diagnostic",
+      "operation": "validate",
+      "input": { "limits": { "max_attribute_depth": 1 }, "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.@.x.@.y\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "valid": false, "profile": "aes.partial.v0", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] },
+      "tags": ["limits", "max-attribute-depth", "failure", "partial"]
+    },
+    {
+      "id": "telex-limit-025-value-nesting-at-limit",
+      "description": "Represented value-container ancestry may equal max_value_nesting_depth",
+      "operation": "validate",
+      "input": { "limits": { "max_value_nesting_depth": 1 }, "telex": "telex.aes=0\n\npath=$.a\nkind=ObjectNode\n\npath=$.a.b\nkind=StringLiteral\nvalue=x\n" },
+      "expected": { "valid": true, "profile": "aes.complete.v0", "diagnostic_codes": [] },
+      "tags": ["limits", "max-value-nesting-depth", "boundary"]
+    },
+    {
+      "id": "telex-limit-026-value-nesting-one-over",
+      "description": "Represented value-container ancestry exceeding max_value_nesting_depth produces a portable diagnostic",
+      "operation": "validate",
+      "input": { "limits": { "max_value_nesting_depth": 1 }, "telex": "telex.aes=0\n\npath=$.a\nkind=ObjectNode\n\npath=$.a.b\nkind=ListNode\n\npath=$.a.b[0]\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "valid": false, "profile": "aes.complete.v0", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] },
+      "tags": ["limits", "max-value-nesting-depth", "failure"]
+    },
+    {
+      "id": "telex-limit-027-string-codepoints-at-limit",
+      "description": "A string literal may equal max_string_codepoints in Unicode scalar values",
+      "operation": "validate",
+      "input": { "limits": { "max_string_codepoints": 2 }, "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\nvalue=😀x\n" },
+      "expected": { "valid": true, "profile": "aes.complete.v0", "diagnostic_codes": [] },
+      "tags": ["limits", "max-string-codepoints", "unicode", "boundary"]
+    },
+    {
+      "id": "telex-limit-028-string-codepoints-one-over",
+      "description": "A string literal exceeding max_string_codepoints produces a portable diagnostic",
+      "operation": "validate",
+      "input": { "limits": { "max_string_codepoints": 1 }, "telex": "telex.aes=0\n\npath=$.a\nkind=StringLiteral\nvalue=😀x\n" },
+      "expected": { "valid": false, "profile": "aes.complete.v0", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] },
+      "tags": ["limits", "max-string-codepoints", "unicode", "failure"]
+    },
+    {
+      "id": "telex-limit-029-key-segment-codepoints-at-limit",
+      "description": "A decoded quoted key segment may equal max_key_segment_codepoints in Unicode scalar values",
+      "operation": "validate",
+      "input": { "limits": { "max_key_segment_codepoints": 2 }, "telex": "telex.aes=0\n\npath=$.[\"😀x\"]\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "valid": true, "profile": "aes.complete.v0", "diagnostic_codes": [] },
+      "tags": ["limits", "max-key-segment-codepoints", "unicode", "boundary"]
+    },
+    {
+      "id": "telex-limit-030-key-segment-codepoints-one-over",
+      "description": "A decoded key segment exceeding max_key_segment_codepoints produces a portable diagnostic",
+      "operation": "validate",
+      "input": { "limits": { "max_key_segment_codepoints": 1 }, "telex": "telex.aes=0\n\npath=$.[\"😀x\"]\nkind=NumberLiteral\nvalue=1\n" },
+      "expected": { "valid": false, "profile": "aes.complete.v0", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] },
+      "tags": ["limits", "max-key-segment-codepoints", "unicode", "failure"]
+    },
+    {
+      "id": "telex-limit-031-list-items-at-limit",
+      "description": "A represented list may contain max_list_items direct indexed children",
+      "operation": "validate",
+      "input": { "limits": { "max_list_items": 2 }, "telex": "telex.aes=0\n\npath=$.a\nkind=ListNode\n\npath=$.a[0]\nkind=NumberLiteral\nvalue=1\n\npath=$.a[1]\nkind=NumberLiteral\nvalue=2\n" },
+      "expected": { "valid": true, "profile": "aes.complete.v0", "diagnostic_codes": [] },
+      "tags": ["limits", "max-list-items", "boundary"]
+    },
+    {
+      "id": "telex-limit-032-list-items-one-over",
+      "description": "A represented list exceeding max_list_items produces a portable diagnostic",
+      "operation": "validate",
+      "input": { "limits": { "max_list_items": 1 }, "telex": "telex.aes=0\n\npath=$.a\nkind=ListNode\n\npath=$.a[0]\nkind=NumberLiteral\nvalue=1\n\npath=$.a[1]\nkind=NumberLiteral\nvalue=2\n" },
+      "expected": { "valid": false, "profile": "aes.complete.v0", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] },
+      "tags": ["limits", "max-list-items", "failure"]
+    },
+    {
+      "id": "telex-limit-033-tuple-items-at-limit",
+      "description": "A represented tuple may contain max_tuple_items direct indexed children",
+      "operation": "validate",
+      "input": { "limits": { "max_tuple_items": 2 }, "telex": "telex.aes=0\n\npath=$.a\nkind=TupleLiteral\n\npath=$.a[0]\nkind=NumberLiteral\nvalue=1\n\npath=$.a[1]\nkind=NumberLiteral\nvalue=2\n" },
+      "expected": { "valid": true, "profile": "aes.complete.v0", "diagnostic_codes": [] },
+      "tags": ["limits", "max-tuple-items", "boundary"]
+    },
+    {
+      "id": "telex-limit-034-tuple-items-one-over",
+      "description": "A represented tuple exceeding max_tuple_items produces a portable diagnostic",
+      "operation": "validate",
+      "input": { "limits": { "max_tuple_items": 1 }, "telex": "telex.aes=0\n\npath=$.a\nkind=TupleLiteral\n\npath=$.a[0]\nkind=NumberLiteral\nvalue=1\n\npath=$.a[1]\nkind=NumberLiteral\nvalue=2\n" },
+      "expected": { "valid": false, "profile": "aes.complete.v0", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] },
+      "tags": ["limits", "max-tuple-items", "failure"]
     }
   ]
 }

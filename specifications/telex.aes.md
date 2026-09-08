@@ -388,7 +388,10 @@ Codecs and validators accept caller-supplied normalized integer limits for:
 - datatype generic depth;
 - generic arguments per generic list;
 - clarifier values per clarifier list; and
-- total descriptor, generic-argument, and clarifier components per record.
+- total descriptor, generic-argument, and clarifier components per record;
+- attribute depth and represented value nesting;
+- decoded string and key-segment Unicode-scalar length; and
+- represented direct list and tuple item count.
 
 Decoded-payload bytes are the cumulative UTF-8 byte length of decoded profile,
 projection, and record-field payloads. Physical line byte counts exclude the LF
@@ -399,6 +402,11 @@ Numeric values are consumer implementation policy rather than Telex format or
 AES semantic-profile rules. Implementations document their defaults and expose
 the normalized effective values. A profile claim in a limits file is metadata;
 it does not let an input stream select or relax those limits.
+
+The last three groups are portable AES event-model counters, not Telex byte
+counters. Their measurement and partial-stream lower-bound behavior are defined
+by `aes.events.v0`; a non-Telex carrier applies the same rules to the same
+logical records.
 
 Syntax decoding performs no reference resolution, schema loading, network
 access, datatype execution, or source-language evaluation.

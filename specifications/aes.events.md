@@ -659,6 +659,30 @@ or the Aeonic Semantic Language remain separate validation points. AES v0
 reference validators locally enforce only the payload rules defined here,
 including exact lowercase WTC `local`.
 
+Portable resource counters are evaluated wherever the admitted records carry
+enough evidence. Event-local validation counts event addresses, reference
+addresses, decoded string values, node-head tags, decoded member and attribute
+keys, and datatype structure. Stream validation counts admitted events, direct
+children of list and tuple records, attribute transitions, and represented
+container ancestry.
+
+Value nesting counts `ObjectNode`, `ListNode`, `TupleLiteral`, and
+`NodeLiteral` occurrences in a record's represented ancestor chain, including
+the record itself when it has one of those kinds. `NodeHead` is part of its
+owning node and does not add another value-nesting level. Attribute depth is
+the longest uninterrupted run of `.@.` transitions in the canonical address;
+an intervening member or index enters a nested value and starts a new attribute
+address space. List and tuple item counts are the number of represented direct
+indexed children owned by the corresponding container record.
+
+For `aes.complete.v0`, those aggregate counts are exact because all ancestry
+and children are present. For `aes.partial.v0`, they are lower bounds over the
+admitted records: an observed value above the selected limit rejects the
+stream, while an observed value at or below the limit makes no claim about
+omitted ancestry or children. The consumer that completes or applies a partial
+stream must re-evaluate the counters against the completed structure. No
+partial stream may use missing records to relax the consumer-selected limit.
+
 ### 12.1 Local diagnostics
 
 Portable local diagnostics use these stable codes; prose is not normative:

@@ -85,6 +85,12 @@ pub struct TelexLimits {
     pub max_decoded_payload_bytes: usize,
     pub max_path_depth: usize,
     pub max_path_characters: usize,
+    pub max_attribute_depth: usize,
+    pub max_value_nesting_depth: usize,
+    pub max_string_codepoints: usize,
+    pub max_key_segment_codepoints: usize,
+    pub max_list_items: usize,
+    pub max_tuple_items: usize,
     pub max_generic_depth: usize,
     pub max_generic_arguments: usize,
     pub max_clarifier_values: usize,
@@ -101,6 +107,12 @@ impl Default for TelexLimits {
             max_decoded_payload_bytes: 33_554_432,
             max_path_depth: 1_024,
             max_path_characters: 8_192,
+            max_attribute_depth: 1,
+            max_value_nesting_depth: 256,
+            max_string_codepoints: 1_048_576,
+            max_key_segment_codepoints: 1_024,
+            max_list_items: 65_536,
+            max_tuple_items: 65_536,
             max_generic_depth: 1,
             max_generic_arguments: 32,
             max_clarifier_values: 1,
@@ -2563,6 +2575,9 @@ pub fn validate_telex_records_with_projection_and_limits(
                     .with_field("datatype"),
             );
         }
+        if let Some(datatype) = event.datatype() {
+            validate_datatype_string_limits(datatype, event, index, limits, &mut diagnostics);
+        }
 
         let has_path = event.contains("path");
         let has_header = event.contains("header");
@@ -2697,6 +2712,8 @@ pub fn validate_telex_records_with_projection_and_limits(
         .iter()
         .filter(|candidate| candidate.address_field == Some(AddressField::Header))
         .collect::<Vec<_>>();
+    validate_represented_structural_limits(&body_events, limits, &mut diagnostics);
+    validate_represented_structural_limits(&header_events, limits, &mut diagnostics);
     if profile == COMPLETE_AES_PROFILE {
         validate_complete_stream(&body_events, &mut diagnostics);
         let reference_events = body_events
@@ -2773,6 +2790,18 @@ fn validate_event_value(
         return;
     };
 
+    if kind == "StringLiteral" && value.chars().count() > limits.max_string_codepoints {
+        diagnostics.push(
+            limit_diagnostic(
+                "max_string_codepoints",
+                value.chars().count(),
+                limits.max_string_codepoints,
+            )
+            .at_record(index, path)
+            .with_field("value"),
+        );
+    }
+
     let exact_valid = match kind {
         "InfinityLiteral" => ["Infinity", "-Infinity"].contains(&value),
         "NaNLiteral" => ["NaN", "-NaN"].contains(&value),
@@ -2810,6 +2839,17 @@ fn validate_event_value(
             Diagnostic::new("AES_INVALID_VALUE", "Node tags must not be empty")
                 .at_record(index, path)
                 .with_field("value"),
+        );
+    }
+    if kind == "NodeHead" && value.chars().count() > limits.max_key_segment_codepoints {
+        diagnostics.push(
+            limit_diagnostic(
+                "max_key_segment_codepoints",
+                value.chars().count(),
+                limits.max_key_segment_codepoints,
+            )
+            .at_record(index, path)
+            .with_field("value"),
         );
     }
     if kind == "WTCDateTimeLiteral"
@@ -2894,6 +2934,30 @@ fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut
     }
 }
 
+fn validate_datatype_string_limits(
+    descriptor: &DatatypeDescriptor,
+    event: &TelexRecord,
+    index: usize,
+    limits: &TelexLimits,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    for clarifier in &descriptor.clarifiers {
+        let observed = clarifier.value.chars().count();
+        if clarifier.kind == ClarifierKind::StringLiteral && observed > limits.max_string_codepoints {
+            diagnostics.push(
+                limit_diagnostic("max_string_codepoints", observed, limits.max_string_codepoints)
+                    .at_record(index, record_address(event))
+                    .with_field("clarifiers"),
+            );
+        }
+    }
+    for argument in &descriptor.generics {
+        if let GenericArgument::Datatype(nested) = argument {
+            validate_datatype_string_limits(nested, event, index, limits, diagnostics);
+        }
+    }
+}
+
 fn validate_path_limits(
     path: &str,
     index: usize,
@@ -2914,18 +2978,124 @@ fn validate_path_limits(
             .with_field(field),
         );
     }
-    if let Ok(details) = parse_canonical_data_path(path)
-        && details.segments.len() > limits.max_path_depth
-    {
-        diagnostics.push(
-            limit_diagnostic(
-                "max_path_depth",
-                details.segments.len(),
-                limits.max_path_depth,
-            )
-            .at_record(index, Some(path))
-            .with_field(field),
-        );
+    if let Ok(details) = parse_canonical_data_path(path) {
+        if details.segments.len() > limits.max_path_depth {
+            diagnostics.push(
+                limit_diagnostic(
+                    "max_path_depth",
+                    details.segments.len(),
+                    limits.max_path_depth,
+                )
+                .at_record(index, Some(path))
+                .with_field(field),
+            );
+        }
+        let mut attribute_depth = 0_usize;
+        let mut current_attribute_depth = 0_usize;
+        for segment in &details.segments {
+            current_attribute_depth = if *segment == Segment::Attribute {
+                current_attribute_depth.saturating_add(1)
+            } else {
+                0
+            };
+            attribute_depth = attribute_depth.max(current_attribute_depth);
+        }
+        if attribute_depth > limits.max_attribute_depth {
+            diagnostics.push(
+                limit_diagnostic(
+                    "max_attribute_depth",
+                    attribute_depth,
+                    limits.max_attribute_depth,
+                )
+                .at_record(index, Some(path))
+                .with_field(field),
+            );
+        }
+        for value in details.members.iter().flatten() {
+            let observed = value.chars().count();
+            if observed > limits.max_key_segment_codepoints {
+                diagnostics.push(
+                    limit_diagnostic(
+                        "max_key_segment_codepoints",
+                        observed,
+                        limits.max_key_segment_codepoints,
+                    )
+                    .at_record(index, Some(path))
+                    .with_field(field),
+                );
+            }
+        }
+    }
+}
+
+fn validate_represented_structural_limits(
+    events: &[&EventCandidate<'_>],
+    limits: &TelexLimits,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let mut by_path: HashMap<&str, &EventCandidate<'_>> = HashMap::new();
+    for &candidate in events {
+        if candidate.path_details.is_some()
+            && let Some(path) = candidate.address
+        {
+            by_path.entry(path).or_insert(candidate);
+        }
+    }
+    let mut direct_items: HashMap<&str, usize> = HashMap::new();
+    for candidate in by_path.values().copied() {
+        let Some(details) = &candidate.path_details else {
+            continue;
+        };
+        if matches!(
+            candidate.event.get("kind"),
+            Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
+        ) {
+            let mut depth = 1_usize;
+            for prefix in details.prefixes.iter().take(details.prefixes.len().saturating_sub(1)) {
+                if matches!(
+                    by_path.get(prefix.as_str()).and_then(|parent| parent.event.get("kind")),
+                    Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
+                ) {
+                    depth = depth.saturating_add(1);
+                }
+            }
+            if depth > limits.max_value_nesting_depth {
+                diagnostics.push(
+                    limit_diagnostic(
+                        "max_value_nesting_depth",
+                        depth,
+                        limits.max_value_nesting_depth,
+                    )
+                    .at_record(candidate.index, candidate.address)
+                    .with_field(candidate.address_field.map_or("path", AddressField::name)),
+                );
+            }
+        }
+        if details.segments.last() == Some(&Segment::Index)
+            && details.prefixes.len() >= 2
+        {
+            let parent_path = details.prefixes[details.prefixes.len() - 2].as_str();
+            *direct_items.entry(parent_path).or_default() += 1;
+        }
+    }
+    for (path, observed) in direct_items {
+        let Some(parent) = by_path.get(path).copied() else {
+            continue;
+        };
+        let selected = match parent.event.get("kind") {
+            Some("ListNode") => Some(("max_list_items", limits.max_list_items)),
+            Some("TupleLiteral") => Some(("max_tuple_items", limits.max_tuple_items)),
+            _ => None,
+        };
+        if let Some((counter, limit)) = selected
+            && observed > limit
+        {
+            diagnostics.push(
+                limit_diagnostic(counter, observed, limit)
+                    .at_record(parent.index, Some(path))
+                    .with_field(parent.address_field.map_or("path", AddressField::name)),
+            );
+        }
     }
 }
 
@@ -3176,6 +3346,7 @@ enum Segment {
 struct PathDetails {
     prefixes: Vec<String>,
     segments: Vec<Segment>,
+    members: Vec<Option<String>>,
 }
 
 fn parse_canonical_data_path(path: &str) -> Result<PathDetails, String> {
@@ -3186,6 +3357,7 @@ fn parse_canonical_data_path(path: &str) -> Result<PathDetails, String> {
         return Ok(PathDetails {
             prefixes: Vec::new(),
             segments: Vec::new(),
+            members: Vec::new(),
         });
     }
 
@@ -3194,30 +3366,34 @@ fn parse_canonical_data_path(path: &str) -> Result<PathDetails, String> {
     let mut current = "$".to_owned();
     let mut prefixes = Vec::new();
     let mut segments = Vec::new();
+    let mut members = Vec::new();
     while cursor < bytes.len() {
         let start = cursor;
-        let segment = if path[cursor..].starts_with(".@.") {
+        let (segment, member) = if path[cursor..].starts_with(".@.") {
             cursor += 3;
-            cursor = read_member_end(path, cursor)?;
-            Segment::Attribute
+            let parsed = read_member(path, cursor)?;
+            cursor = parsed.0;
+            (Segment::Attribute, Some(parsed.1))
         } else if bytes[cursor] == b'.' {
             cursor += 1;
-            cursor = read_member_end(path, cursor)?;
-            Segment::Member
+            let parsed = read_member(path, cursor)?;
+            cursor = parsed.0;
+            (Segment::Member, Some(parsed.1))
         } else if bytes[cursor] == b'[' {
             cursor = read_index_end(path, cursor)?;
-            Segment::Index
+            (Segment::Index, None)
         } else {
             return Err(format!("Invalid canonical path segment in: {path}"));
         };
         current.push_str(&path[start..cursor]);
         prefixes.push(current.clone());
         segments.push(segment);
+        members.push(member);
     }
-    Ok(PathDetails { prefixes, segments })
+    Ok(PathDetails { prefixes, segments, members })
 }
 
-fn read_member_end(path: &str, cursor: usize) -> Result<usize, String> {
+fn read_member(path: &str, cursor: usize) -> Result<(usize, String), String> {
     let bytes = path.as_bytes();
     if bytes.get(cursor) == Some(&b'[') {
         if bytes.get(cursor + 1) != Some(&b'"') {
@@ -3238,7 +3414,7 @@ fn read_member_end(path: &str, cursor: usize) -> Result<usize, String> {
         {
             return Err(format!("Non-canonical quoted member in path: {path}"));
         }
-        return Ok(quote_end + 2);
+        return Ok((quote_end + 2, decoded));
     }
 
     let Some(first) = bytes.get(cursor).copied() else {
@@ -3254,7 +3430,7 @@ fn read_member_end(path: &str, cursor: usize) -> Result<usize, String> {
     {
         end += 1;
     }
-    Ok(end)
+    Ok((end, path[cursor..end].to_owned()))
 }
 
 fn valid_bare_member(member: &str) -> bool {
