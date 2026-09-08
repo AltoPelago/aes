@@ -386,7 +386,10 @@ while the wider consumer audit remains open.
 - [x] Implement the Telex-format and shared AES structural bounds in
   TypeScript/JavaScript, Rust, Python, and PHP. This covers input, line, field,
   event, decoded-payload, path, datatype, attribute, value-nesting, string, key,
-  list-item, and tuple-item counters with normalized caller values.
+  list-item, and tuple-item counters with normalized caller values. Both direct
+  validation and encoding enforce the structural counters; encoding cannot
+  serialize a record set that exceeds the selected limits merely because the
+  caller skipped an explicit validation call.
 - [x] Add shared at-limit and one-over-limit vectors for every currently
   published counter. The mutable Telex v0 candidate now contains 100 vectors,
   including all six direct-AES structural pairs, while the immutable released
@@ -576,17 +579,26 @@ while the wider consumer audit remains open.
   documents, and supersede the implementation-shaped AES appendix.
 - [x] `aeonite-website`: add a first-class AES v0 section, family routing,
   home-page entry, sitemap/LLM discovery, and publication checks.
-- [ ] `aeonite-specs`: update AEON node, structural-identity, span, reference,
-  datatype, and WTC projection requirements.
-- [ ] `aeonite-cts`: replace contradictory identity vectors and add portable
-  event-local, complete-stream, path, value, and provenance suites.
-- [ ] `aeonite-cts`: require at least two independent implementations to pass
-  each portable contract before promotion.
+- [x] `aeonite-specs`: update AEON node, structural-identity, span, reference,
+  datatype, and WTC projection requirements. The canonical AEON v1 sources now
+  distinguish source syntax from portable AES projection, specify identity as
+  occurrence metadata, define UTF-8 byte spans, and preserve the complete WTC
+  anchor/reference vocabulary.
+- [x] `aeonite-cts`: replace contradictory identity vectors and add portable
+  event-local, complete-stream, path, value, and provenance suites. Immutable
+  AES Events 0.1 and Telex 0.1 targets coexist with the mutable 82-vector AEON
+  projection candidate; released snapshots were not rewritten.
+- [x] `aeonite-cts`: require at least two independent implementations to pass
+  each portable contract before promotion. The published AES Events and Telex
+  baselines record independent JavaScript and Rust passes, and the CTS coverage
+  policy requires evidence-backed promotion rather than modifying a snapshot.
 
 ### Language implementations and public surfaces
 
-- [ ] `altopelago/aeon`: update TypeScript, Rust, and Python parsers, ASTs,
-  flatteners, materializers, SDKs, CLIs, and JSON/debug projections.
+- [x] `altopelago/aeon`: update TypeScript, Rust, and Python parsers, ASTs,
+  flatteners, materializers, SDKs, CLIs, and JSON/debug projections for the
+  required Telex/AES compatibility surface. Optional output profiles and
+  independently releasable Rust packaging remain separated below.
   - [x] TypeScript: ship the Telex v0 codec through the AES package; add
     Core event/source export, SDK read/write, AEOS validation, canonicalization,
     and CLI decode/export surfaces while retaining the legacy in-memory APIs.
@@ -620,7 +632,7 @@ while the wider consumer audit remains open.
     to a versioned dependency before AEON and AES need independently releasable
     Rust/WASM build graphs. The family workspace currently uses an explicit
     sibling path dependency.
-- [ ] `altopelago/aeon`: update the existing TypeScript, Rust, and Python
+- [x] `altopelago/aeon`: update the existing TypeScript, Rust, and Python
   portable AES projections so they emit base-name `datatype`, recursive
   `generics`, and tagged `clarifiers` instead of collapsing the AST annotation
   back into one descriptor string.
@@ -654,8 +666,10 @@ while the wider consumer audit remains open.
 
 ### Semantic, operational, and persistence consumers
 
-- [ ] SANSA: update structural navigation, ownership, scope, reference
-  resolution, and source-path/event-path translation.
+- [x] SANSA: update structural navigation, ownership, scope, reference
+  resolution, and source-path/event-path translation for the required portable
+  read and admitted scalar-mutation surfaces. Broader mutation families remain
+  optional application work, not Telex compatibility blockers.
   - [x] The read-only Query CLI and workbench accept complete Telex streams
     through a direct portable-event adapter. Record order, flat attribute
     spaces, datatype components, structural identities, and the explicit
@@ -737,7 +751,7 @@ recorded below.
   graph, search, lint, and compile-diagnostic surfaces preserve the expanded
   node-head hierarchy and translated reference targets.
 
-##### Remaining Telex/AES compatibility requirements
+##### Telex/AES compatibility requirements — complete
 
 - [x] Complete named legacy-to-portable adapters and conversion reports for
   every supported implementation-specific source contract. TypeScript, Rust,
@@ -781,7 +795,7 @@ recorded below.
   named scalar application -> durable AES-DB -> Telex round trip. See
   [cross-repository acceptance record](cross-repository-acceptance-record-2026-09-07.md).
 
-##### Remaining production-safe SO/ASP requirements
+##### Production-safe SO/ASP requirements — complete for admitted applications
 
 - [x] Define and register a versioned application/transaction carrier before
   any public actionable ingress is enabled. It must bind the selected existing
@@ -1311,14 +1325,22 @@ above.
 - [ ] After the canonical specification revision is committed, advance the
   `aeonite-website/specs.lock.json` revision and source digest, rebuild the
   publication artifacts, and deploy the published lifecycle metadata.
-- [ ] Phase 3 — ship compatibility readers/adapters in TypeScript, Rust,
-  Python, and PHP while producers retain the legacy shape.
-- [ ] Phase 4 — update SANSA, AEOS, Tonics, validators, SDKs, SO, ASP, AES-DB,
-  relays, canonicalizers, and signing/hashing consumers.
-- [ ] Phase 5 — provide versioned read views or migrations for persisted data,
-  then rebuild or invalidate affected indexes.
-- [ ] Phase 6 — run the cross-repository acceptance suite and verify mixed
-  legacy/revised deployments.
+- [ ] Phase 3 — publish the locally completed compatibility readers/adapters in
+  TypeScript, Rust, Python, and PHP while released producers retain the legacy
+  shape.
+- [ ] Phase 4 — publish the locally completed SANSA, AEOS, Tonics, validator,
+  SDK, SO, ASP, AES-DB, relay, canonicalizer, and signing/hashing consumer
+  updates.
+- [ ] Phase 5 — provide versioned read views or migrations for a future revised
+  persisted record, then rebuild or invalidate affected indexes. Current ASP v0
+  read-time projection and index lifecycle verification are complete.
+- [x] Phase 6a — run the local cross-repository acceptance suite across the
+  revised producers, compatibility readers, Telex codecs, and current ASP v0
+  projection/application boundary.
+- [ ] Phase 6b — verify mixed legacy/revised persisted-record deployments.
+  This is blocked until a versioned revised ASP record and reader contract
+  exists; the current compatibility boundary projects explicitly identified
+  ASP v0 state and does not infer or dual-write a revised record shape.
 - [ ] Phase 7 — enable revised producers only after all required readers and
   durable consumers have passed compatibility checks.
 - [ ] Review every completed ecosystem decision for additional repository,

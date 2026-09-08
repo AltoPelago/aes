@@ -14,7 +14,9 @@ an implementation-status record for `altopelago.aeonic-limits.v1` version
 The guard belongs at the earliest boundary that can measure the counter:
 
 - Telex decoding and encoding enforce Telex byte, line, field, and decoded
-  payload limits.
+  payload limits. Encoding also rejects any shared AES structural counter
+  exhaustion before serialization; it does not rely on callers having run a
+  separate validator first.
 - Direct portable AES record validation enforces event-model structure and
   event count. It must not invent a byte limit for a carrier that has already
   decoded the records.
@@ -86,6 +88,12 @@ unchanged.
 - SANSA and SO/ASP portable adapters use the TypeScript portable validator.
   Their operation counts, mutation nesting, host request bytes, scan sizes,
   and storage/log guards remain consumer-owned.
+- The ASP v0 strict read adapter applies an explicit compatibility allowance
+  for recursive attributes already representable in historical ASP v0 state.
+  That allowance is bounded by the shared path-depth ceiling and is used only
+  while projecting or validating the legacy read view. Fresh Telex encoding
+  retains the caller-selected limits, so the compatibility view cannot
+  silently weaken portable ingress policy.
 - JavaScript integrity and transaction functions pass `options.limits` through
   to direct portable record validation. Rust retains every default API and adds
   `_with_limits` companions for integrity encode/digest/verify and transaction

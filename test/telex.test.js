@@ -96,6 +96,11 @@ test('enforces shared structural limits on direct portable records', () => {
     const result = validateTelexRecords(item.records, item.options);
     assert.equal(result.valid, false, item.counter);
     assert.ok(result.diagnostics.some((diagnostic) => diagnostic.counter === item.counter), item.counter);
+    assert.throws(
+      () => encodeTelex(item.records, item.options),
+      (error) => error?.code === 'TELEX_LIMIT_EXCEEDED' && error.counter === item.counter,
+      item.counter,
+    );
   }
 });
 

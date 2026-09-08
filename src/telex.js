@@ -283,6 +283,7 @@ export function encodeTelex(records, options = {}) {
   if (projection !== undefined && (typeof projection !== 'string' || projection.length === 0)) {
     throw new TypeError('Telex projection must be a non-empty string');
   }
+  assertEncodeStructuralLimits(records, profile ?? COMPLETE_AES_PROFILE, projection ?? null, limits);
   let header = VERSION_LINE;
   let decodedPayloadBytes = 0;
   if (profile !== undefined) {
@@ -997,6 +998,13 @@ function assertTelexLimit(counter, observed, limit, line) {
     'TELEX_LIMIT_EXCEEDED',
     { counter, observed, limit },
   );
+}
+
+function assertEncodeStructuralLimits(records, profile, projection, limits) {
+  const exhaustion = validateTelexRecords(records, { limits, profile, projection })
+    .diagnostics.find((diagnostic) => diagnostic.code === 'AES_LIMIT_EXCEEDED');
+  if (exhaustion === undefined) return;
+  assertTelexLimit(exhaustion.counter, exhaustion.observed, exhaustion.limit);
 }
 
 function limitMessage(counter, observed, limit) {

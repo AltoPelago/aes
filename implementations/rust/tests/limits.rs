@@ -1,4 +1,4 @@
-use aes_telex::{TelexLimits, parse_telex_with_limits};
+use aes_telex::{TelexLimits, TelexRecord, encode_telex_with_limits, parse_telex_with_limits};
 
 #[test]
 fn publishes_altopelago_telex_limit_defaults() {
@@ -38,4 +38,21 @@ fn reports_structured_limit_exhaustion() {
     assert_eq!(error.counter, Some("max_input_bytes"));
     assert_eq!(error.observed, Some(12));
     assert_eq!(error.limit, Some(11));
+}
+
+#[test]
+fn encoder_enforces_shared_structural_limits() {
+    let records = vec![TelexRecord::new(vec![
+        ("path".to_owned(), "$.a.@.x.@.y".to_owned()),
+        ("kind".to_owned(), "NumberLiteral".to_owned()),
+        ("value".to_owned(), "1".to_owned()),
+    ])];
+    let limits = TelexLimits {
+        max_attribute_depth: 1,
+        ..TelexLimits::default()
+    };
+    let error = encode_telex_with_limits(&records, Some("aes.partial.v0"), &limits)
+        .expect_err("encode should enforce the selected structural limit");
+    assert_eq!(error.code, "TELEX_LIMIT_EXCEEDED");
+    assert_eq!(error.counter, Some("max_attribute_depth"));
 }

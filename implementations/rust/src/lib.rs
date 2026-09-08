@@ -2494,6 +2494,20 @@ pub fn encode_telex_with_projection_and_limits(
             "Telex projection must be a non-empty string",
         ));
     }
+    let validation = validate_telex_records_with_projection_and_limits(
+        records,
+        profile.unwrap_or(COMPLETE_AES_PROFILE),
+        projection,
+        &[],
+        limits,
+    );
+    if let Some((counter, observed, limit)) = validation.diagnostics.iter().find_map(|item| {
+        (item.code == "AES_LIMIT_EXCEEDED")
+            .then(|| Some((item.counter?, item.observed?, item.limit?)))
+            .flatten()
+    }) {
+        return Err(TelexEncodeError::limit(counter, observed, limit));
+    }
 
     let mut encoded = String::with_capacity(records.len().saturating_mul(60));
     encoded.push_str(VERSION_LINE);

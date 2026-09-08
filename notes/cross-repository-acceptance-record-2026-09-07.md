@@ -1,6 +1,6 @@
 # Cross-repository AES/Telex acceptance record
 
-Date: 2026-09-07
+Date: 2026-09-07; incremental acceptance rerun 2026-09-09
 
 ## Result
 
@@ -26,6 +26,14 @@ The existing node-head negative vector remains authoritative: direct node-head
 replacement returns `AES_COMPAT_NODE_HEAD_STORAGE_REQUIRED`, writes nothing,
 and leaves the journal empty. This is an accepted fail-closed result, not an
 acceptance gap.
+
+The incremental rerun also closes two limit-boundary defects found only when
+the complete ecosystem was exercised together. All four Telex encoders now
+enforce shared AES structural counters before serialization. Separately, the
+ASP v0 read adapter names and bounds its legacy recursive-attribute
+compatibility allowance while leaving fresh Telex export subject to the
+caller's selected limits. Historical ASP state can therefore remain readable
+without redefining the portable ingress defaults.
 
 The later logical AET carrier lane also passes without opening transport
 ingress. JavaScript and Rust agree on all 14 candidate transaction vectors, and
@@ -95,26 +103,28 @@ projection omits a local span that has no immutable origin.
 
 | Repository/lane | Result |
 | --- | --- |
-| AltoPelago AES JavaScript, shared immutable CTS plus integrity, provenance, and AET candidate lanes | full suite passed, including all 38 AES Events, 50 Telex, 14 integrity, 11 provenance, and 14 AET vectors |
+| AltoPelago AES JavaScript, shared immutable CTS plus integrity, provenance, and AET candidate lanes | all 254 tests passed, including all 38 AES Events, 50 Telex, 14 integrity, 11 provenance, and 14 AET vectors |
 | AltoPelago AES Rust, shared immutable CTS plus integrity and AET candidate lanes | all conformance, completeness, limits, integrity, and transaction tests passed; Clippy is warning-free |
 | AEON TypeScript AES Events CTS | 38 vectors passed |
 | AEON TypeScript Telex CTS | 50 vectors passed |
-| AEON TypeScript provenance projection checkpoint | all 24 workspace projects typechecked and tested; focused lexer 127, parser 167, AES 204, Core 132, AEOS 148, and CLI 97 tests passed |
-| AEON Python provenance projection checkpoint | all 325 unit tests passed; all consolidated CTS lanes passed, including AES 79 cases |
+| AEON TypeScript current workspace checkpoint | all 23 non-fuzz package/tool test projects passed; focused AES package passed 207 tests; canonical CTS passed 46, transport-limit CTS passed 8, SANSA CTS passed 46, and annotation CTS passed 14 |
+| AEON Python current workspace checkpoint | all 333 unit tests passed; the focused Telex codec suite passed 15 tests, including encode-side structural-limit enforcement |
 | AEON Rust provenance projection checkpoint | all 555 workspace unit tests passed; the AES development lane passed 79/79; Clippy with warnings denied and formatting passed |
-| AEON PHP provenance projection checkpoint | all 875 repository tests and 2,663 assertions passed; the AES development lane passed 79/79; Composer manifest validation completed with only pre-existing metadata/constraint warnings |
+| AEON PHP current workspace checkpoint | all 901 repository tests and 2,734 assertions passed, including encode-side structural-limit enforcement |
 | AEON cross-language development AES projection CTS | all 79 vectors passed independently in TypeScript, Rust, Python, and PHP; six exact-source span and six header-projection vectors were added only to the mutable next manifest |
+| AEON TypeScript aggregate CTS | the complete local aggregate passed with the mutable AES 0.3 development target: AEOS 118, Core 271, AES projection 82, AES Events 38, Telex 50, canonical 46, finalization limits 4, transport limits 8, SANSA 46, and annotations 14 |
+| Telex/JSON performance sanity check | on the local Apple M4 Pro with Node 24.16, the limits-aware benchmark completed at 100, 10,000, and 100,000 events; at 100,000 events Telex encoded in 199.084 ms versus 146.698 ms for validate-plus-JSON and produced 26.48% fewer bytes; raw `JSON.stringify` remains a separate 8.949 ms engine baseline |
 | SANSA full suite | 257 tests passed |
-| ASP full suite, including the source-derived round trip, hardened AET scalar bridge, and portable subtree/index lifecycle | 1,110 tests passed; 62 conformance cases passed |
+| ASP full suite, including the source-derived round trip, hardened AET scalar bridge, and portable subtree/index lifecycle | 1,112 tests passed; 62 conformance cases passed; the focused portable mutation set passed 130 tests |
 | AEON TypeScript integrity package | 14 tests passed |
 | AEON TypeScript CLI | 97 tests passed |
 | AEON Rust CLI | 123 tests passed; `cargo fmt --check` passed |
 | Aeon Tonics focused legacy-boundary tests | `aes-diff` 30 tests and `aeon-edit` 80 tests passed |
 
 The first sandboxed ASP full-suite run could not bind loopback test servers and
-reported eight `listen EPERM` failures. The same unmodified suite was rerun with
-loopback access and passed all 1,109 tests; these were environment restrictions,
-not implementation failures.
+reported `listen EPERM` failures. The same suite was rerun with loopback access
+and passed all 1,112 tests; these were environment restrictions, not
+implementation failures.
 
 ## Coverage confirmed by the existing lanes
 
@@ -146,8 +156,7 @@ development CTS and later publish a new immutable snapshot; they do not mutate
 snapshot 0.1.
 
 Public AET ingress and encryption, Rust independent anonymous-occurrence
-ranges, index lifecycle closure, and head-aware ASP storage remain separate
-unchecked requirements.
+ranges, and head-aware ASP storage remain separate unchecked requirements.
 Base event-stream integrity belongs to
 `aes.integrity.v0`, while
 `aes.transaction.v0` supplies the support-gated logical carrier, transaction
