@@ -150,3 +150,19 @@ test('digest verification rejects non-canonical text and compares canonical byte
     { code: 'AES_INTEGRITY_DIGEST_MISMATCH' },
   );
 });
+
+test('integrity boundary honors caller-selected Telex limits', () => {
+  const records = [{ path: '$.a', kind: 'StringLiteral', value: 'xx' }];
+  assert.doesNotThrow(() => computeAesIntegrityDigest(records, {
+    ...semanticCanonical,
+    ordering: AES_EXACT_ORDER,
+  }));
+  assert.throws(
+    () => computeAesIntegrityDigest(records, {
+      ...semanticCanonical,
+      ordering: AES_EXACT_ORDER,
+      limits: { maxStringCodepoints: 1 },
+    }),
+    { code: 'AES_INTEGRITY_INVALID_LOGICAL_VALUE' },
+  );
+});

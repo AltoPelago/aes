@@ -359,13 +359,20 @@ while the wider consumer audit remains open.
   Python route it through their Telex CLIs. All four expose the selected
   identity, version, profile claims, normalized Telex values, and normalized
   finalization values through an inspectable language-native configuration.
-- [ ] Route trusted common-file selection through the remaining SDK/runtime
+- [x] Route trusted common-file selection through the remaining SDK/runtime
   convenience surfaces where requiring callers to normalize every subset would
   be error-prone. This does not authorize documents or stream metadata to select
   operational policy. TypeScript SDK and runtime read/materialize plus SDK
-  export, Rust SDK read, Python SDK read/export, PHP export, and Rust/WASM Telex
-  processing are complete. Remaining: Rust SDK `aeon_to_telex` and a PHP Core
-  Telex-import facade or an equivalent non-cyclic option convention.
+  export, Rust SDK read/export, Python SDK read/export, PHP import/export, and
+  Rust/WASM Telex processing are complete. Rust retains its original export and
+  adds `aeon_to_telex_with_limits`; PHP Core owns `TelexDocument::fromTelex` so
+  the AES package never depends back on Core.
+- [x] Route caller-selected Telex structural limits through portable integrity
+  and transaction validation. JavaScript accepts `options.limits`; Rust retains
+  its default entry points and adds non-breaking `_with_limits` companions for
+  integrity encoding/digest verification and transaction body, digest,
+  envelope, and inspection boundaries. The transaction's limits claim remains
+  signed application data and does not select trusted host policy.
 - [x] Rename or adapt `maxSeparatorDepth` / `max_separator_depth` to the shared
   `max_clarifier_values` counter without creating a second semantic limit.
   TypeScript, Rust, and Python retain the former names only as migration aliases.

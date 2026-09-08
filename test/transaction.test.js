@@ -68,6 +68,24 @@ test('validates the closed initial scalar transaction body', () => {
   assert.deepEqual(validateAesTransactionBody(scalarBody()), { valid: true, diagnostics: [] });
 });
 
+test('transaction boundary honors caller-selected Telex limits', () => {
+  const body = scalarBody({
+    records: [{ path: '$.status', kind: 'StringLiteral', value: 'xx' }],
+  });
+  assert.equal(validateAesTransactionBody(body).valid, true);
+  const validation = validateAesTransactionBody(body, {
+    limits: { maxStringCodepoints: 1 },
+  });
+  assert.equal(validation.valid, false);
+  assert.ok(validation.diagnostics.some(({ code, message }) => (
+    code === 'AES_TRANSACTION_EVENT_INVALID' && message.includes('max_string_codepoints')
+  )));
+  assert.throws(
+    () => computeAesTransactionDigest(body, { limits: { maxStringCodepoints: 1 } }),
+    { code: 'AES_TRANSACTION_BODY_INVALID' },
+  );
+});
+
 test('transaction digest binds target, authorization, limits, and exact payload', () => {
   const body = scalarBody();
   const digest = computeAesTransactionDigest(body);

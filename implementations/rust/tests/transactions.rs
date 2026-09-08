@@ -11,9 +11,10 @@ use aes_telex::{
     AesTransactionBody, AesTransactionEnvelope, AesTransactionEvidence,
     AesTransactionIntegrityPolicy, AesTransactionLimitsClaim, AesTransactionPrecondition,
     AesTransactionPreparation, AesTransactionSupport, AesTransactionTarget, IntegrityValue,
-    PARTIAL_AES_PROFILE, TelexRecord, compute_aes_transaction_digest,
-    encode_aes_transaction_signature_input, inspect_aes_transaction_envelope,
-    inspect_aes_transaction_envelope_with_sources, validate_aes_transaction_body,
+    PARTIAL_AES_PROFILE, TelexLimits, TelexRecord, compute_aes_transaction_digest,
+    compute_aes_transaction_digest_with_limits, encode_aes_transaction_signature_input,
+    inspect_aes_transaction_envelope, inspect_aes_transaction_envelope_with_sources,
+    validate_aes_transaction_body, validate_aes_transaction_body_with_limits,
     validate_aes_transaction_envelope,
 };
 use serde_json::{Map, Value};
@@ -63,6 +64,29 @@ fn supported_verified_transaction_still_requires_host_authorization() -> Result<
     assert_eq!(result.provenance_verified, None);
     assert!(!result.actionable);
     Ok(())
+}
+
+#[test]
+fn transaction_boundary_honors_caller_selected_telex_limits() {
+    let mut body = scalar_body();
+    body.records[0] = TelexRecord::new(vec![
+        ("path".to_owned(), "$.status".to_owned()),
+        ("kind".to_owned(), "StringLiteral".to_owned()),
+        ("value".to_owned(), "xx".to_owned()),
+    ]);
+    assert!(validate_aes_transaction_body(&body, &[], &[]).valid);
+
+    let limits = TelexLimits {
+        max_string_codepoints: 1,
+        ..TelexLimits::default()
+    };
+    let validation = validate_aes_transaction_body_with_limits(&body, &[], &[], &limits);
+    assert!(!validation.valid);
+    assert!(validation.diagnostics.iter().any(|item| {
+        item.code == "AES_TRANSACTION_EVENT_INVALID"
+            && item.message.contains("max_string_codepoints")
+    }));
+    assert!(compute_aes_transaction_digest_with_limits(&body, &[], &[], &limits).is_err());
 }
 
 #[test]

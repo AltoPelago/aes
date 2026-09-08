@@ -1,7 +1,8 @@
 # Non-AEON ingress limits audit
 
-Status: implementation inventory complete, 2026-09-08; identified rollout gaps
-remain open.
+Status: implementation inventory complete, 2026-09-08; portable ingress and
+integrity/transaction selection are complete, with provenance operational
+counters deferred to a separate contract.
 
 Scope: public and hard-coded resource guards reached without first compiling
 AEON source, across the TypeScript, Rust, Python, and PHP ecosystems. This is
@@ -33,8 +34,8 @@ limits-file ingress.
 
 | Ecosystem | Primary portable boundary | Delegating consumers | Current limits-file route |
 | --- | --- | --- | --- |
-| TypeScript | `packages/aes` Telex parser, encoder, and `validateTelexRecords` | Core export, SDK, runtime, portable finalizer, AEOS, SANSA, SO/ASP, CLI, and the Rust/WASM facade | Core exposes `telexLimits()` and the Telex CLI loads the common file; SDK/runtime calls still select normalized options directly |
-| Rust | `aes-telex` parser, encoder, and `validate_telex_records_*` | Core export, SDK, portable finalizer, AEOS, CLI, integrity, transactions, and WASM | Core exposes `telex_limits()` and the Telex CLI loads the common file; SDK/WASM callers still select normalized options directly |
+| TypeScript | `packages/aes` Telex parser, encoder, and `validateTelexRecords` | Core export, SDK, runtime, portable finalizer, AEOS, SANSA, SO/ASP, CLI, and the Rust/WASM facade | Core exposes `telexLimits()`; the Telex CLI, SDK, and runtime accept the selected common configuration |
+| Rust | `aes-telex` parser, encoder, and `validate_telex_records_*` | Core export, SDK, portable finalizer, AEOS, CLI, integrity, transactions, and WASM | Core exposes `telex_limits()`; the Telex CLI, SDK, and WASM accept the selected common configuration; integrity and transaction APIs expose explicit `_with_limits` companions |
 | Python | `aeon.telex` parser, encoder, and `validate_telex_records` | Portable finalizer, AEOS, API, and CLI | `telex_limits()` maps the selected common file; CLI Telex operations expose `--limits-file` |
 | PHP | `aeon\\aes` Telex parser, encoder, and `AesValidator::validateRecords` | Core export, portable JSON finalizer, and AEOS | `AeonicLimits::telexOptions()` maps the selected common file; no standalone Telex CLI ingress currently exists |
 
@@ -85,11 +86,12 @@ unchanged.
 - SANSA and SO/ASP portable adapters use the TypeScript portable validator.
   Their operation counts, mutation nesting, host request bytes, scan sizes,
   and storage/log guards remain consumer-owned.
-- Rust integrity and transaction functions validate their `TelexRecord`
-  payloads with default limits but do not accept an effective caller-selected
-  limit set. The JavaScript reference has the equivalent default-only boundary.
-  These APIs need either limit-aware overloads or an explicit prevalidated-input
-  contract before claiming common-file selection.
+- JavaScript integrity and transaction functions pass `options.limits` through
+  to direct portable record validation. Rust retains every default API and adds
+  `_with_limits` companions for integrity encode/digest/verify and transaction
+  body validation, digest/verify, envelope validation, and inspection (including
+  source-backed inspection). Tests prove a value admitted by defaults is
+  rejected at both boundaries by a stricter caller-selected Telex limit.
 - Provenance audit APIs accept record arrays and exact source artifacts without
   their own record, artifact-count, per-artifact byte, or aggregate-byte
   controls. `max_events` can come from portable validation; source-artifact
@@ -120,17 +122,15 @@ unchanged.
 
 ## Exact remaining rollout
 
-1. Finish common-file selection in the remaining export/import convenience
-   routes: Rust SDK `aeon_to_telex` and a PHP Core Telex-import facade or
-   equivalent option convention. TypeScript SDK and runtime read/materialize
-   plus SDK export; Rust SDK read; Python SDK read/export; PHP export; and
-   Rust/WASM Telex processing are complete.
-2. Add limit-aware integrity and transaction entry points, or formally require
-   a validated record set carrying an effective-limits claim.
-3. Define provenance-artifact operational counters separately. Do not silently
+1. Define provenance-artifact operational counters separately. Do not silently
    reinterpret AEON or Telex input-byte limits as retained-source budgets.
 
 The selected identity, version, copied profile claims, normalized Telex values,
 and normalized finalization values are now available through language-native
 effective-configuration APIs in TypeScript, Rust, Python, and PHP. These are
 inspection surfaces rather than AES wire fields.
+
+Common-limit selection is now available through the relevant Telex SDK/runtime
+routes. Rust retains `aeon_to_telex` and adds the configured
+`aeon_to_telex_with_limits` companion. PHP Core owns
+`TelexDocument::fromTelex`, preserving the Core-to-AES dependency direction.

@@ -600,6 +600,14 @@ pub fn encode_aes_integrity(
     records: &[TelexRecord],
     options: &AesIntegrityOptions,
 ) -> Result<AesIntegrityEncoding, AesIntegrityError> {
+    encode_aes_integrity_with_limits(records, options, &TelexLimits::default())
+}
+
+pub fn encode_aes_integrity_with_limits(
+    records: &[TelexRecord],
+    options: &AesIntegrityOptions,
+    limits: &TelexLimits,
+) -> Result<AesIntegrityEncoding, AesIntegrityError> {
     require_integrity_identifier(&options.ordering, "ordering")?;
     require_integrity_identifier(&options.scope, "scope")?;
     require_integrity_identifier(&options.provenance, "provenance")?;
@@ -651,11 +659,12 @@ pub fn encode_aes_integrity(
         .iter()
         .map(String::as_str)
         .collect::<Vec<_>>();
-    let validation = validate_telex_records_with_projection(
+    let validation = validate_telex_records_with_projection_and_limits(
         records,
         &options.profile,
         options.projection.as_deref(),
         &registered,
+        limits,
     );
     if !validation.valid {
         return Err(integrity_error(
@@ -709,7 +718,15 @@ pub fn compute_aes_integrity_digest(
     records: &[TelexRecord],
     options: &AesIntegrityOptions,
 ) -> Result<AesIntegrityDigest, AesIntegrityError> {
-    let encoded = encode_aes_integrity(records, options)?;
+    compute_aes_integrity_digest_with_limits(records, options, &TelexLimits::default())
+}
+
+pub fn compute_aes_integrity_digest_with_limits(
+    records: &[TelexRecord],
+    options: &AesIntegrityOptions,
+    limits: &TelexLimits,
+) -> Result<AesIntegrityDigest, AesIntegrityError> {
+    let encoded = encode_aes_integrity_with_limits(records, options, limits)?;
     let digest = Sha256::digest(&encoded.bytes);
     Ok(AesIntegrityDigest {
         input: encoded.input,
@@ -725,13 +742,22 @@ pub fn verify_aes_integrity_digest(
     expected: &str,
     options: &AesIntegrityOptions,
 ) -> Result<bool, AesIntegrityError> {
+    verify_aes_integrity_digest_with_limits(records, expected, options, &TelexLimits::default())
+}
+
+pub fn verify_aes_integrity_digest_with_limits(
+    records: &[TelexRecord],
+    expected: &str,
+    options: &AesIntegrityOptions,
+    limits: &TelexLimits,
+) -> Result<bool, AesIntegrityError> {
     if !is_lower_sha256(expected) {
         return Err(integrity_error(
             "AES_INTEGRITY_DIGEST_MISMATCH",
             "Expected AES integrity digest must be 64 lowercase hexadecimal digits.",
         ));
     }
-    Ok(compute_aes_integrity_digest(records, options)?.digest == expected)
+    Ok(compute_aes_integrity_digest_with_limits(records, options, limits)?.digest == expected)
 }
 
 pub fn encode_aes_signature_input(
@@ -960,6 +986,20 @@ pub fn validate_aes_transaction_body(
     registered_fields: &[&str],
     registered_event_fields: &[&str],
 ) -> AesTransactionValidation {
+    validate_aes_transaction_body_with_limits(
+        body,
+        registered_fields,
+        registered_event_fields,
+        &TelexLimits::default(),
+    )
+}
+
+pub fn validate_aes_transaction_body_with_limits(
+    body: &AesTransactionBody,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+    limits: &TelexLimits,
+) -> AesTransactionValidation {
     let mut diagnostics = Vec::new();
     transaction_exact(
         &body.transaction,
@@ -1088,11 +1128,12 @@ pub fn validate_aes_transaction_body(
             ));
         }
     }
-    let events = validate_telex_records_with_projection(
+    let events = validate_telex_records_with_projection_and_limits(
         &body.records,
         &body.profile,
         body.projection.as_deref(),
         registered_event_fields,
+        limits,
     );
     diagnostics.extend(events.diagnostics.into_iter().map(|item| {
         transaction_diagnostic(
@@ -1124,8 +1165,26 @@ pub fn compute_aes_transaction_digest(
     registered_fields: &[&str],
     registered_event_fields: &[&str],
 ) -> Result<AesTransactionDigest, AesTransactionError> {
-    let validation =
-        validate_aes_transaction_body(body, registered_fields, registered_event_fields);
+    compute_aes_transaction_digest_with_limits(
+        body,
+        registered_fields,
+        registered_event_fields,
+        &TelexLimits::default(),
+    )
+}
+
+pub fn compute_aes_transaction_digest_with_limits(
+    body: &AesTransactionBody,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+    limits: &TelexLimits,
+) -> Result<AesTransactionDigest, AesTransactionError> {
+    let validation = validate_aes_transaction_body_with_limits(
+        body,
+        registered_fields,
+        registered_event_fields,
+        limits,
+    );
     if !validation.valid {
         return Err(transaction_error(
             "AES_TRANSACTION_BODY_INVALID",
@@ -1150,6 +1209,22 @@ pub fn verify_aes_transaction_digest(
     registered_fields: &[&str],
     registered_event_fields: &[&str],
 ) -> Result<bool, AesTransactionError> {
+    verify_aes_transaction_digest_with_limits(
+        body,
+        expected,
+        registered_fields,
+        registered_event_fields,
+        &TelexLimits::default(),
+    )
+}
+
+pub fn verify_aes_transaction_digest_with_limits(
+    body: &AesTransactionBody,
+    expected: &str,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+    limits: &TelexLimits,
+) -> Result<bool, AesTransactionError> {
     if !is_lower_sha256(expected) {
         return Err(transaction_error(
             "AES_TRANSACTION_INTEGRITY_INVALID",
@@ -1157,10 +1232,14 @@ pub fn verify_aes_transaction_digest(
             Vec::new(),
         ));
     }
-    Ok(
-        compute_aes_transaction_digest(body, registered_fields, registered_event_fields)?.digest
-            == expected,
-    )
+    Ok(compute_aes_transaction_digest_with_limits(
+        body,
+        registered_fields,
+        registered_event_fields,
+        limits,
+    )?
+    .digest
+        == expected)
 }
 
 pub fn encode_aes_transaction_signature_input(
@@ -1195,8 +1274,28 @@ pub fn validate_aes_transaction_envelope(
     registered_fields: &[&str],
     registered_event_fields: &[&str],
 ) -> AesTransactionValidation {
-    let mut body =
-        validate_aes_transaction_body(&envelope.body, registered_fields, registered_event_fields);
+    validate_aes_transaction_envelope_with_limits(
+        envelope,
+        require_evidence,
+        registered_fields,
+        registered_event_fields,
+        &TelexLimits::default(),
+    )
+}
+
+pub fn validate_aes_transaction_envelope_with_limits(
+    envelope: &AesTransactionEnvelope,
+    require_evidence: bool,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+    limits: &TelexLimits,
+) -> AesTransactionValidation {
+    let mut body = validate_aes_transaction_body_with_limits(
+        &envelope.body,
+        registered_fields,
+        registered_event_fields,
+        limits,
+    );
     let body_valid = body.valid;
     if envelope.envelope != AES_TRANSACTION_ENVELOPE {
         body.diagnostics.push(transaction_diagnostic(
@@ -1219,11 +1318,12 @@ pub fn validate_aes_transaction_envelope(
                 && body.diagnostics.len() == diagnostic_count
                 && is_lower_sha256(&evidence.hash)
             {
-                match verify_aes_transaction_digest(
+                match verify_aes_transaction_digest_with_limits(
                     &envelope.body,
                     &evidence.hash,
                     registered_fields,
                     registered_event_fields,
+                    limits,
                 ) {
                     Ok(true) => body.evidence_verified = true,
                     Ok(false) => body.diagnostics.push(transaction_diagnostic(
@@ -1247,13 +1347,34 @@ pub fn inspect_aes_transaction_envelope(
     registered_fields: &[&str],
     registered_event_fields: &[&str],
 ) -> AesTransactionInspection {
-    inspect_aes_transaction_envelope_with_sources(
+    inspect_aes_transaction_envelope_with_sources_and_limits(
         envelope,
         require_evidence,
         support,
         registered_fields,
         registered_event_fields,
         &[],
+        &TelexLimits::default(),
+    )
+}
+
+#[must_use]
+pub fn inspect_aes_transaction_envelope_with_limits(
+    envelope: &AesTransactionEnvelope,
+    require_evidence: bool,
+    support: &AesTransactionSupport,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+    limits: &TelexLimits,
+) -> AesTransactionInspection {
+    inspect_aes_transaction_envelope_with_sources_and_limits(
+        envelope,
+        require_evidence,
+        support,
+        registered_fields,
+        registered_event_fields,
+        &[],
+        limits,
     )
 }
 
@@ -1266,11 +1387,33 @@ pub fn inspect_aes_transaction_envelope_with_sources(
     registered_event_fields: &[&str],
     source_artifacts: &[AesSourceArtifact],
 ) -> AesTransactionInspection {
-    let validation = validate_aes_transaction_envelope(
+    inspect_aes_transaction_envelope_with_sources_and_limits(
+        envelope,
+        require_evidence,
+        support,
+        registered_fields,
+        registered_event_fields,
+        source_artifacts,
+        &TelexLimits::default(),
+    )
+}
+
+#[must_use]
+pub fn inspect_aes_transaction_envelope_with_sources_and_limits(
+    envelope: &AesTransactionEnvelope,
+    require_evidence: bool,
+    support: &AesTransactionSupport,
+    registered_fields: &[&str],
+    registered_event_fields: &[&str],
+    source_artifacts: &[AesSourceArtifact],
+    limits: &TelexLimits,
+) -> AesTransactionInspection {
+    let validation = validate_aes_transaction_envelope_with_limits(
         envelope,
         require_evidence,
         registered_fields,
         registered_event_fields,
+        limits,
     );
     let mut diagnostics = validation.diagnostics;
     let unsupported = transaction_unsupported(&envelope.body, support);

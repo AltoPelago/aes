@@ -5,7 +5,8 @@ use std::path::PathBuf;
 use aes_telex::{
     AES_BODY_SCOPE, AES_CANONICAL_SEMANTIC_ORDER, AES_EXACT_ORDER, AES_PROVENANCE_EXCLUDED,
     AesIntegrityOptions, ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument,
-    TelexRecord, compute_aes_integrity_digest, encode_aes_signature_input,
+    TelexLimits, TelexRecord, compute_aes_integrity_digest,
+    compute_aes_integrity_digest_with_limits, encode_aes_signature_input,
 };
 use serde_json::{Map, Value};
 
@@ -57,6 +58,27 @@ fn canonical_and_exact_policies_remain_distinct() -> Result<(), Box<dyn Error>> 
         compute_aes_integrity_digest(&records, &canonical)?.digest,
         compute_aes_integrity_digest(&records, &exact)?.digest,
     );
+    Ok(())
+}
+
+#[test]
+fn integrity_boundary_honors_caller_selected_telex_limits() -> Result<(), Box<dyn Error>> {
+    let records = vec![TelexRecord::new(vec![
+        ("path".to_owned(), "$.a".to_owned()),
+        ("kind".to_owned(), "StringLiteral".to_owned()),
+        ("value".to_owned(), "xx".to_owned()),
+    ])];
+    let options =
+        AesIntegrityOptions::new(AES_EXACT_ORDER, AES_BODY_SCOPE, AES_PROVENANCE_EXCLUDED);
+    assert!(compute_aes_integrity_digest(&records, &options).is_ok());
+
+    let limits = TelexLimits {
+        max_string_codepoints: 1,
+        ..TelexLimits::default()
+    };
+    let error = compute_aes_integrity_digest_with_limits(&records, &options, &limits)
+        .expect_err("selected limit should reject the integrity input");
+    assert_eq!(error.code, "AES_INTEGRITY_INVALID_LOGICAL_VALUE");
     Ok(())
 }
 

@@ -277,7 +277,7 @@ claims support for the concrete common set.
 | AEON Core | TypeScript, Rust, Python, and PHP expose the shared structural and AEON-format counters, closed v1 loaders, normalized compiler views, inspectable effective Telex configurations, and deterministic exhaustion diagnostics |
 | AEON WASM | AEON source processing retains its local defaults; Telex calls expose all normalized Telex and shared structural numeric options |
 | AES datatype codec | JavaScript and Rust accept normalized generic depth, generic argument, clarifier, and total-component limits; the published defaults are `1`, `32`, `1`, and `64` |
-| Finalization | TypeScript, Rust, Python, and PHP enforce materialized weight and reference depth; all four loaders expose the processing subset, while not every Telex CLI/API route selects it yet |
+| Finalization | TypeScript, Rust, Python, and PHP enforce materialized weight and reference depth; all four loaders expose the processing subset and the public SDK/runtime Telex routes accept common-file selection |
 | TypeScript framing transport | frame `16 MiB`, buffer `32 MiB`, inspected header `64 KiB`; canonical options are `maxFrameBytes`, `maxBufferBytes`, and `maxHeaderBytes` |
 | Telex and direct portable AES | TypeScript/JavaScript, Rust, Python, and PHP enforce the complete Telex-format and shared structural counter set; TypeScript, Rust, and Python CLIs load the common file directly |
 
@@ -318,9 +318,8 @@ The PHP compiler rollout is recorded in
 cross-language ingress inventory and exact remaining interchange gaps are in
 [`non-aeon-ingress-limits-audit.md`](non-aeon-ingress-limits-audit.md).
 
-Remaining work includes selected SDK/runtime convenience routes, source-backed
-provenance operational limits, Film, and future non-TypeScript framing
-implementations. Every audited
+Remaining work includes source-backed provenance operational limits, Film, and
+future non-TypeScript framing implementations. Every audited
 hard-coded allocation, recursion, collection, and input guard is now either
 mapped here or classified as a runtime safety ceiling or another limits
 contract.
@@ -346,11 +345,21 @@ them; the adjacent identity and claims remain inspectable metadata.
 The TypeScript SDK and runtime accept `aeonicLimits` for Telex reads and
 materialization, and the SDK also supports AEON-to-Telex export. Rust and
 Python SDK Telex loaders and AEON-to-Telex export accept `aeonic_limits`; PHP
-AEON-to-Telex export accepts `aeonicLimits`. The Rust/WASM
+AEON-to-Telex export and `TelexDocument::fromTelex` accept `aeonicLimits`.
+Rust SDK export offers `aeon_to_telex_with_limits` beside the unchanged
+`aeon_to_telex` route. The Rust/WASM
 Telex runtime accepts `limitsSource`, because a WASM module must not assume host
 filesystem access, and returns `effectiveLimits` from its JSON-result
 operations. Explicit trusted call-level values take precedence and set
 `overridesApplied` when they change a selected normalized value.
+
+JavaScript integrity and transaction APIs pass their selected `limits` through
+to direct portable record validation. Rust keeps the existing default APIs and
+provides `_with_limits` companions across integrity encoding/digest verification
+and transaction validation, digest verification, envelope validation, and
+inspection. A transaction `aes.limits.claim.v0` member is authenticated input;
+it describes the claimed policy identity but never selects or relaxes the
+caller's trusted effective limits.
 
 ## 9. Required implementation behavior
 
