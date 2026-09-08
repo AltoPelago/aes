@@ -87,14 +87,18 @@ The AEON specification and shared CTS checkpoint removes the last ambiguous
 contract, and the CTS protocol. Spans are now uniformly defined as half-open,
 zero-based UTF-8 byte ranges into the exact, unnormalised source artifact, with
 BOM, CRLF, scalar-boundary, empty diagnostic-span, and absent-source behavior
-spelled out. The mutable AES development snapshot adds six common projection
+spelled out. The AES projection 0.3 snapshot adds six common projection
 vectors for ASCII, precomposed non-ASCII, combining sequences, astral scalars,
 BOM plus CRLF, and source absence. Six additional header-projection fixtures
 cover structured and shorthand normalization, fail-closed mixed-form conflict,
 the default body-only projection, and an explicitly selected empty document
-projection, plus same-name quoted `"aeon:*"` payload/header disambiguation. The resulting 79
-vectors pass in TypeScript, Rust, Python, and PHP; no released snapshot was
-modified. Each CLI also exposes
+projection, plus same-name quoted `"aeon:*"` payload/header disambiguation. The
+complete 82-vector snapshot passes in TypeScript, Rust, Python, and PHP and is
+prepared locally as the new immutable, content-hash-pinned
+`aes-cts-v1-snapshot-0.3`; the historical 0.2 snapshot was not modified. The
+snapshot, canonical conformance pointers, and deterministic website lock are
+recorded in signed local commits `3dad21e`, `4d8c539`, and `8a0ab96`. Each
+CLI also exposes
 exact-source provenance explicitly through `inspect --portable-aes
 --source-provenance` and `inspect --telex --source-provenance`. Plain portable
 projection omits a local span that has no immutable origin.
@@ -109,10 +113,10 @@ projection omits a local span that has no immutable origin.
 | AEON TypeScript Telex CTS | 50 vectors passed |
 | AEON TypeScript current workspace checkpoint | all 23 non-fuzz package/tool test projects passed; focused AES package passed 207 tests; canonical CTS passed 46, transport-limit CTS passed 8, SANSA CTS passed 46, and annotation CTS passed 14 |
 | AEON Python current workspace checkpoint | all 333 unit tests passed; the focused Telex codec suite passed 15 tests, including encode-side structural-limit enforcement |
-| AEON Rust provenance projection checkpoint | all 555 workspace unit tests passed; the AES development lane passed 79/79; Clippy with warnings denied and formatting passed |
+| AEON Rust provenance projection checkpoint | all 555 workspace unit tests passed; the immutable AES projection 0.3 lane passed 82/82; Clippy with warnings denied and formatting passed |
 | AEON PHP current workspace checkpoint | all 901 repository tests and 2,734 assertions passed, including encode-side structural-limit enforcement |
-| AEON cross-language development AES projection CTS | all 79 vectors passed independently in TypeScript, Rust, Python, and PHP; six exact-source span and six header-projection vectors were added only to the mutable next manifest |
-| AEON TypeScript aggregate CTS | the complete local aggregate passed with the mutable AES 0.3 development target: AEOS 118, Core 271, AES projection 82, AES Events 38, Telex 50, canonical 46, finalization limits 4, transport limits 8, SANSA 46, and annotations 14 |
+| AEON cross-language AES projection CTS | all 82 vectors in immutable snapshot 0.3 passed independently in TypeScript, Rust, Python, and PHP; every referenced suite is content-hash pinned |
+| AEON TypeScript aggregate CTS | the complete local aggregate passed with the immutable AES 0.3 target: AEOS 118, Core 271, AES projection 82, AES Events 38, Telex 50, canonical 46, finalization limits 4, transport limits 8, SANSA 46, and annotations 14 |
 | Telex/JSON performance sanity check | on the local Apple M4 Pro with Node 24.16, the limits-aware benchmark completed at 100, 10,000, and 100,000 events; at 100,000 events Telex encoded in 199.084 ms versus 146.698 ms for validate-plus-JSON and produced 26.48% fewer bytes; raw `JSON.stringify` remains a separate 8.949 ms engine baseline |
 | SANSA full suite | 257 tests passed |
 | ASP full suite, including the source-derived round trip, hardened AET scalar bridge, and portable subtree/index lifecycle | 1,112 tests passed; 62 conformance cases passed; the focused portable mutation set passed 130 tests |
@@ -125,6 +129,17 @@ The first sandboxed ASP full-suite run could not bind loopback test servers and
 reported `listen EPERM` failures. The same suite was rerun with loopback access
 and passed all 1,112 tests; these were environment restrictions, not
 implementation failures.
+
+The 2026-09-09 promotion preparation also advances the mutable AES projection
+manifest to snapshot id 0.4, moves TypeScript/Rust/Python default claims to the
+immutable 0.3 path, adds matching released/legacy/next PHP projection commands,
+and updates the canonical specification pointers and website projection
+fixtures. CTS repository validation, claim validation, all four 82-vector
+implementation runs, and the deterministic website publication test pass. The
+website lock now identifies specification revision
+`4d8c5398ec0570fe54acc9aa65e5c8ccca16742c` and source digest
+`ecfa1ddb9cf1b7f9152d56efdf11a1707d35bf6a056bf4bab984e4c8ae13cf7f`.
+No repository was pushed and no website was deployed.
 
 ## Coverage confirmed by the existing lanes
 

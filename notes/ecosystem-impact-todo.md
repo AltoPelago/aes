@@ -93,9 +93,9 @@ implementation and acceptance work remains open below.
 - [x] Add duplicate-identity tests spanning all four head locations rather
   than testing each location in isolation.
 - [x] Add projection cases proving the identities at `$.a`, `$.a.@.x`,
-  `$.a[0]`, and `$.a[0][0]` are preserved independently. These are staged in
-  the experimental `aes-cts-v1-snapshot-0.3` next manifest; activation remains
-  gated on the flat-attribute and expanded-node adapter work below.
+  `$.a[0]`, and `$.a[0][0]` are preserved independently. These are active in
+  the immutable `aes-cts-v1-snapshot-0.3`; all four source implementations pass
+  the released projection target.
 
 #### Implementation work
 
@@ -308,7 +308,7 @@ while the wider consumer audit remains open.
 - [x] Do not transport exact AEON lexemes or a generic representation field.
 - [x] Reconcile ASP, AEOS, and downstream CTS canonical payload rules with the
   portable table. `canonical-payload-boundary-audit.md` records the reviewed
-  boundaries; the mutable 82-vector source-projection target now asserts every
+  boundaries; the immutable 82-vector source-projection 0.3 target now asserts every
   scalar family, canonical payload normalization, and distinct reference
   kinds across TypeScript, Rust, Python, and PHP.
 - [x] Add WTC cases covering the three temporal anchor forms and local, named,
@@ -586,8 +586,8 @@ while the wider consumer audit remains open.
   anchor/reference vocabulary.
 - [x] `aeonite-cts`: replace contradictory identity vectors and add portable
   event-local, complete-stream, path, value, and provenance suites. Immutable
-  AES Events 0.1 and Telex 0.1 targets coexist with the mutable 82-vector AEON
-  projection candidate; released snapshots were not rewritten.
+  AES Events 0.1 and Telex 0.1 targets coexist with the immutable 82-vector
+  AEON projection snapshot 0.3; earlier released snapshots were not rewritten.
 - [x] `aeonite-cts`: require at least two independent implementations to pass
   each portable contract before promotion. The published AES Events and Telex
   baselines record independent JavaScript and Rust passes, and the CTS coverage
@@ -1322,9 +1322,13 @@ above.
 - [x] Phase 1 — freeze and publish the transport-neutral `aes.events.v0`
   contract and its version discriminator.
 - [x] Phase 2 — update `aeonite-specs` and land shared CTS vectors.
-- [ ] After the canonical specification revision is committed, advance the
-  `aeonite-website/specs.lock.json` revision and source digest, rebuild the
-  publication artifacts, and deploy the published lifecycle metadata.
+- [x] Commit the reviewed canonical conformance-pointer revision, advance
+  `aeonite-website/specs.lock.json` to that exact revision and source digest,
+  and rebuild and validate the publication artifacts. Signed local commits
+  `4d8c539` (specifications), `3dad21e` (CTS), and `8a0ab96` (website lock)
+  record the immutable AES projection snapshot 0.3 and its publication inputs.
+- [ ] Deploy the revised published lifecycle metadata. No push or deployment
+  is part of the local preparation and acceptance work.
 - [ ] Phase 3 — publish the locally completed compatibility readers/adapters in
   TypeScript, Rust, Python, and PHP while released producers retain the legacy
   shape.
