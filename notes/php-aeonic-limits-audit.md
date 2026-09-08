@@ -9,11 +9,14 @@ Scope: `altopelago/aeon-php` against `altopelago.aeonic-limits.v1` version
 ## Summary
 
 PHP now implements the closed common limits file, normalized effective
-configuration, canonical option names, and all 16 AEON parsing/compilation
-counters. The legacy clarifier and value-nesting option names remain explicit
-migration aliases. Since the original audit, PHP has added Telex, direct
-portable AES validation, AEOS ingress, and portable JSON finalization. Framing
-transport still does not exist.
+configuration (including selected identity and claims), canonical option names,
+and all 16 AEON parsing/compilation counters. The legacy clarifier and
+value-nesting option names remain explicit migration aliases. Since the
+original audit, PHP has added Telex, direct portable AES validation, AEOS
+ingress, and portable JSON finalization. `Compiler::compileToTelex` accepts a
+trusted loaded limits document through `aeonicLimits`, applies its compiler and
+Telex subsets, and returns the effective view. Framing transport still does not
+exist.
 
 PHP generic depth now uses the shared convention: `list<int>` has depth `0`
 and `list<list<int>>` has depth `1`. Generic argument count and total datatype
@@ -63,7 +66,8 @@ header recognition after a leading shebang.
 
 ## Remaining rollout
 
-1. Add an inspectable portable-boundary effective view that retains the selected
-   limits identity, version, claims, and normalized values.
-2. Add framing counters if a PHP transport framing surface is introduced;
+1. Add framing counters if a PHP transport framing surface is introduced;
    absence must not be advertised as conformance.
+2. Add a Core-owned Telex import/materialization convenience route, or define an
+   equivalent option convention that does not introduce an AES-to-Core package
+   dependency cycle.

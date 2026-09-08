@@ -274,7 +274,7 @@ claims support for the concrete common set.
 
 | Area | Existing controls and defaults |
 | --- | --- |
-| AEON Core | TypeScript, Rust, Python, and PHP expose the shared structural and AEON-format counters, closed v1 loaders, normalized compiler views, and deterministic exhaustion diagnostics |
+| AEON Core | TypeScript, Rust, Python, and PHP expose the shared structural and AEON-format counters, closed v1 loaders, normalized compiler views, inspectable effective Telex configurations, and deterministic exhaustion diagnostics |
 | AEON WASM | AEON source processing retains its local defaults; Telex calls expose all normalized Telex and shared structural numeric options |
 | AES datatype codec | JavaScript and Rust accept normalized generic depth, generic argument, clarifier, and total-component limits; the published defaults are `1`, `32`, `1`, and `64` |
 | Finalization | TypeScript, Rust, Python, and PHP enforce materialized weight and reference depth; all four loaders expose the processing subset, while not every Telex CLI/API route selects it yet |
@@ -318,12 +318,39 @@ The PHP compiler rollout is recorded in
 cross-language ingress inventory and exact remaining interchange gaps are in
 [`non-aeon-ingress-limits-audit.md`](non-aeon-ingress-limits-audit.md).
 
-Remaining work includes effective identity/version inspection, selected
-SDK/runtime convenience routes, source-backed provenance operational limits,
-Film, and future non-TypeScript framing implementations. Every audited
+Remaining work includes selected SDK/runtime convenience routes, source-backed
+provenance operational limits, Film, and future non-TypeScript framing
+implementations. Every audited
 hard-coded allocation, recursion, collection, and input guard is now either
 mapped here or classified as a runtime safety ceiling or another limits
 contract.
+
+### 8.1 Effective Telex configuration views
+
+All four implementations expose a language-native effective Telex
+configuration with the selected limit-set identifier, version, copied profile
+claims, normalized Telex options, normalized finalization options, and an
+`overridesApplied` indicator:
+
+- TypeScript: `effectiveTelexConfiguration`;
+- Rust: `effective_telex_configuration`;
+- Python: `effective_telex_configuration`; and
+- PHP: `AeonicLimits::effectiveTelexConfiguration`.
+
+These views are configuration and diagnostic surfaces, not portable AES event
+fields. They must not be encoded into Telex implicitly, included in canonical
+AES bytes, or interpreted as document-selected policy. The `telex` and
+`finalization` subsets are passed independently to the consumers that enforce
+them; the adjacent identity and claims remain inspectable metadata.
+
+The TypeScript SDK and runtime accept `aeonicLimits` for Telex reads and
+materialization, and the SDK also supports AEON-to-Telex export. Rust and
+Python SDK Telex loaders and AEON-to-Telex export accept `aeonic_limits`; PHP
+AEON-to-Telex export accepts `aeonicLimits`. The Rust/WASM
+Telex runtime accepts `limitsSource`, because a WASM module must not assume host
+filesystem access, and returns `effectiveLimits` from its JSON-result
+operations. Explicit trusted call-level values take precedence and set
+`overridesApplied` when they change a selected normalized value.
 
 ## 9. Required implementation behavior
 

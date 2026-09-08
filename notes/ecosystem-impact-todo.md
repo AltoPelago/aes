@@ -342,8 +342,8 @@ while the wider consumer audit remains open.
     mapped to the normalized limits file and exercised through shared vectors.
   - [x] PHP is inventoried in `php-aeonic-limits-audit.md`; its closed loader,
     canonical names, and all 16 AEON compiler counters are implemented. The
-    complete consolidated Core-next protocol target passes 265/265; future
-    finalization, Telex, and transport surfaces remain open.
+    consolidated Core-next protocol target, finalization, and Telex limits are
+    implemented; framing transport remains absent rather than being claimed.
   - [x] Non-AEON ingress is inventoried in
     `non-aeon-ingress-limits-audit.md`. All six previously missing structural
     checks now pass in the four language implementations; remaining effective
@@ -351,14 +351,21 @@ while the wider consumer audit remains open.
     misclassifying AEOS, SANSA, ASP, or transport budgets.
 - [x] Approve and publish the first concrete AltoPelago `1.0.0` limits values
   and the fixed bootstrap policy used to load an AEON-encoded limits file.
-- [ ] Add a shared limits loader, normalized effective-configuration view, and
+- [x] Add a shared limits loader, normalized effective-configuration view, and
   deterministic exhaustion diagnostics to every AltoPelago implementation.
   TypeScript, Rust, Python, and PHP now implement the AEON compiler subset;
   all four implement finalization, while TypeScript exposes normalized framing
   values. All four map the common file into Telex options; TypeScript, Rust, and
-  Python route it through their Telex CLIs. All four still need inspectable
-  limit-set identity at the portable boundary, and selected SDK/runtime routes
-  remain open.
+  Python route it through their Telex CLIs. All four expose the selected
+  identity, version, profile claims, normalized Telex values, and normalized
+  finalization values through an inspectable language-native configuration.
+- [ ] Route trusted common-file selection through the remaining SDK/runtime
+  convenience surfaces where requiring callers to normalize every subset would
+  be error-prone. This does not authorize documents or stream metadata to select
+  operational policy. TypeScript SDK and runtime read/materialize plus SDK
+  export, Rust SDK read, Python SDK read/export, PHP export, and Rust/WASM Telex
+  processing are complete. Remaining: Rust SDK `aeon_to_telex` and a PHP Core
+  Telex-import facade or an equivalent non-cyclic option convention.
 - [x] Rename or adapt `maxSeparatorDepth` / `max_separator_depth` to the shared
   `max_clarifier_values` counter without creating a second semantic limit.
   TypeScript, Rust, and Python retain the former names only as migration aliases.

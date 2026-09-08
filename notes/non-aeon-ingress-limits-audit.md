@@ -95,9 +95,10 @@ unchanged.
   controls. `max_events` can come from portable validation; source-artifact
   byte/allocation counters are not defined by v1 and require a separate
   provenance-operational decision rather than reuse of Telex bytes.
-- Rust/WASM Telex calls expose direct numeric JSON options. This is a valid
-  pre-normalized caller boundary, but it neither loads the common file nor
-  reports `limits_id` and `limits_version` in an effective configuration view.
+- Rust/WASM Telex calls expose direct numeric JSON options and accept trusted
+  AEON limits source text as `limitsSource`. The latter is the WASM equivalent
+  of common-file selection without assuming host filesystem access, and JSON
+  result operations expose the selected effective configuration.
 - Rust, TypeScript, and Python Telex CLI commands accept `--limits-file`; PHP has
   no corresponding standalone Telex command. TypeScript and Rust route both the
   Telex and finalization subsets, with explicit per-call finalization overrides
@@ -119,11 +120,17 @@ unchanged.
 
 ## Exact remaining rollout
 
-1. Include the selected `limits_id`, `limits_version`, and normalized effective
-   values in inspectable portable-boundary views in all four implementations.
-2. Route the common-file selection through relevant SDK/runtime convenience
-   entry points where callers should not need to normalize it themselves.
-3. Add limit-aware integrity and transaction entry points, or formally require
+1. Finish common-file selection in the remaining export/import convenience
+   routes: Rust SDK `aeon_to_telex` and a PHP Core Telex-import facade or
+   equivalent option convention. TypeScript SDK and runtime read/materialize
+   plus SDK export; Rust SDK read; Python SDK read/export; PHP export; and
+   Rust/WASM Telex processing are complete.
+2. Add limit-aware integrity and transaction entry points, or formally require
    a validated record set carrying an effective-limits claim.
-4. Define provenance-artifact operational counters separately. Do not silently
+3. Define provenance-artifact operational counters separately. Do not silently
    reinterpret AEON or Telex input-byte limits as retained-source budgets.
+
+The selected identity, version, copied profile claims, normalized Telex values,
+and normalized finalization values are now available through language-native
+effective-configuration APIs in TypeScript, Rust, Python, and PHP. These are
+inspection surfaces rather than AES wire fields.

@@ -2943,11 +2943,16 @@ fn validate_datatype_string_limits(
 ) {
     for clarifier in &descriptor.clarifiers {
         let observed = clarifier.value.chars().count();
-        if clarifier.kind == ClarifierKind::StringLiteral && observed > limits.max_string_codepoints {
+        if clarifier.kind == ClarifierKind::StringLiteral && observed > limits.max_string_codepoints
+        {
             diagnostics.push(
-                limit_diagnostic("max_string_codepoints", observed, limits.max_string_codepoints)
-                    .at_record(index, record_address(event))
-                    .with_field("clarifiers"),
+                limit_diagnostic(
+                    "max_string_codepoints",
+                    observed,
+                    limits.max_string_codepoints,
+                )
+                .at_record(index, record_address(event))
+                .with_field("clarifiers"),
             );
         }
     }
@@ -3051,9 +3056,15 @@ fn validate_represented_structural_limits(
             Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
         ) {
             let mut depth = 1_usize;
-            for prefix in details.prefixes.iter().take(details.prefixes.len().saturating_sub(1)) {
+            for prefix in details
+                .prefixes
+                .iter()
+                .take(details.prefixes.len().saturating_sub(1))
+            {
                 if matches!(
-                    by_path.get(prefix.as_str()).and_then(|parent| parent.event.get("kind")),
+                    by_path
+                        .get(prefix.as_str())
+                        .and_then(|parent| parent.event.get("kind")),
                     Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
                 ) {
                     depth = depth.saturating_add(1);
@@ -3071,9 +3082,7 @@ fn validate_represented_structural_limits(
                 );
             }
         }
-        if details.segments.last() == Some(&Segment::Index)
-            && details.prefixes.len() >= 2
-        {
+        if details.segments.last() == Some(&Segment::Index) && details.prefixes.len() >= 2 {
             let parent_path = details.prefixes[details.prefixes.len() - 2].as_str();
             *direct_items.entry(parent_path).or_default() += 1;
         }
@@ -3390,7 +3399,11 @@ fn parse_canonical_data_path(path: &str) -> Result<PathDetails, String> {
         segments.push(segment);
         members.push(member);
     }
-    Ok(PathDetails { prefixes, segments, members })
+    Ok(PathDetails {
+        prefixes,
+        segments,
+        members,
+    })
 }
 
 fn read_member(path: &str, cursor: usize) -> Result<(usize, String), String> {
