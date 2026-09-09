@@ -67,19 +67,25 @@ fn passes_selected_v1_telex_vectors() {
 }
 
 #[test]
-fn passes_published_portable_aes_event_vectors() {
+fn passes_selected_portable_aes_event_vectors() {
     let manifest_path = selected_manifest(
         "AES_EVENTS_CTS_MANIFEST",
-        "../../../../aeonite-org/aeonite-cts/cts/aes/v1/aes-events-cts.v1.snapshot-0.1.json",
+        "../../conformance/aes/v1/aes-events-cts.v1.json",
     );
     let manifest = read_json(&manifest_path);
-    assert_eq!(manifest["meta"]["status"], "released");
+    let released = manifest["meta"]["status"] == "released";
     assert_eq!(manifest["meta"]["lane"], "aes-events");
+    if released {
+        assert_eq!(
+            manifest["meta"]["snapshot_id"],
+            "aes-events-cts-v1-snapshot-0.1"
+        );
+    } else {
+        assert_eq!(manifest["meta"]["status"], "draft");
+        assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
+        assert_eq!(manifest["meta"]["spec_snapshot_id"], Value::Null);
+    }
     assert_eq!(manifest["meta"]["event_contract"], "aes.events.v1");
-    assert_eq!(
-        manifest["meta"]["snapshot_id"],
-        "aes-events-cts-v1-snapshot-0.1"
-    );
 
     let mut seen = std::collections::HashSet::new();
     let mut count = 0_usize;
@@ -97,6 +103,10 @@ fn passes_published_portable_aes_event_vectors() {
             );
         let suite = read_json(&suite_path);
         assert_eq!(suite["id"], suite_ref["id"], "suite id mismatch");
+        assert_eq!(
+            suite["meta"]["event_contract"], manifest["meta"]["event_contract"],
+            "suite event contract mismatch"
+        );
         for vector in suite["tests"]
             .as_array()
             .expect("suite tests must be an array")

@@ -1,0 +1,1311 @@
+{
+  "meta": {
+    "suite_id": "event-and-profile-validation",
+    "lane": "aes-events",
+    "event_contract": "aes.events.v1",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/aes.events.md#3-record-shape",
+      "specifications/aes.events.md#4-datatypes-and-values",
+      "specifications/aes.events.md#5-flat-structure-and-identity",
+      "specifications/aes.events.md#7-provenance-and-spans",
+      "specifications/aes.events.md#9-completeness-profiles",
+      "specifications/aes.events.md#10-optional-aeon-document-projection",
+      "specifications/aes.events.md#12-validation-and-diagnostics"
+    ]
+  },
+  "id": "event-and-profile-validation",
+  "title": "Portable AES v1 Event and Profile Validation",
+  "tests": [
+    {
+      "id": "aes-events-001-complete-default",
+      "description": "The implicit complete profile accepts flat objects, attributes, lists, nodes, and node content",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "ObjectNode",
+            "identity": "root-a"
+          },
+          {
+            "path": "$.a.@.source",
+            "kind": "StringLiteral",
+            "value": "fixture"
+          },
+          {
+            "path": "$.a.items",
+            "kind": "ListNode"
+          },
+          {
+            "path": "$.a.items[0]",
+            "kind": "NodeLiteral"
+          },
+          {
+            "path": "$.a.items[0][0]",
+            "kind": "NodeHead",
+            "value": "tag"
+          },
+          {
+            "path": "$.a.items[0][0][0]",
+            "kind": "BooleanLiteral",
+            "value": "true",
+            "origin": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "span": "8:12"
+          }
+        ]
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "attributes",
+        "node"
+      ]
+    },
+    {
+      "id": "aes-events-002-default-missing-parent",
+      "description": "The default profile rejects a descendant whose parent event is absent",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a.b",
+            "kind": "NumberLiteral",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_MISSING_PARENT"
+        ]
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "ancestry",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-003-partial-missing-parent",
+      "description": "The explicit partial profile permits a valid event without its parent context",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a.b",
+            "kind": "NumberLiteral",
+            "value": "1"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "partial",
+        "ancestry"
+      ]
+    },
+    {
+      "id": "aes-events-004-partial-retains-event-validity",
+      "description": "Partial changes stream constraints but does not permit an invalid event value",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "BooleanLiteral",
+            "value": "True"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_VALUE"
+        ]
+      },
+      "tags": [
+        "validation",
+        "partial",
+        "event-shape",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-005-default-duplicates",
+      "description": "Complete streams require unique paths and structural identities",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "identity": "same",
+            "value": "1"
+          },
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "identity": "same",
+            "value": "2"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_DUPLICATE_PATH",
+          "AES_DUPLICATE_IDENTITY"
+        ]
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "uniqueness",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-006-partial-duplicates",
+      "description": "Partial history may repeat paths and structural identities across events",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "identity": "same",
+            "value": "1"
+          },
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "identity": "same",
+            "value": "2"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "partial",
+        "history",
+        "duplicates"
+      ]
+    },
+    {
+      "id": "aes-events-007-incompatible-member-parent",
+      "description": "A named structural child requires an object parent",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.scalar",
+            "kind": "NumberLiteral",
+            "value": "1"
+          },
+          {
+            "path": "$.scalar.child",
+            "kind": "StringLiteral",
+            "value": "no"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INCOMPATIBLE_PARENT"
+        ]
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "container",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-008-node-head-placement",
+      "description": "A node-head cannot be used as an ordinary list item",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.items",
+            "kind": "ListNode"
+          },
+          {
+            "path": "$.items[0]",
+            "kind": "NodeHead",
+            "value": "tag"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_NODE_HEAD"
+        ]
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "node-head",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-009-node-requires-head-child",
+      "description": "Every direct indexed child of a node is a node-head event",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.item",
+            "kind": "NodeLiteral"
+          },
+          {
+            "path": "$.item[0]",
+            "kind": "StringLiteral",
+            "value": "not-a-head"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INCOMPATIBLE_PARENT"
+        ]
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "node",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-010-root-is-not-owner",
+      "description": "The unrepresented document root cannot own indexed or attribute events",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$[0]",
+            "kind": "NumberLiteral",
+            "value": "1"
+          },
+          {
+            "path": "$.@.meta",
+            "kind": "StringLiteral",
+            "value": "root"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_MISSING_PARENT",
+          "AES_MISSING_PARENT"
+        ]
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "root",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-011-value-presence",
+      "description": "Containers omit value while non-container kinds require it",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "ObjectNode",
+            "value": "nested"
+          },
+          {
+            "path": "$.b",
+            "kind": "NumberLiteral"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_UNEXPECTED_VALUE",
+          "AES_MISSING_VALUE"
+        ]
+      },
+      "tags": [
+        "validation",
+        "event-shape",
+        "value",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-012-locally-defined-values",
+      "description": "Kinds with locally specified vocabularies use their exact canonical payloads",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.hex",
+            "kind": "HexLiteral",
+            "value": "CAFE"
+          },
+          {
+            "path": "$.toggle",
+            "kind": "ToggleLiteral",
+            "value": "enabled"
+          },
+          {
+            "path": "$.nan",
+            "kind": "NaNLiteral",
+            "value": "nan"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_VALUE",
+          "AES_INVALID_VALUE",
+          "AES_INVALID_VALUE"
+        ]
+      },
+      "tags": [
+        "validation",
+        "event-shape",
+        "canonical-value",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-013-reference-target-shape",
+      "description": "Clone and pointer payloads contain canonical absolute target paths",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.copy",
+            "kind": "CloneReference",
+            "value": "relative.path"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_REFERENCE"
+        ]
+      },
+      "tags": [
+        "validation",
+        "event-shape",
+        "reference",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-014-span-shape",
+      "description": "A source span is an ordered pair of canonical byte offsets",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "value": "1",
+            "origin": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "span": "4:2"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_SPAN"
+        ]
+      },
+      "tags": [
+        "validation",
+        "event-shape",
+        "span",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-015-unregistered-extension",
+      "description": "An extension field is rejected unless the selected validation context registers it exactly",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "value": "1",
+            "x.example.claim": "yes"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_UNKNOWN_FIELD"
+        ]
+      },
+      "tags": [
+        "validation",
+        "extension",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-016-registered-extension",
+      "description": "Exact extension registration enables only the named field",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "value": "1",
+            "x.example.claim": "yes"
+          }
+        ],
+        "profile": "aes.partial.v1",
+        "registered_fields": [
+          "x.example.claim"
+        ]
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "extension"
+      ]
+    },
+    {
+      "id": "aes-events-017-unsupported-profile",
+      "description": "Syntax readers preserve unknown profiles but semantic validation fails closed",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "value": "1"
+          }
+        ],
+        "profile": "x.example.future.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "x.example.future.v1",
+        "diagnostic_codes": [
+          "AES_UNSUPPORTED_PROFILE"
+        ]
+      },
+      "tags": [
+        "validation",
+        "profile",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-018-unknown-kind",
+      "description": "Partial streams still require a known portable AES value kind",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "future-kind",
+            "value": "1"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_UNKNOWN_KIND"
+        ]
+      },
+      "tags": [
+        "validation",
+        "event-shape",
+        "kind",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-019-quoted-attribute-path",
+      "description": "Quoted members and attribute owners participate in the same complete path structure",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "ObjectNode"
+          },
+          {
+            "path": "$.a.@.[\"x.y\"]",
+            "kind": "ObjectNode"
+          },
+          {
+            "path": "$.a.@.[\"x.y\"].[\"deep key\"]",
+            "kind": "StringLiteral",
+            "value": "yes"
+          }
+        ]
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "attributes",
+        "quoted-member"
+      ]
+    },
+    {
+      "id": "aes-events-020-unnecessarily-quoted-member",
+      "description": "A member that is legal in bare form must use that canonical form",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.[\"a\"]",
+            "kind": "NumberLiteral",
+            "value": "1"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_PATH"
+        ]
+      },
+      "tags": [
+        "validation",
+        "path",
+        "quoted-member",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-021-explicit-header-plane",
+      "description": "The AEON document projection carries a complete flat header plane before a complete body",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "header": "$.[\"aeon:conventions\"]",
+            "kind": "ListNode"
+          },
+          {
+            "header": "$.[\"aeon:conventions\"][0]",
+            "kind": "StringLiteral",
+            "value": "aeon.gp.security.v1"
+          },
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "value": "1"
+          }
+        ],
+        "projection": "aeon.document.v1"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "projection",
+        "header",
+        "complete"
+      ]
+    },
+    {
+      "id": "aes-events-022-header-requires-projection",
+      "description": "Header records are not part of the default body projection",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "header": "$.[\"aeon:mode\"]",
+            "kind": "StringLiteral",
+            "value": "strict"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_HEADER_REQUIRES_PROJECTION"
+        ]
+      },
+      "tags": [
+        "validation",
+        "projection",
+        "header",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-023-header-precedes-body",
+      "description": "An included header record cannot appear after a body event",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "value": "1"
+          },
+          {
+            "header": "$.[\"aeon:mode\"]",
+            "kind": "StringLiteral",
+            "value": "strict"
+          }
+        ],
+        "projection": "aeon.document.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_HEADER_ORDER"
+        ]
+      },
+      "tags": [
+        "validation",
+        "projection",
+        "header",
+        "ordering",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-024-mutually-exclusive-addresses",
+      "description": "A record cannot be both a header record and a body event",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "header": "$.[\"aeon:mode\"]",
+            "path": "$.a",
+            "kind": "StringLiteral",
+            "value": "strict"
+          }
+        ],
+        "projection": "aeon.document.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_MULTIPLE_ADDRESSES"
+        ]
+      },
+      "tags": [
+        "validation",
+        "projection",
+        "address",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-025-header-completeness-independent",
+      "description": "The document projection requires complete header ancestry even when body ancestry is partial",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "header": "$.[\"aeon:conventions\"][0]",
+            "kind": "StringLiteral",
+            "value": "aeon.gp.security.v1"
+          },
+          {
+            "path": "$.a.b",
+            "kind": "NumberLiteral",
+            "value": "1"
+          }
+        ],
+        "profile": "aes.partial.v1",
+        "projection": "aeon.document.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_MISSING_PARENT"
+        ]
+      },
+      "tags": [
+        "validation",
+        "projection",
+        "header",
+        "partial",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-026-span-requires-origin",
+      "description": "A byte span without immutable source identity is not portable",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "value": "1",
+            "span": "0:1"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_SPAN_REQUIRES_ORIGIN"
+        ]
+      },
+      "tags": [
+        "validation",
+        "provenance",
+        "span",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-027-origin-without-span",
+      "description": "A record may identify its exact source even when no exact byte range is known",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "value": "1",
+            "origin": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "provenance",
+        "origin"
+      ]
+    },
+    {
+      "id": "aes-events-028-origin-canonical-form",
+      "description": "AES v1 origins require an exact lowercase SHA-256 digest payload",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.short",
+            "kind": "NumberLiteral",
+            "value": "1",
+            "origin": "sha256:abc"
+          },
+          {
+            "path": "$.upper",
+            "kind": "NumberLiteral",
+            "value": "2",
+            "origin": "sha256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_ORIGIN",
+          "AES_INVALID_ORIGIN"
+        ]
+      },
+      "tags": [
+        "validation",
+        "provenance",
+        "origin",
+        "canonical",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-029-node-path-and-reference-domain",
+      "description": "Expanded node heads, independently identified occurrences, and reference payloads share the portable AES event-path domain",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NodeLiteral",
+            "identity": "binding-a"
+          },
+          {
+            "path": "$.a.@.x",
+            "kind": "StringLiteral",
+            "identity": "binding-attribute",
+            "value": "outer"
+          },
+          {
+            "path": "$.a[0]",
+            "kind": "NodeHead",
+            "identity": "head-a",
+            "value": "tag"
+          },
+          {
+            "path": "$.a[0].@.x",
+            "kind": "StringLiteral",
+            "identity": "head-attribute",
+            "value": "head"
+          },
+          {
+            "path": "$.a[0][0]",
+            "kind": "NodeLiteral",
+            "identity": "child-a"
+          },
+          {
+            "path": "$.a[0][0][0]",
+            "kind": "NodeHead",
+            "identity": "child-head",
+            "value": "inner"
+          },
+          {
+            "path": "$.a[0][0][0][0]",
+            "kind": "StringLiteral",
+            "identity": "leaf",
+            "value": "value"
+          },
+          {
+            "path": "$.clone",
+            "kind": "CloneReference",
+            "value": "$.a[0][0]"
+          },
+          {
+            "path": "$.pointer",
+            "kind": "PointerReference",
+            "value": "$.a[0][0][0][0]"
+          }
+        ]
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "node",
+        "node-head",
+        "identity",
+        "reference",
+        "path"
+      ]
+    },
+    {
+      "id": "aes-events-030-wtc-anchor-reference-matrix",
+      "description": "WTC preserves civil, explicit-offset, and UTC anchors independently across local, named, and geographic references",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.civilLocal",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2025-01-01T09:30&local"
+          },
+          {
+            "path": "$.offsetLocal",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2025-01-01T09:30+02:00&local"
+          },
+          {
+            "path": "$.utcLocal",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2025-01-01T07:30Z&local"
+          },
+          {
+            "path": "$.civilNamed",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2025-01-01T09:30&Australia/Melbourne"
+          },
+          {
+            "path": "$.offsetNamed",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2025-01-01T09:30+11:00&Australia/Melbourne"
+          },
+          {
+            "path": "$.utcNamed",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2024-12-31T22:30Z&Australia/Melbourne"
+          },
+          {
+            "path": "$.civilGeo",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2035-01-01T09:00&-36.7590183/144.2826718"
+          },
+          {
+            "path": "$.offsetGeo",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2035-01-01T09:00+11:00&-36.7590183/144.2826718/213"
+          },
+          {
+            "path": "$.utcGeo",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2034-12-31T22:00Z&-36.7590183/144.2826718/213"
+          }
+        ]
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "wtc",
+        "temporal",
+        "anchors",
+        "local",
+        "named",
+        "geographic"
+      ]
+    },
+    {
+      "id": "aes-events-031-wtc-local-is-lowercase",
+      "description": "The reserved WTC local reference rejects non-canonical case variants",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.meeting",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2025-01-01T09:30Z&Local"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_VALUE"
+        ]
+      },
+      "tags": [
+        "validation",
+        "wtc",
+        "local",
+        "case",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-032-no-document-conflict-authority",
+      "description": "The standard AES event contract has no document-supplied conflict-authority field",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.meeting",
+            "kind": "WTCDateTimeLiteral",
+            "datatype": "wtc",
+            "generics": [],
+            "clarifiers": [],
+            "value": "2035-01-01T09:00+10:00&Australia/Melbourne",
+            "conflict-authority": "reference"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_UNKNOWN_FIELD"
+        ]
+      },
+      "tags": [
+        "validation",
+        "wtc",
+        "authority",
+        "unknown-field",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-033-complete-reference-target-required",
+      "description": "A complete stream rejects a syntactically valid reference to an absent body event",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.alias",
+            "kind": "PointerReference",
+            "value": "$.missing"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_MISSING_REFERENCE_TARGET"
+        ]
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "reference",
+        "target",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-034-partial-reference-target-may-be-absent",
+      "description": "A partial stream validates reference syntax without requiring the target event",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.alias",
+            "kind": "PointerReference",
+            "value": "$.missing"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "partial",
+        "reference",
+        "target"
+      ]
+    },
+    {
+      "id": "aes-events-035-zero-width-span",
+      "description": "A portable source span must select at least one source byte",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "StringLiteral",
+            "value": "",
+            "origin": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "span": "10:10"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_SPAN"
+        ]
+      },
+      "tags": [
+        "validation",
+        "provenance",
+        "span",
+        "empty",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-036-complete-forward-reference",
+      "description": "Complete-stream target existence does not require target-before-reference order",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.alias",
+            "kind": "CloneReference",
+            "value": "$.source"
+          },
+          {
+            "path": "$.source",
+            "kind": "NumberLiteral",
+            "value": "1"
+          }
+        ]
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "validation",
+        "complete",
+        "reference",
+        "forward"
+      ]
+    },
+    {
+      "id": "aes-events-037-reference-root-is-not-event",
+      "description": "The unrepresented document root is not a canonical reference target event",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.alias",
+            "kind": "CloneReference",
+            "value": "$"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_REFERENCE"
+        ]
+      },
+      "tags": [
+        "validation",
+        "partial",
+        "reference",
+        "root",
+        "failure"
+      ]
+    },
+    {
+      "id": "aes-events-038-node-value-presence",
+      "description": "A node is value-less while a recognized node-head requires its tag payload",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.legacy",
+            "kind": "NodeLiteral",
+            "value": "tag"
+          },
+          {
+            "path": "$.head",
+            "kind": "NodeHead"
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_UNEXPECTED_VALUE",
+          "AES_MISSING_VALUE"
+        ]
+      },
+      "tags": [
+        "validation",
+        "partial",
+        "node",
+        "node-head",
+        "value",
+        "failure"
+      ]
+    }
+  ]
+}

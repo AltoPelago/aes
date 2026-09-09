@@ -6,6 +6,16 @@ The repository-local v1 vectors are rooted at:
 telex/v1/telex-cts.v1.json
 ```
 
+The transport-neutral AES event candidate is rooted separately at:
+
+```text
+aes/v1/aes-events-cts.v1.json
+```
+
+It keeps portable records independent of Telex framing. Both local manifests
+are mutable `-dev` targets; neither may be cited as an immutable external
+snapshot.
+
 JSON is only the language-neutral manifest envelope. Each `input.telex` value
 contains the actual Telex representation under test. The manifest and each
 suite bind those vectors to portable contract `aes.events.v1`; `format_version`
@@ -103,6 +113,21 @@ Both manifests live in `aeonite-cts`, pin a SHA-256 digest for every suite, and
 pass independently in the JavaScript and Rust implementations. Later candidate
 changes stay here or enter a newer shared snapshot; the published identifiers
 and their suite bytes are not changed.
+
+The repository declares its released-snapshot coverage in
+[`cts-claims.json`](cts-claims.json). Validate those claims against an
+`aeonite-cts` checkout with:
+
+```bash
+AEONITE_CTS_ROOT=/path/to/aeonite-cts/cts npm run validate:cts-claims
+npm run test:conformance:shared
+npm run test:conformance:rust:shared
+```
+
+Without `AEONITE_CTS_ROOT`, these commands look for the standard Aeonite family
+sibling layout. The default `npm test` and `npm run test:rust` commands use only
+the mutable vectors in this repository, so a standalone clone remains
+independently testable.
 
 The Telex vectors test portable record and event-profile behavior. They do not
 assert byte-for-byte reconstruction of an originating AEON document; exact

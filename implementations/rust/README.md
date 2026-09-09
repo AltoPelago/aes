@@ -1,6 +1,6 @@
 # Rust Telex reference implementation
 
-This crate independently implements the v1 `telex.aes` candidate's parsing,
+This crate independently implements the published v1 `telex.aes` parsing,
 canonicalization, and AES profile validation.
 
 Its decoded records expose a base-name `datatype`, recursive ordered
@@ -51,4 +51,4 @@ cargo run --release --example bench_telex --manifest-path implementations/rust/C
 
 The Rust and JavaScript implementations intentionally do not call each other or
 share codec source. Their common authorities are the transport-neutral portable
-AES event contract, the Telex encoding draft, and the shared vectors.
+AES event contract, the published Telex encoding, and the shared vectors.

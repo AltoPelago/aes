@@ -1,0 +1,44 @@
+{
+  "claim_format": "aeonite.cts-claims.v1",
+  "repository": "AltoPelago/aes",
+  "cts_repository": "aeonite-org/aeonite-cts",
+  "cts_protocol": "cts.protocol.v1",
+  "claim_sets": [
+    {
+      "implementation": "aes-javascript-reference",
+      "implementation_version": "0.0.0",
+      "claims": [
+        {
+          "surface": "aes-events",
+          "snapshot_id": "aes-events-cts-v1-snapshot-0.1",
+          "status": "claimed",
+          "command": "npm run test:conformance:shared"
+        },
+        {
+          "surface": "telex",
+          "snapshot_id": "telex-cts-v1-snapshot-0.1",
+          "status": "claimed",
+          "command": "npm run test:conformance:shared"
+        }
+      ]
+    },
+    {
+      "implementation": "aes-telex-rust-reference",
+      "implementation_version": "0.0.0",
+      "claims": [
+        {
+          "surface": "aes-events",
+          "snapshot_id": "aes-events-cts-v1-snapshot-0.1",
+          "status": "claimed",
+          "command": "npm run test:conformance:rust:shared"
+        },
+        {
+          "surface": "telex",
+          "snapshot_id": "telex-cts-v1-snapshot-0.1",
+          "status": "claimed",
+          "command": "npm run test:conformance:rust:shared"
+        }
+      ]
+    }
+  ]
+}

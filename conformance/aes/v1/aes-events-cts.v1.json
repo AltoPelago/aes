@@ -1,0 +1,17 @@
+{
+  "meta": {
+    "version": "0.1.0-dev",
+    "status": "draft",
+    "lane": "aes-events",
+    "profile": "aes.complete.v1",
+    "event_contract": "aes.events.v1",
+    "sut_protocol": "cts.protocol.v1",
+    "description": "Mutable transport-neutral portable AES v1 event validation candidate"
+  },
+  "suites": [
+    {
+      "id": "event-and-profile-validation",
+      "file": "suites/01-event-and-profile-validation.json"
+    }
+  ]
+}

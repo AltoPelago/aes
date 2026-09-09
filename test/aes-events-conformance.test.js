@@ -7,16 +7,23 @@ import { pathToFileURL } from 'node:url';
 import { validateTelexRecords } from '../src/telex.js';
 
 const manifestUrl = process.env.AES_EVENTS_CTS_MANIFEST === undefined
-  ? new URL('../../../aeonite-org/aeonite-cts/cts/aes/v1/aes-events-cts.v1.snapshot-0.1.json', import.meta.url)
+  ? new URL('../conformance/aes/v1/aes-events-cts.v1.json', import.meta.url)
   : pathToFileURL(resolve(process.env.AES_EVENTS_CTS_MANIFEST));
 const manifest = readJson(manifestUrl);
+const released = manifest.meta.status === 'released';
 
-test('published portable AES event manifest is immutable and internally consistent', () => {
-  assert.equal(manifest.meta.status, 'released');
+test('selected portable AES event vectors are internally consistent', () => {
   assert.equal(manifest.meta.lane, 'aes-events');
+  if (released) {
+    assert.match(manifest.meta.snapshot_id, /^aes-events-cts-v1-snapshot-\d+\.\d+$/u);
+    assert.match(manifest.meta.spec_snapshot_id, /^aes-events-specs-v1-snapshot-\d+\.\d+$/u);
+  } else {
+    assert.equal(manifest.meta.status, 'draft');
+    assert.match(manifest.meta.version, /-dev$/u);
+    assert.equal(Object.hasOwn(manifest.meta, 'snapshot_id'), false);
+    assert.equal(Object.hasOwn(manifest.meta, 'spec_snapshot_id'), false);
+  }
   assert.equal(manifest.meta.event_contract, 'aes.events.v1');
-  assert.match(manifest.meta.snapshot_id, /^aes-events-cts-v1-snapshot-\d+\.\d+$/u);
-  assert.match(manifest.meta.spec_snapshot_id, /^aes-events-specs-v1-snapshot-\d+\.\d+$/u);
   assert.ok(Array.isArray(manifest.suites));
 });
 
@@ -34,7 +41,7 @@ for (const suiteRef of manifest.suites) {
   }
 }
 
-test('published portable AES event snapshot contains 38 vectors', () => {
+test('selected portable AES event set contains 38 vectors', () => {
   assert.equal(vectorCount, 38);
 });
 

@@ -1,0 +1,11 @@
+* @AltoPelago
+
+.github/ @AltoPelago
+scripts/ @AltoPelago
+README.md @AltoPelago
+package.json @AltoPelago
+
+conformance/ @AltoPelago
+specifications/ @AltoPelago
+implementations/rust/Cargo.toml @AltoPelago
+implementations/rust/Cargo.lock @AltoPelago

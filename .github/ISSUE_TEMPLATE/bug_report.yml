@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a reproducible AES event, Telex, CTS, or reference implementation issue.
+title: "[Bug]: "
+labels: []
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is happening, and what did you expect instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Portable AES events
+        - Telex parsing / encoding
+        - Canonical bytes / integrity
+        - Provenance
+        - Transactions
+        - Resource limits
+        - CTS
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Include the smallest record sequence, Telex input, command, or vector that reproduces the issue.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: implementations
+    attributes:
+      label: Implementations affected
+      description: Note whether this affects JavaScript, Rust, or cross-implementation parity.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: What did you run, and what did you observe?
+  - type: markdown
+    attributes:
+      value: "For suspected vulnerabilities, do not file a public issue. Use the process in `SECURITY.md` instead."

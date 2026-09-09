@@ -31,9 +31,9 @@ The publication set now lives under `aeonite-specs/sources/aes/v1/`:
 | Document | Lifecycle | Responsibility |
 | --- | --- | --- |
 | AES v1 index and architecture | draft | family boundaries, document map, versioning, and conformance links |
-| Portable AES Event Contract | draft, normative | `aes.events.v1`, records, paths, kinds, profiles, projections, ordering, provenance, fidelity, and diagnostics |
-| Telex AES | draft, normative | `telex.aes=1` textual framing, escaping, canonical bytes, and syntax diagnostics |
-| Portable AES Compatibility Contract | draft, normative | legacy adapters, explicit source contracts, reader-first rollout, and durable-data rules |
+| Portable AES Event Contract | published, normative | `aes.events.v1`, records, paths, kinds, profiles, projections, ordering, provenance, fidelity, and diagnostics |
+| Telex AES | published, normative | `telex.aes=1` textual framing, escaping, canonical bytes, and syntax diagnostics |
+| Portable AES Compatibility Contract | published, normative | legacy adapters, explicit source contracts, reader-first rollout, and durable-data rules |
 | Aeonic Semantic Language | proposal, mixed | equality, comparison, ordering, conversion, measurement, and later arithmetic over represented values |
 
 Film and Tape should appear in the index as planned surfaces without empty

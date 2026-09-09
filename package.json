@@ -3,16 +3,38 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "AES specifications and experimental Telex syntax codec",
+  "description": "Reference implementations and development material for the Assignment Event Stream and Telex v1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AltoPelago/aes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AltoPelago/aes/issues"
+  },
+  "homepage": "https://github.com/AltoPelago/aes#readme",
+  "keywords": [
+    "aeon",
+    "aes",
+    "assignment-event-stream",
+    "telex"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "node --test",
+    "test:rust": "cargo test --locked --manifest-path implementations/rust/Cargo.toml",
+    "check:rust": "cargo fmt --check --manifest-path implementations/rust/Cargo.toml && cargo clippy --all-targets --all-features --manifest-path implementations/rust/Cargo.toml -- -D warnings",
     "test:integrity": "node --test test/integrity.test.js test/integrity-conformance.test.js",
     "test:provenance": "node --test test/provenance.test.js test/provenance-conformance.test.js",
     "test:transactions": "node --test test/transaction.test.js test/transaction-conformance.test.js",
     "test:conformance": "node --test test/conformance.test.js",
-    "test:conformance:shared": "TELEX_CTS_MANIFEST=../../aeonite-org/aeonite-cts/cts/telex/v1/telex-cts.v1.snapshot-0.1.json node --test test/conformance.test.js test/aes-events-conformance.test.js",
+    "test:conformance:shared": "node ./scripts/run-shared-conformance.mjs javascript",
     "test:conformance:rust": "cargo test --locked --manifest-path implementations/rust/Cargo.toml",
-    "test:conformance:rust:shared": "TELEX_CTS_MANIFEST=../../../../aeonite-org/aeonite-cts/cts/telex/v1/telex-cts.v1.snapshot-0.1.json AES_EVENTS_CTS_MANIFEST=../../../../aeonite-org/aeonite-cts/cts/aes/v1/aes-events-cts.v1.snapshot-0.1.json cargo test --locked --manifest-path implementations/rust/Cargo.toml"
+    "test:conformance:rust:shared": "node ./scripts/run-shared-conformance.mjs rust",
+    "validate:cts-claims": "node ./scripts/validate-cts-claims.mjs",
+    "precommit": "bash ./scripts/pre-commit-check.sh",
+    "public:check": "npm run precommit && npm test && npm run check:rust && npm run test:rust && npm run validate:cts-claims && npm run test:conformance:shared && npm run test:conformance:rust:shared"
   },
   "license": "MIT"
 }

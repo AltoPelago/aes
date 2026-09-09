@@ -32,7 +32,8 @@ telex.aes    film.aes
 
 This repository remains the implementation-adjacent AES workspace. Canonical
 publication sources live under `sources/aes/v1/` in
-[`aeonite-specs`](../../aeonite-org/aeonite-specs/). The AES v1 index, portable
+[`aeonite-specs`](https://github.com/aeonite-org/aeonite-specs/tree/main/sources/aes/v1).
+The AES v1 index, portable
 event contract, compatibility contract, and Telex encoding are published;
 their declared lifecycle and normativity govern v1. The Aeonic Semantic
 Language remains a proposal. The integrity and Assignment Event Transaction
@@ -130,6 +131,22 @@ npm run test:conformance:shared
 npm run test:conformance:rust:shared
 ```
 
+These shared checks require a checkout of
+[`aeonite-cts`](https://github.com/aeonite-org/aeonite-cts). Set
+`AEONITE_CTS_ROOT` to its `cts/` directory; the standard Aeonite family sibling
+layout is also detected automatically.
+
+Run the complete public-repository preflight with:
+
+```bash
+npm run public:check
+```
+
+The repository-root npm manifest and the Rust crate are reference tooling and
+remain explicitly non-publishable. The public npm implementation package,
+`@altopelago/aeon-aes`, is released from the
+[`AltoPelago/aeon`](https://github.com/AltoPelago/aeon) workspace.
+
 ## Boundaries
 
 AES is the event model. Telex and Film are encodings of that model.
@@ -157,8 +174,8 @@ ambiguity.
 
 ## Roadmap
 
-1. Continue compatibility readers and adapters across the existing producers
-   and consumers.
+1. Maintain compatibility readers, adapters, and cross-implementation
+   conformance parity across existing producers and consumers.
 2. Prototype and resolve the decision gates in the
    [Film v1 binary encoding proposal](proposals/film.aes.md).
 3. Consolidate the later Film and Tape specifications here.
@@ -169,3 +186,13 @@ ambiguity.
 One semantic contract should have one owner. Implementations may keep ergonomic
 or derived fields internally, but those fields do not become portable merely
 because they appear in a JSON debug response.
+
+## Project policy
+
+- [Authority](AUTHORITY.md)
+- [Contributing](CONTRIBUTING.md)
+- [Governance](GOVERNANCE.md)
+- [Security](SECURITY.md)
+- [Versioning](VERSIONING.md)
+- [Releasing](RELEASING.md)
+- [Changelog](CHANGELOG.md)
