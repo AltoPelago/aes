@@ -7,16 +7,16 @@ import {
   validateTelexRecords,
 } from './telex.js';
 
-export const AES_INTEGRITY_CONTRACT = 'aes.integrity.v0';
-export const AES_EVENT_CONTRACT = 'aes.events.v0';
-export const AES_CANONICAL_SEMANTIC_ORDER = 'aes.order.canonical-semantic.v0';
-export const AES_EXACT_ORDER = 'aes.order.exact.v0';
-export const AES_BODY_SCOPE = 'aes.scope.body.v0';
-export const AES_DOCUMENT_SCOPE = 'aes.scope.document.v0';
-export const AES_PROVENANCE_EXCLUDED = 'aes.provenance.excluded.v0';
-export const AES_PROVENANCE_INCLUDED = 'aes.provenance.included.v0';
+export const AES_INTEGRITY_CONTRACT = 'aes.integrity.v1';
+export const AES_EVENT_CONTRACT = 'aes.events.v1';
+export const AES_CANONICAL_SEMANTIC_ORDER = 'aes.order.canonical-semantic.v1';
+export const AES_EXACT_ORDER = 'aes.order.exact.v1';
+export const AES_BODY_SCOPE = 'aes.scope.body.v1';
+export const AES_DOCUMENT_SCOPE = 'aes.scope.document.v1';
+export const AES_PROVENANCE_EXCLUDED = 'aes.provenance.excluded.v1';
+export const AES_PROVENANCE_INCLUDED = 'aes.provenance.included.v1';
 export const AES_DIGEST_SHA256 = 'sha256';
-export const AES_SIGNATURE_CONTRACT = 'aes.signature.v0';
+export const AES_SIGNATURE_CONTRACT = 'aes.signature.v1';
 
 const INTEGRITY_DOMAIN = Buffer.from(`${AES_INTEGRITY_CONTRACT}\0`, 'utf8');
 const SIGNATURE_DOMAIN = Buffer.from(`${AES_SIGNATURE_CONTRACT}\0`, 'utf8');
@@ -149,7 +149,7 @@ export function encodeAesSignatureInput({ digest, alg, kid } = {}) {
   return { context, bytes: Buffer.concat([SIGNATURE_DOMAIN, encodeLogicalValue(context)]) };
 }
 
-/** Encode the small null/string/list/map value domain owned by aes.integrity.v0. */
+/** Encode the small null/string/list/map value domain owned by aes.integrity.v1. */
 export function encodeAesIntegrityValue(value) {
   return encodeLogicalValue(value);
 }

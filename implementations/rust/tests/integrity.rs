@@ -13,9 +13,9 @@ use serde_json::{Map, Value};
 #[test]
 fn passes_aes_integrity_candidate_vectors() -> Result<(), Box<dyn Error>> {
     let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../conformance/integrity/v0/aes-integrity-cts.v0.json");
+        .join("../../conformance/integrity/v1/aes-integrity-cts.v1.json");
     let manifest: Value = serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
-    assert_eq!(manifest["meta"]["integrity_contract"], "aes.integrity.v0");
+    assert_eq!(manifest["meta"]["integrity_contract"], "aes.integrity.v1");
     let suites = manifest["suites"].as_array().ok_or("missing suites")?;
     let mut count = 0_usize;
     for suite_ref in suites {

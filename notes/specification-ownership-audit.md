@@ -8,7 +8,7 @@ Updated: 2026-09-05
 
 This audit identifies specification material that should move into the new AES
 family, material that should remain with its present language or consumer, and
-published text that must be reconciled with the portable `aes.events.v0`
+published text that must be reconciled with the portable `aes.events.v1`
 contract.
 
 The classification rule is responsibility, not which syntax first exposed a
@@ -26,13 +26,13 @@ concept:
 
 ## First-class AES publication set
 
-The publication set now lives under `aeonite-specs/sources/aes/v0/`:
+The publication set now lives under `aeonite-specs/sources/aes/v1/`:
 
 | Document | Lifecycle | Responsibility |
 | --- | --- | --- |
-| AES v0 index and architecture | draft | family boundaries, document map, versioning, and conformance links |
-| Portable AES Event Contract | draft, normative | `aes.events.v0`, records, paths, kinds, profiles, projections, ordering, provenance, fidelity, and diagnostics |
-| Telex AES | draft, normative | `telex.aes=0` textual framing, escaping, canonical bytes, and syntax diagnostics |
+| AES v1 index and architecture | draft | family boundaries, document map, versioning, and conformance links |
+| Portable AES Event Contract | draft, normative | `aes.events.v1`, records, paths, kinds, profiles, projections, ordering, provenance, fidelity, and diagnostics |
+| Telex AES | draft, normative | `telex.aes=1` textual framing, escaping, canonical bytes, and syntax diagnostics |
 | Portable AES Compatibility Contract | draft, normative | legacy adapters, explicit source contracts, reader-first rollout, and durable-data rules |
 | Aeonic Semantic Language | proposal, mixed | equality, comparison, ordering, conversion, measurement, and later arithmetic over represented values |
 
@@ -96,8 +96,8 @@ authority. The new contract must supersede these outdated claims:
 | AEON Core and value types | literal syntax, aliases, datatype syntax, canonical source payloads, and recognition | map recognized values to normative AES representation kinds; refer semantic operations to the Aeonic Semantic Language |
 | AEON structure syntax | object/list/tuple/node grammar, attributes, structural identity syntax | define AEON-source to AES-event projection; do not redefine the portable record shape |
 | AEON addressing and references | AEON exact-path grammar and source reference legality | retain the bidirectional AEON/AES path translation, including node-head insertion and reference payload translation |
-| AEON headers and conventions | structured/shorthand header source syntax and document policy | refer to body-only default projection and explicit `aeon.document.v0` header plane |
-| AEON processing model | AEON compilation phases and fail-closed production | remove its duplicate event interface and examples; refer to `aes.events.v0` for emitted shape |
+| AEON headers and conventions | structured/shorthand header source syntax and document policy | refer to body-only default projection and explicit `aeon.document.v1` header plane |
+| AEON processing model | AEON compilation phases and fail-closed production | remove its duplicate event interface and examples; refer to `aes.events.v1` for emitted shape |
 | AEON node appendix | node source syntax, child grammar, and AEON-facing single-head rule | replace optional synthetic children with the defined `NodeLiteral`/`NodeHead` projection and current path mapping |
 | AEON spans appendix | source locations and diagnostic targeting | keep producer-side span meaning; refer portable carriage, origin binding, byte units, and audit rules to AES |
 | Integrity envelope | envelope syntax, trust and verification policy | select an explicit AES projection/order/signature scope; correct the claim that AEON headers are body state |
@@ -122,7 +122,7 @@ authority. The new contract must supersede these outdated claims:
    leaves ledger policy to an enclosing protocol or consumer.
 5. `appendix-integrity-envelope.aeon` says convention headers are body state.
    Portable AES excludes headers from the default body projection and includes
-   them only through `aeon.document.v0` and an explicitly broader signature
+   them only through `aeon.document.v1` and an explicitly broader signature
    scope.
 
 ### Medium priority: boundary or terminology drift
@@ -174,7 +174,7 @@ current behavior. Historical snapshot references must remain intact.
    superseded records pointing to their new owners.
 4. Reconcile the high-priority contradictions, then update ordinary references
    and terminology.
-5. Keep the local Telex CTS mutable while Draft 0 evolves.
+5. Keep the local Telex CTS mutable while v1 evolves.
 6. At release, copy the exact reviewed suite and specifications into the shared
    CTS/spec snapshot, record content digests, mint new immutable snapshot IDs,
    and require two independent passing implementations.

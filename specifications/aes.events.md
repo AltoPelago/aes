@@ -1,11 +1,11 @@
-# Portable AES Event Contract v0
+# Portable AES Event Contract v1
 
 Scope: transport-neutral AES event records, paths, profiles, projections,
 ordering, provenance, fidelity, and validation.
 
-Contract identifier: `aes.events.v0`
+Contract identifier: `aes.events.v1`
 
-Profiles: `aes.complete.v0`, `aes.partial.v0`
+Profiles: `aes.complete.v1`, `aes.partial.v1`
 
 This document is transport-neutral. It defines the portable Assignment Event
 Stream model encoded by `telex.aes`, the future `film.aes`, and other AES
@@ -31,7 +31,7 @@ This document owns:
 - AES semantic diagnostic codes.
 
 Encodings own framing, escaping, canonical bytes, and syntax diagnostics.
-[`aes.integrity.v0`](./aes.integrity.md) separately owns deterministic logical
+[`aes.integrity.v1`](./aes.integrity.md) separately owns deterministic logical
 bytes, ordering policies, digests, and signature inputs over this event model.
 Source languages own their grammar and projection into this model. SANSA owns
 canonical address grammar and navigation semantics. The Aeonic Semantic
@@ -39,20 +39,20 @@ Language owns operations over recognized values.
 
 ## 2. Stream model and context
 
-An AES stream is an ordered sequence of records under the `aes.events.v0`
+An AES stream is an ordered sequence of records under the `aes.events.v1`
 contract plus two independent context axes:
 
 - `profile` selects validation and completeness claims;
 - `projection` selects which source surface is represented.
 
-After a carrier has established `aes.events.v0`, omitting the profile selects
-`aes.complete.v0`. A stream that relaxes cross-record completeness must
-explicitly select `aes.partial.v0` or another profile. Omitting the projection
+After a carrier has established `aes.events.v1`, omitting the profile selects
+`aes.complete.v1`. A stream that relaxes cross-record completeness must
+explicitly select `aes.partial.v1` or another profile. Omitting the projection
 selects the ordinary body-only stream.
 
 The defaults do not identify the contract. An untagged legacy JSON record or
 array is not portable AES merely because it resembles this record shape. Every
-encoding, API, or storage surface binds its records to `aes.events.v0` before
+encoding, API, or storage surface binds its records to `aes.events.v1` before
 interpreting them; legacy conversion follows the separate
 [`aes.compatibility.md`](./aes.compatibility.md) contract.
 
@@ -146,7 +146,7 @@ decode and construct the combined form from them on encode. Semantic hashes and
 signatures over AES records bind the expanded logical structure, not an
 encoding-specific combined spelling.
 
-AES v0 implementations guard recursive generic descriptors. Generic depth is
+AES v1 implementations guard recursive generic descriptors. Generic depth is
 the number of nested generic arguments that themselves contain generics:
 `list<int>` has depth `0`, `list<list<int>>` has depth `1`, and
 `list<list<list<int>>>` has depth `2`. The consumer selects the active maximum
@@ -226,13 +226,13 @@ AEON's `~` and `~>` sigils are represented by `kind`, not retained in `value`.
 Portable AES preserves a symbolic reference and does not resolve or materialize
 it.
 
-Under `aes.complete.v0`, a syntactically valid target must identify exactly one
+Under `aes.complete.v1`, a syntactically valid target must identify exactly one
 body event in the same stream. Forward references are valid because existence
 is checked across the complete stream rather than against event order. Header
 addresses are not reference targets. AES checks existence only; cycle policy
 and clone or pointer materialization remain downstream concerns.
 
-Under `aes.partial.v0`, the target need only be a canonical event path. It may
+Under `aes.partial.v1`, the target need only be a canonical event path. It may
 be absent because the surrounding transaction, subscription, or ledger state
 can supply the referenced occurrence.
 
@@ -258,7 +258,7 @@ remain lexically distinct even when they identify the same instant.
 
 `conflictAuthority` is trusted consumer resolution policy. It is not a WTC
 payload component, AES core field, or document authority defined by
-`aeon.document.v0`. A source member or attribute with that spelling remains
+`aeon.document.v1`. A source member or attribute with that spelling remains
 ordinary untrusted data. Carrying an extension claim does not grant authority.
 
 ## 5. Flat structure and identity
@@ -270,7 +270,7 @@ optional, omits AEON's surrounding backslash delimiters, and is never invented
 merely to serialize an event.
 
 Identity does not alter event paths, path equality, navigation, selection,
-ordering, or parentage. Under `aes.complete.v0`, non-empty identities are unique
+ordering, or parentage. Under `aes.complete.v1`, non-empty identities are unique
 across the complete document, including ordinary bindings, attribute entries,
 anonymous child heads, and node heads.
 
@@ -414,7 +414,7 @@ The allowed combinations are:
 | present | present | exact source and byte range known |
 | absent | present | invalid |
 
-AES v0 defines one origin form:
+AES v1 defines one origin form:
 
 ```text
 sha256:<64 lowercase hexadecimal digits>
@@ -498,17 +498,17 @@ members and attributes preserve declaration order. List and tuple items, node
 heads, and NodeHead content preserve ascending index order. Paths, datatype
 components, values, and identities are never implicit sort keys.
 
-A signature profile states which sequence it covers. `aes.integrity.v0`
-registers `aes.order.canonical-semantic.v0` for an explicitly order-independent
-canonical projection and `aes.order.exact.v0` for supplied-order evidence. A
+A signature profile states which sequence it covers. `aes.integrity.v1`
+registers `aes.order.canonical-semantic.v1` for an explicitly order-independent
+canonical projection and `aes.order.exact.v1` for supplied-order evidence. A
 ledger signature uses the latter. AES does not infer a signing mode from
 content.
 
 ## 9. Completeness profiles
 
-### 9.1 `aes.complete.v0`
+### 9.1 `aes.complete.v1`
 
-`aes.complete.v0` is the default. It claims a self-contained stream that a
+`aes.complete.v1` is the default. It claims a self-contained stream that a
 consumer can navigate without external state.
 
 The completeness claim does not select or alter processor resource limits.
@@ -529,12 +529,12 @@ a `NodeLiteral` is a `NodeHead`, and a `NodeHead` cannot be an ordinary list or
 tuple item.
 
 An AEON canonical document projection satisfies this profile.
-`aeon.gp.profile.v1` declares `aes.complete.v0` explicitly even though omission
+`aeon.gp.profile.v1` declares `aes.complete.v1` explicitly even though omission
 selects the same default.
 
-### 9.2 `aes.partial.v0`
+### 9.2 `aes.partial.v1`
 
-`aes.partial.v0` retains event-local validity but relaxes body cross-record
+`aes.partial.v1` retains event-local validity but relaxes body cross-record
 constraints. Records still require canonical addresses, known kinds,
 kind-correct value presence, valid core fields, and other locally decidable
 rules.
@@ -553,7 +553,7 @@ plus a supplied segment. They must be selected explicitly.
 Default AEON-to-AES projection is body-only. Parsed `aeon:header` and shorthand
 `aeon:*` declarations are not injected into the body stream.
 
-`aeon.document.v0` explicitly adds a flat header control plane. Header records
+`aeon.document.v1` explicitly adds a flat header control plane. Header records
 use `header` instead of `path`; their canonical address begins with one
 non-empty quoted `aeon:` member:
 
@@ -624,7 +624,7 @@ active profile defines it.
 
 Body-only projection can be semantically lossless for the body without claiming
 to preserve the complete AEON document. Header semantics require
-`aeon.document.v0` in the equivalence boundary.
+`aeon.document.v1` in the equivalence boundary.
 
 For an AEON-representable stream, reconstructed canonical AEON is a valid
 semantic round trip when projecting it again yields an equivalent AES stream
@@ -655,7 +655,7 @@ syntax:
    container compatibility, identity uniqueness, and profile rules.
 
 Canonical payload grammars owned by SANSA, AEON Core, the Aeonic type contract,
-or the Aeonic Semantic Language remain separate validation points. AES v0
+or the Aeonic Semantic Language remain separate validation points. AES v1
 reference validators locally enforce only the payload rules defined here,
 including exact lowercase WTC `local`.
 
@@ -675,8 +675,8 @@ an intervening member or index enters a nested value and starts a new attribute
 address space. List and tuple item counts are the number of represented direct
 indexed children owned by the corresponding container record.
 
-For `aes.complete.v0`, those aggregate counts are exact because all ancestry
-and children are present. For `aes.partial.v0`, they are lower bounds over the
+For `aes.complete.v1`, those aggregate counts are exact because all ancestry
+and children are present. For `aes.partial.v1`, they are lower bounds over the
 admitted records: an observed value above the selected limit rejects the
 stream, while an observed value at or below the limit makes no claim about
 omitted ancestry or children. The consumer that completes or applies a partial
@@ -699,7 +699,7 @@ Portable local diagnostics use these stable codes; prose is not normative:
 | `AES_UNKNOWN_FIELD` | field is neither core nor registered |
 | `AES_INVALID_PATH` | body address is not canonical |
 | `AES_INVALID_HEADER_PATH` | header address is malformed or lacks its leading quoted `aeon:` member |
-| `AES_HEADER_REQUIRES_PROJECTION` | `header` occurs without `aeon.document.v0` |
+| `AES_HEADER_REQUIRES_PROJECTION` | `header` occurs without `aeon.document.v1` |
 | `AES_HEADER_ORDER` | header record occurs after a body record |
 | `AES_UNKNOWN_KIND` | value kind is not portable |
 | `AES_MISSING_VALUE` | a valued kind lacks `value` |
@@ -713,7 +713,7 @@ Portable local diagnostics use these stable codes; prose is not normative:
 | `AES_DATATYPE_DEPTH` | logical datatype structure exceeds the active generic-depth limit |
 | `AES_DATATYPE_LIMIT` | a logical datatype argument-count, clarifier-count, or component-count limit is exceeded |
 | `AES_LIMIT_EXCEEDED` | a caller-selected portable event-model resource limit is exceeded |
-| `AES_INVALID_ORIGIN` | origin is not a canonical AES v0 source digest |
+| `AES_INVALID_ORIGIN` | origin is not a canonical AES v1 source digest |
 | `AES_SPAN_REQUIRES_ORIGIN` | span occurs without origin |
 | `AES_INVALID_SPAN` | span syntax or ordering is invalid |
 | `AES_DUPLICATE_PATH` | complete plane repeats an address |

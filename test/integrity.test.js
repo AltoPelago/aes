@@ -60,7 +60,7 @@ test('canonical-semantic order rejects duplicate partial-stream addresses', () =
     () => encodeAesIntegrity([
       { path: '$.a', kind: 'NumberLiteral', value: '1' },
       { path: '$.a', kind: 'NumberLiteral', value: '2' },
-    ], { ...semanticCanonical, profile: 'aes.partial.v0' }),
+    ], { ...semanticCanonical, profile: 'aes.partial.v1' }),
     { code: 'AES_INTEGRITY_AMBIGUOUS_CANONICAL_ORDER' },
   );
 });
@@ -69,7 +69,7 @@ test('exact order retains duplicate partial-stream occurrences', () => {
   const result = encodeAesIntegrity([
     { path: '$.a', kind: 'NumberLiteral', value: '1' },
     { path: '$.a', kind: 'NumberLiteral', value: '2' },
-  ], { ...semanticCanonical, profile: 'aes.partial.v0', ordering: AES_EXACT_ORDER });
+  ], { ...semanticCanonical, profile: 'aes.partial.v1', ordering: AES_EXACT_ORDER });
   assert.deepEqual(result.input.records.map(({ value }) => value), ['1', '2']);
 });
 
@@ -94,11 +94,11 @@ test('body and document scope remain distinct and document scope requires its pr
   ];
   const body = computeAesIntegrityDigest(records, {
     ...semanticCanonical,
-    projection: 'aeon.document.v0',
+    projection: 'aeon.document.v1',
   });
   const document = computeAesIntegrityDigest(records, {
     ...semanticCanonical,
-    projection: 'aeon.document.v0',
+    projection: 'aeon.document.v1',
     scope: AES_DOCUMENT_SCOPE,
   });
   assert.equal(body.input.records.length, 1);
@@ -139,7 +139,7 @@ test('signature input binds digest, algorithm, and key identity', () => {
   const first = encodeAesSignatureInput({ digest, alg: 'ed25519', kid: 'alice' });
   const second = encodeAesSignatureInput({ digest, alg: 'ed25519', kid: 'bob' });
   assert.notDeepEqual(first.bytes, second.bytes);
-  assert.match(first.bytes.toString('hex'), /^6165732e7369676e61747572652e763000/u);
+  assert.match(first.bytes.toString('hex'), /^6165732e7369676e61747572652e763100/u);
 });
 
 test('digest verification rejects non-canonical text and compares canonical bytes', () => {

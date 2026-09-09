@@ -34,17 +34,17 @@ surfaces until these gates are complete.
 - [x] Define the bidirectional mapping between AEON source paths and portable
   AES event paths, including reference target payloads.
 - [x] Exclude AEON headers from the default body event stream and carry them
-  only through the explicit, encoding-neutral `aeon.document.v0` projection,
+  only through the explicit, encoding-neutral `aeon.document.v1` projection,
   using flat `header` records in a disjoint control-plane address space.
-- [x] Make `origin` and `span` optional record-local provenance. Draft 0 uses
+- [x] Make `origin` and `span` optional record-local provenance. v1 uses
   `origin=sha256:<64 lowercase hex>` over exact source bytes, and rejects a
   `span` that has no `origin`.
-- [x] Identify the portable event model as `aes.events.v0`; use the independent,
-  encoding-neutral `aes.complete.v0` and `aes.partial.v0` completeness profiles;
-  and keep `telex.aes=0` as the wire-format version that maps to the contract.
+- [x] Identify the portable event model as `aes.events.v1`; use the independent,
+  encoding-neutral `aes.complete.v1` and `aes.partial.v1` completeness profiles;
+  and keep `telex.aes=1` as the wire-format version that maps to the contract.
 - [x] Land shared CTS coverage for the agreed contract before implementations
-  claim support. `aes-events-cts-v0-snapshot-0.1` freezes 38 transport-neutral
-  validation vectors and `telex-cts-v0-snapshot-0.1` freezes 50 encoding and
+  claim support. `aes-events-cts-v1-snapshot-0.1` freezes 38 transport-neutral
+  validation vectors and `telex-cts-v1-snapshot-0.1` freezes 50 encoding and
   format-limit vectors, each with per-suite SHA-256 digests. JavaScript and
   Rust pass both published targets independently; the AEON-to-AES projection
   candidate passes 82/82 in TypeScript, Rust, Python, and PHP, including the
@@ -185,7 +185,7 @@ while the wider consumer audit remains open.
 - [x] Implement structure-aware source-path/event-path translation in all four
   language adapters, including reverse-projection rejection for direct
   synthetic node-head reference targets. The experimental
-  `aes-path-translation-cts-v0-snapshot-0.1` target passes 3/3 in TypeScript,
+  `aes-path-translation-cts-v1-snapshot-0.1` target passes 3/3 in TypeScript,
   Rust, Python, and PHP. It covers recursive head-index insertion,
   clone/pointer retargeting, reverse materialization of node-content references,
   and proof that `$.a[0]` remains the synthetic head rather than the legacy
@@ -294,8 +294,8 @@ while the wider consumer audit remains open.
   propagate container generic arguments onto descendants.
 - [x] Use separate `CloneReference` and `PointerReference` kinds with one
   canonical target-path payload shape.
-- [x] Under `aes.complete.v0`, require each reference target to exist exactly
-  once in the body plane; under `aes.partial.v0`, validate target syntax without
+- [x] Under `aes.complete.v1`, require each reference target to exist exactly
+  once in the body plane; under `aes.partial.v1`, validate target syntax without
   requiring local presence. Reference cycles remain a downstream concern.
 - [x] Normalize trimtick content before AES and transport it as
   `kind=StringLiteral`;
@@ -391,7 +391,7 @@ while the wider consumer audit remains open.
   serialize a record set that exceeds the selected limits merely because the
   caller skipped an explicit validation call.
 - [x] Add shared at-limit and one-over-limit vectors for every currently
-  published counter. The mutable Telex v0 candidate now contains 100 vectors,
+  published counter. The mutable Telex v1 candidate now contains 100 vectors,
   including all six direct-AES structural pairs, while the immutable released
   snapshot remains unchanged. The Core-next, finalization, and transport suites
   cover the other v1 counters; future Film-specific counters remain future work.
@@ -409,7 +409,7 @@ while the wider consumer audit remains open.
 - [x] Keep both fields optional: omit both without source evidence, permit
   `origin` alone when the source is known but the location is not, and require
   `origin` whenever `span` is present.
-- [x] Use a record-local `sha256:<64 lowercase hex>` origin in Draft 0 so a
+- [x] Use a record-local `sha256:<64 lowercase hex>` origin in v1 so a
   stream can combine multiple sources without a source table. Film may compress
   repeated origins without changing the AES model.
 
@@ -499,7 +499,7 @@ while the wider consumer audit remains open.
   synthesize public `aeon:*` events; Rust and Python keep parsed header metadata
   separately and omit it from their public body-event results.
 - [x] Use body-only AEON-to-AES projection by default. The explicit
-  `aeon.document.v0` projection adds flat records addressed with
+  `aeon.document.v1` projection adds flat records addressed with
   `header=$.["aeon:..."]`; a record has exactly one of `header` and `path`.
 - [x] Keep `profile` and `projection` independent. Header records precede body
   events, have independent address uniqueness and completeness, and remain
@@ -520,7 +520,7 @@ while the wider consumer audit remains open.
   synthetic `aeon:*` events; Rust and Python retain parsed headers outside the
   event stream; PHP applies the same body-only boundary.
 - [x] TypeScript, Rust, Python, and PHP: provide an explicit
-  `aeon.document.v0` adapter for portable JSON and Telex that projects the
+  `aeon.document.v1` adapter for portable JSON and Telex that projects the
   retained header into complete ordered `header` records before portable body
   events.
   - [x] TypeScript: `compileToTelex()`/`exportTelex()` and CLI
@@ -564,7 +564,7 @@ while the wider consumer audit remains open.
 - [x] Correct the AEON integrity appendix statement that convention headers are
   body state; it must distinguish body semantic coverage from explicit document
   coverage. The canonical source now states that body-only coverage excludes
-  `aeon:header`, while `aeon.document.v0` document coverage includes the
+  `aeon:header`, while `aeon.document.v1` document coverage includes the
   header plane.
 
 ## 2. Repository and component work
@@ -574,10 +574,10 @@ while the wider consumer audit remains open.
 - [x] Audit current specification ownership and identify AES material that must
   move, remain with a source language or consumer, or be reconciled. See
   `notes/specification-ownership-audit.md`.
-- [x] `aeonite-specs`: establish the first-class `aes/v0` family, publish the
+- [x] `aeonite-specs`: establish the first-class `aes/v1` family, publish the
   transport-neutral event, Telex, compatibility, and semantic-language
   documents, and supersede the implementation-shaped AES appendix.
-- [x] `aeonite-website`: add a first-class AES v0 section, family routing,
+- [x] `aeonite-website`: add a first-class AES v1 section, family routing,
   home-page entry, sitemap/LLM discovery, and publication checks.
 - [x] `aeonite-specs`: update AEON node, structural-identity, span, reference,
   datatype, and WTC projection requirements. The canonical AEON v1 sources now
@@ -599,7 +599,7 @@ while the wider consumer audit remains open.
   flatteners, materializers, SDKs, CLIs, and JSON/debug projections for the
   required Telex/AES compatibility surface. Optional output profiles and
   independently releasable Rust packaging remain separated below.
-  - [x] TypeScript: ship the Telex v0 codec through the AES package; add
+  - [x] TypeScript: ship the Telex v1 codec through the AES package; add
     Core event/source export, SDK read/write, AEOS validation, canonicalization,
     and CLI decode/export surfaces while retaining the legacy in-memory APIs.
     The published AES Events and Telex snapshot suites pass 38/38 and 50/50.
@@ -756,7 +756,7 @@ recorded below.
 - [x] Complete named legacy-to-portable adapters and conversion reports for
   every supported implementation-specific source contract. TypeScript, Rust,
   Python, PHP, and ASP now expose implementation-owned v0 source identifiers,
-  named adapters, strict `aes.complete.v0` results, and reports that separate
+  named adapters, strict `aes.complete.v1` results, and reports that separate
   semantic, record, and provenance fidelity. Local spans without an immutable
   origin are omitted and reported; existing same-process projection helpers
   remain available but do not identify an interchange contract.
@@ -776,12 +776,12 @@ recorded below.
   [AES integrity, relay, and durable-codec audit](aes-integrity-relay-codec-audit.md).
 - [x] Define and implement a versioned, encoding-neutral portable AES
   logical-byte and integrity contract. Semantic hashes/signatures must bind
-  `aes.events.v0`, the effective profile/projection, the selected ordering
+  `aes.events.v1`, the effective profile/projection, the selected ordering
   policy, and expanded datatype structure rather than a Telex descriptor or
-  canonical Telex bytes. `aes.integrity.v0` now defines the closed structural
+  canonical Telex bytes. `aes.integrity.v1` now defines the closed structural
   mapping, SHA-256 evidence, body/document and provenance coverage,
-  `aes.order.canonical-semantic.v0`, `aes.order.exact.v0`, and the
-  domain-separated `aes.signature.v0` input. Fourteen shared candidate vectors
+  `aes.order.canonical-semantic.v1`, `aes.order.exact.v1`, and the
+  domain-separated `aes.signature.v1` input. Fourteen shared candidate vectors
   pass in independent JavaScript and Rust implementations. This is deliberately
   not supplied by the legacy AEON envelope hash, ASP fingerprints, or tool-local
   ledger/patch protocols.
@@ -803,9 +803,9 @@ recorded below.
   effective limits, authorization context, and integrity policy. This closes
   an existing AET/SO boundary requirement; it does not make a bare Telex stream
   actionable and does not add another mutation family. The normative-draft
-  `aes.transaction.v0` body, `aes.transaction.envelope.v0` logical carrier,
-  `aes.transaction.integrity.v0` digest, and registered
-  `aes.application.asp.scalar-replacement.v0` contract now have 14 shared
+  `aes.transaction.v1` body, `aes.transaction.envelope.v1` logical carrier,
+  `aes.transaction.integrity.v1` digest, and registered
+  `aes.application.asp.scalar-replacement.v1` contract now have 14 shared
   candidate vectors passing in JavaScript and Rust. The ASP library bridge
   lowers only an independently validated, supported, integrity-verified scalar
   AET into the existing closed SO request. Inspection still returns
@@ -813,7 +813,7 @@ recorded below.
   absent.
 - [x] Complete origin/span operation semantics against an exact retained source
   artifact when a selected application claims source-backed provenance.
-  `aes.preparation.source-backed.v0` now gates transaction readiness on origin
+  `aes.preparation.source-backed.v1` now gates transaction readiness on origin
   coverage for every payload record and a valid, complete exact-byte audit.
   The resolver is trusted context rather than transaction data; missing bytes
   fail the claimed preparation, while ordinary local event validation still
@@ -839,7 +839,7 @@ recorded below.
   subtree-move application or change ASP v0 storage.
 - [x] Define separate canonical-semantic and exact-order AES signature policies,
   including deterministic logical bytes and version/profile/order binding.
-  `aes.integrity.v0` owns event-stream evidence and `aes.signature.v0` binds its
+  `aes.integrity.v1` owns event-stream evidence and `aes.signature.v1` binds its
   digest, signature algorithm, and key identity. The separate AET contract now
   defines transaction integrity and signature input; neither contract makes a
   bare stream actionable.
@@ -892,7 +892,7 @@ recorded below.
 
 ##### Deliberately out of scope
 
-- [x] A bare `telex.aes=0` stream is never mutation authority. Telex import and
+- [x] A bare `telex.aes=1` stream is never mutation authority. Telex import and
   export remain non-actionable; trusted host policy and a versioned application
   envelope select an operation.
 - [x] Structural identity does not become path identity, and transported
@@ -932,7 +932,7 @@ recorded below.
       non-actionable, names no application contract, and produces no ASP
       operation or transaction.
     - [x] First named ASP application candidate: the closed
-      `aes.application.asp.scalar-replacement.v0` request admits only
+      `aes.application.asp.scalar-replacement.v1` request admits only
       value replacement of one existing scalar occurrence. Direct targets map
       to their native ASP operation; contained tuple items, node children,
       node-head attributes, and nested binding attributes rebuild exactly one
@@ -970,7 +970,7 @@ recorded below.
       target, and identifies one storage owner, but remains non-actionable with
       no application contract, operation, transaction, or receipt.
     - [x] Named reference-retarget application candidate: the closed
-      `aes.application.asp.reference-retarget.v0-candidate` request selects one
+      `aes.application.asp.reference-retarget.v1-candidate` request selects one
       existing clone or pointer occurrence and changes only its target payload.
       It reverse-translates the portable target, validates the complete
       post-retarget event sequence and exact prepared ASP candidate, preserves
@@ -1024,7 +1024,7 @@ recorded below.
       lossless for the admitted slice but has no application, operation,
       transaction, receipt, or SO authority.
     - [x] Named tuple-content replacement application candidate: the closed
-      `aes.application.asp.tuple-content-replacement.v0-candidate` request joins
+      `aes.application.asp.tuple-content-replacement.v1-candidate` request joins
       the one-owner tuple topology preflight with the pure tuple inverse. It
       retains the existing root identity, combined datatype, attributes, and
       order; validates both the complete post-replacement portable event view
@@ -1075,7 +1075,7 @@ recorded below.
       pending richer reconstruction. The result has no application, operation,
       transaction, durable receipt, SO route, or Telex ingress.
     - [x] Named flat material-content replacement application: the closed
-      `aes.application.asp.flat-material-content-replacement.v0-candidate`
+      `aes.application.asp.flat-material-content-replacement.v1-candidate`
       request joins exact multi-owner preflight with the flat inverse. It keeps
       the root binding and its metadata/attributes/provenance/root contracts,
       tombstones every current descendant binding deepest-first, and inserts
@@ -1129,7 +1129,7 @@ recorded below.
       deletion, insertion, transaction, durability, SO, Wire/CLI, bare-event,
       generic AET, or Telex-ingress authority.
     - [x] Named recursive material-content replacement application: the closed
-      `aes.application.asp.recursive-material-content-replacement.v0-candidate`
+      `aes.application.asp.recursive-material-content-replacement.v1-candidate`
       request joins exact multi-owner preflight with the recursive inverse. It
       retains the root binding and root-owned metadata, attributes, provenance,
       and contract; tombstones all current descendant owners deepest-first; and
@@ -1211,20 +1211,20 @@ above.
   writes a new versioned store after backup, replay, index, and restore proof.
 - [x] Implement named, versioned legacy-to-portable adapters and conversion
   reports for every supported implementation-specific source contract.
-  - [x] TypeScript: `aeon.typescript.assignment-events.v0-to-aes.events.v0`
+  - [x] TypeScript: `aeon.typescript.assignment-events.v0-to-aes.events.v1`
     is exported by the AES package and Core facade, preserves source order and
     expanded paths, and returns a report alongside strict portable events.
-  - [x] Rust: `aeon.rust.assignment-events.v0-to-aes.events.v0` is exported by
+  - [x] Rust: `aeon.rust.assignment-events.v0-to-aes.events.v1` is exported by
     `aeon-core` with the same report semantics and explicit document-projection
     option.
-  - [x] Python: `aeon.python.assignment-events.v0-to-aes.events.v0` is exported
+  - [x] Python: `aeon.python.assignment-events.v0-to-aes.events.v1` is exported
     by the package root with the same report semantics and explicit
     document-projection option.
-  - [x] PHP: `aeon.php.assignment-events.v0-to-aes.events.v0` is exposed by
+  - [x] PHP: `aeon.php.assignment-events.v0-to-aes.events.v1` is exposed by
     `PortableEvents::adapt()` with the same logical report fields and explicit
     document-projection option.
-  - [x] ASP: `asp.read-result.v0-to-aes.events.v0` derives a validated,
-    reader-first `aes.complete.v0` body view from immutable ASP v0 history. Its
+  - [x] ASP: `asp.read-result.v0-to-aes.events.v1` derives a validated,
+    reader-first `aes.complete.v1` body view from immutable ASP v0 history. Its
     report accounts for transformations, synthesis, omissions, semantic loss,
     and explicit loss authorization. Cache coordinates bind the trusted
     database/history identity plus exact source revision, target profile and
@@ -1246,8 +1246,8 @@ above.
     the CLI does not offer semantic-loss authorization. Neither surface adds a
     portable transaction or writer route, and the wire method has a conformance
     fixture.
-  - [x] ASP Telex export: derive canonical `telex.aes=0` only from a validated
-    named strict read view, emit `aes.complete.v0` explicitly, and retain the
+  - [x] ASP Telex export: derive canonical `telex.aes=1` only from a validated
+    named strict read view, emit `aes.complete.v1` explicitly, and retain the
     compatibility view beside Telex on the library/Wire surfaces. `aspcli`
     supports raw current or historical Telex export. No surface accepts Telex
     as an actionable transaction or exposes semantic-loss authorization; Wire
@@ -1270,7 +1270,7 @@ above.
   reconstruction requires the separately retained artifact identified by
   provenance and is not implied by a semantic event round trip.
 - [x] Define separate signature policies for canonical semantic projections
-  and exact-order streams. `aes.integrity.v0` names both ordering policies and
+  and exact-order streams. `aes.integrity.v1` names both ordering policies and
   rejects duplicate-address canonicalization rather than hiding repeated writes.
 - [x] Ensure hashes and signatures bind the selected portable contract version,
   effective profile/projection, scope, provenance policy, digest identifier,
@@ -1314,12 +1314,12 @@ above.
   conversion losses; revised readers reject unsupported records rather than
   reinterpreting them, including unsupported mutation forms.
 - [x] Compatibility context: portable non-Telex carriers bind records to
-  `aes.events.v0`; the audited untagged Tonics JSON boundary now fails closed
+  `aes.events.v1`; the audited untagged Tonics JSON boundary now fails closed
   or enters through its explicit adapter.
 
 ## 5. Rollout sequence
 
-- [x] Phase 1 — freeze and publish the transport-neutral `aes.events.v0`
+- [x] Phase 1 — freeze and publish the transport-neutral `aes.events.v1`
   contract and its version discriminator.
 - [x] Phase 2 — update `aeonite-specs` and land shared CTS vectors.
 - [x] Commit the reviewed canonical conformance-pointer revision, advance
@@ -1359,6 +1359,6 @@ work, not this ecosystem sweep:
 - Telex carriage of AES profile and projection identifiers, stream headers,
   and codec versioning.
 - Telex syntax-layer handling of unknown and extension fields.
-- JavaScript/Rust Telex codec parity and Draft 0 implementation milestones.
+- JavaScript/Rust Telex codec parity and v1 implementation milestones.
 - Telex fixture promotion except where a fixture becomes a transport-neutral
   AES or shared CTS case.

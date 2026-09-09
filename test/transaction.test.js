@@ -26,10 +26,10 @@ function scalarBody(overrides = {}) {
     id: 'tx-1',
     intent: 'intent-1',
     attempt: 'attempt-1',
-    events: 'aes.events.v0',
-    profile: 'aes.partial.v0',
+    events: 'aes.events.v1',
+    profile: 'aes.partial.v1',
     projection: null,
-    ordering: 'aes.order.exact.v0',
+    ordering: 'aes.order.exact.v1',
     application: { contract: AES_SCALAR_REPLACEMENT_APPLICATION },
     target: { contract: AES_ASP_TARGET, id: 'database-1', boundary: '$' },
     preconditions: [{ contract: AES_ASP_REVISION_PRECONDITION, scope: '$', revision: '7' }],
@@ -133,7 +133,7 @@ test('scalar application rejects widening and assertion drift', () => {
     scalarBody({ records: [{ ...base.records[0], datatype: 'string', generics: [], clarifiers: [] }] }),
     scalarBody({ records: [base.records[0], { path: '$.other', kind: 'StringLiteral', value: 'x' }], assertions: { eventCount: '2', containers: [] } }),
     scalarBody({ assertions: { eventCount: '2', containers: [] } }),
-    scalarBody({ profile: 'aes.complete.v0' }),
+    scalarBody({ profile: 'aes.complete.v1' }),
   ]) {
     const result = validateAesTransactionBody(body);
     assert.equal(result.valid, false);

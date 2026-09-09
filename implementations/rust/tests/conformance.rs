@@ -9,25 +9,25 @@ use aes_telex::{
 use serde_json::{Map, Value, json};
 
 #[test]
-fn passes_selected_v0_telex_vectors() {
+fn passes_selected_v1_telex_vectors() {
     let manifest_path = selected_manifest(
         "TELEX_CTS_MANIFEST",
-        "../../conformance/telex/v0/telex-cts.v0.json",
+        "../../conformance/telex/v1/telex-cts.v1.json",
     );
     let manifest = read_json(&manifest_path);
     let released = manifest["meta"]["status"] == "released";
     if released {
-        assert_eq!(manifest["meta"]["snapshot_id"], "telex-cts-v0-snapshot-0.1");
+        assert_eq!(manifest["meta"]["snapshot_id"], "telex-cts-v1-snapshot-0.1");
         assert_eq!(
             manifest["meta"]["spec_snapshot_id"],
-            "telex-specs-v0-snapshot-0.1"
+            "telex-specs-v1-snapshot-0.1"
         );
     } else {
         assert_eq!(manifest["meta"]["status"], "draft");
         assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
         assert_eq!(manifest["meta"]["spec_snapshot_id"], Value::Null);
     }
-    assert_eq!(manifest["meta"]["event_contract"], "aes.events.v0");
+    assert_eq!(manifest["meta"]["event_contract"], "aes.events.v1");
     let suites = manifest["suites"]
         .as_array()
         .expect("manifest suites must be an array");
@@ -62,7 +62,7 @@ fn passes_selected_v0_telex_vectors() {
     assert_eq!(
         count,
         if released { 50 } else { 100 },
-        "unexpected v0 vector count"
+        "unexpected v1 vector count"
     );
 }
 
@@ -70,15 +70,15 @@ fn passes_selected_v0_telex_vectors() {
 fn passes_published_portable_aes_event_vectors() {
     let manifest_path = selected_manifest(
         "AES_EVENTS_CTS_MANIFEST",
-        "../../../../aeonite-org/aeonite-cts/cts/aes/v0/aes-events-cts.v0.snapshot-0.1.json",
+        "../../../../aeonite-org/aeonite-cts/cts/aes/v1/aes-events-cts.v1.snapshot-0.1.json",
     );
     let manifest = read_json(&manifest_path);
     assert_eq!(manifest["meta"]["status"], "released");
     assert_eq!(manifest["meta"]["lane"], "aes-events");
-    assert_eq!(manifest["meta"]["event_contract"], "aes.events.v0");
+    assert_eq!(manifest["meta"]["event_contract"], "aes.events.v1");
     assert_eq!(
         manifest["meta"]["snapshot_id"],
-        "aes-events-cts-v0-snapshot-0.1"
+        "aes-events-cts-v1-snapshot-0.1"
     );
 
     let mut seen = std::collections::HashSet::new();
@@ -120,7 +120,7 @@ fn run_aes_event_vector(id: &str, vector: &Value) {
         .collect::<Vec<_>>();
     let profile = vector["input"]["profile"]
         .as_str()
-        .unwrap_or("aes.complete.v0");
+        .unwrap_or("aes.complete.v1");
     let projection = vector["input"]["projection"].as_str();
     let registered = vector["input"]["registered_fields"]
         .as_array()

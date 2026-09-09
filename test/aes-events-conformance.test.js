@@ -7,16 +7,16 @@ import { pathToFileURL } from 'node:url';
 import { validateTelexRecords } from '../src/telex.js';
 
 const manifestUrl = process.env.AES_EVENTS_CTS_MANIFEST === undefined
-  ? new URL('../../../aeonite-org/aeonite-cts/cts/aes/v0/aes-events-cts.v0.snapshot-0.1.json', import.meta.url)
+  ? new URL('../../../aeonite-org/aeonite-cts/cts/aes/v1/aes-events-cts.v1.snapshot-0.1.json', import.meta.url)
   : pathToFileURL(resolve(process.env.AES_EVENTS_CTS_MANIFEST));
 const manifest = readJson(manifestUrl);
 
 test('published portable AES event manifest is immutable and internally consistent', () => {
   assert.equal(manifest.meta.status, 'released');
   assert.equal(manifest.meta.lane, 'aes-events');
-  assert.equal(manifest.meta.event_contract, 'aes.events.v0');
-  assert.match(manifest.meta.snapshot_id, /^aes-events-cts-v0-snapshot-\d+\.\d+$/u);
-  assert.match(manifest.meta.spec_snapshot_id, /^aes-events-specs-v0-snapshot-\d+\.\d+$/u);
+  assert.equal(manifest.meta.event_contract, 'aes.events.v1');
+  assert.match(manifest.meta.snapshot_id, /^aes-events-cts-v1-snapshot-\d+\.\d+$/u);
+  assert.match(manifest.meta.spec_snapshot_id, /^aes-events-specs-v1-snapshot-\d+\.\d+$/u);
   assert.ok(Array.isArray(manifest.suites));
 });
 

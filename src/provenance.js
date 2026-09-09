@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { TextDecoder } from 'node:util';
 
-export const AES_SOURCE_BACKED_PREPARATION = 'aes.preparation.source-backed.v0';
+export const AES_SOURCE_BACKED_PREPARATION = 'aes.preparation.source-backed.v1';
 
 const ORIGIN = /^sha256:[0-9a-f]{64}$/u;
 const SPAN = /^(0|[1-9][0-9]*):(0|[1-9][0-9]*)$/u;
@@ -47,7 +47,7 @@ export function auditAesSourceProvenance(records, artifacts, options = {}) {
     }
     const origin = record.origin;
     if (!ORIGIN.test(origin)) {
-      diagnostics.push(diagnostic('AES_INVALID_ORIGIN', 'Origin is not a canonical AES v0 source digest.', index, 'origin'));
+      diagnostics.push(diagnostic('AES_INVALID_ORIGIN', 'Origin is not a canonical AES v1 source digest.', index, 'origin'));
       return;
     }
 

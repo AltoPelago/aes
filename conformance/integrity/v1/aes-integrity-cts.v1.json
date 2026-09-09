@@ -3,10 +3,10 @@
     "version": "0.1.0-dev",
     "status": "draft",
     "lane": "aes-integrity",
-    "integrity_contract": "aes.integrity.v0",
-    "event_contract": "aes.events.v0",
+    "integrity_contract": "aes.integrity.v1",
+    "event_contract": "aes.events.v1",
     "sut_protocol": "cts.protocol.v1",
-    "description": "Mutable AES v0 deterministic logical-byte, digest, ordering, provenance, and signature-input candidate"
+    "description": "Mutable AES v1 deterministic logical-byte, digest, ordering, provenance, and signature-input candidate"
   },
   "suites": [
     {

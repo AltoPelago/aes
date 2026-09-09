@@ -2,8 +2,8 @@
   "meta": {
     "suite_id": "event-and-profile-validation",
     "lane": "aes-telex",
-    "format_version": "0",
-    "event_contract": "aes.events.v0",
+    "format_version": "1",
+    "event_contract": "aes.events.v1",
     "sut_protocol": "cts.protocol.v1",
     "spec_refs": [
       "specifications/aes.events.md#3-record-shape",
@@ -13,18 +13,18 @@
     ]
   },
   "id": "event-and-profile-validation",
-  "title": "Telex v0 Event and Profile Validation",
+  "title": "Telex v1 Event and Profile Validation",
   "tests": [
     {
       "id": "telex-profile-001-complete-default",
       "description": "The implicit complete profile accepts flat objects, attributes, lists, nodes, and node content",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.a\nkind=ObjectNode\nidentity=root-a\n\npath=$.a.@.source\nkind=StringLiteral\nvalue=fixture\n\npath=$.a.items\nkind=ListNode\n\npath=$.a.items[0]\nkind=NodeLiteral\n\npath=$.a.items[0][0]\nkind=NodeHead\nvalue=tag\n\npath=$.a.items[0][0][0]\nkind=BooleanLiteral\nvalue=true\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=8:12\n"
+        "telex": "telex.aes=1\n\npath=$.a\nkind=ObjectNode\nidentity=root-a\n\npath=$.a.@.source\nkind=StringLiteral\nvalue=fixture\n\npath=$.a.items\nkind=ListNode\n\npath=$.a.items[0]\nkind=NodeLiteral\n\npath=$.a.items[0][0]\nkind=NodeHead\nvalue=tag\n\npath=$.a.items[0][0][0]\nkind=BooleanLiteral\nvalue=true\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=8:12\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "complete", "attributes", "node"]
@@ -34,11 +34,11 @@
       "description": "The default profile rejects a descendant whose parent event is absent",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n"
+        "telex": "telex.aes=1\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_MISSING_PARENT"]
       },
       "tags": ["validation", "complete", "ancestry", "failure"]
@@ -48,11 +48,11 @@
       "description": "The explicit partial profile permits a valid event without its parent context",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "partial", "ancestry"]
@@ -62,11 +62,11 @@
       "description": "Partial changes stream constraints but does not permit an invalid event value",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=BooleanLiteral\nvalue=True\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a\nkind=BooleanLiteral\nvalue=True\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_INVALID_VALUE"]
       },
       "tags": ["validation", "partial", "event-shape", "failure"]
@@ -76,11 +76,11 @@
       "description": "Complete streams require unique paths and structural identities",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.a\nkind=NumberLiteral\nidentity=same\nvalue=1\n\npath=$.a\nkind=NumberLiteral\nidentity=same\nvalue=2\n"
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\nidentity=same\nvalue=1\n\npath=$.a\nkind=NumberLiteral\nidentity=same\nvalue=2\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_DUPLICATE_PATH", "AES_DUPLICATE_IDENTITY"]
       },
       "tags": ["validation", "complete", "uniqueness", "failure"]
@@ -90,11 +90,11 @@
       "description": "Partial history may repeat paths and structural identities across events",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=NumberLiteral\nidentity=same\nvalue=1\n\npath=$.a\nkind=NumberLiteral\nidentity=same\nvalue=2\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a\nkind=NumberLiteral\nidentity=same\nvalue=1\n\npath=$.a\nkind=NumberLiteral\nidentity=same\nvalue=2\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "partial", "history", "duplicates"]
@@ -104,11 +104,11 @@
       "description": "A named structural child requires an object parent",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.scalar\nkind=NumberLiteral\nvalue=1\n\npath=$.scalar.child\nkind=StringLiteral\nvalue=no\n"
+        "telex": "telex.aes=1\n\npath=$.scalar\nkind=NumberLiteral\nvalue=1\n\npath=$.scalar.child\nkind=StringLiteral\nvalue=no\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_INCOMPATIBLE_PARENT"]
       },
       "tags": ["validation", "complete", "container", "failure"]
@@ -118,11 +118,11 @@
       "description": "A node-head cannot be used as an ordinary list item",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.items\nkind=ListNode\n\npath=$.items[0]\nkind=NodeHead\nvalue=tag\n"
+        "telex": "telex.aes=1\n\npath=$.items\nkind=ListNode\n\npath=$.items[0]\nkind=NodeHead\nvalue=tag\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_INVALID_NODE_HEAD"]
       },
       "tags": ["validation", "complete", "node-head", "failure"]
@@ -132,11 +132,11 @@
       "description": "Every direct indexed child of a node is a node-head event",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.item\nkind=NodeLiteral\n\npath=$.item[0]\nkind=StringLiteral\nvalue=not-a-head\n"
+        "telex": "telex.aes=1\n\npath=$.item\nkind=NodeLiteral\n\npath=$.item[0]\nkind=StringLiteral\nvalue=not-a-head\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_INCOMPATIBLE_PARENT"]
       },
       "tags": ["validation", "complete", "node", "failure"]
@@ -146,11 +146,11 @@
       "description": "The unrepresented document root cannot own indexed or attribute events",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$[0]\nkind=NumberLiteral\nvalue=1\n\npath=$.@.meta\nkind=StringLiteral\nvalue=root\n"
+        "telex": "telex.aes=1\n\npath=$[0]\nkind=NumberLiteral\nvalue=1\n\npath=$.@.meta\nkind=StringLiteral\nvalue=root\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_MISSING_PARENT", "AES_MISSING_PARENT"]
       },
       "tags": ["validation", "complete", "root", "failure"]
@@ -160,11 +160,11 @@
       "description": "Containers omit value while non-container kinds require it",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=ObjectNode\nvalue=nested\n\npath=$.b\nkind=NumberLiteral\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a\nkind=ObjectNode\nvalue=nested\n\npath=$.b\nkind=NumberLiteral\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_UNEXPECTED_VALUE", "AES_MISSING_VALUE"]
       },
       "tags": ["validation", "event-shape", "value", "failure"]
@@ -174,11 +174,11 @@
       "description": "Kinds with locally specified vocabularies use their exact canonical payloads",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.hex\nkind=HexLiteral\nvalue=CAFE\n\npath=$.toggle\nkind=ToggleLiteral\nvalue=enabled\n\npath=$.nan\nkind=NaNLiteral\nvalue=nan\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.hex\nkind=HexLiteral\nvalue=CAFE\n\npath=$.toggle\nkind=ToggleLiteral\nvalue=enabled\n\npath=$.nan\nkind=NaNLiteral\nvalue=nan\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_INVALID_VALUE", "AES_INVALID_VALUE", "AES_INVALID_VALUE"]
       },
       "tags": ["validation", "event-shape", "canonical-value", "failure"]
@@ -188,11 +188,11 @@
       "description": "Clone and pointer payloads contain canonical absolute target paths",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.copy\nkind=CloneReference\nvalue=relative.path\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.copy\nkind=CloneReference\nvalue=relative.path\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_INVALID_REFERENCE"]
       },
       "tags": ["validation", "event-shape", "reference", "failure"]
@@ -202,11 +202,11 @@
       "description": "A source span is an ordered pair of canonical byte offsets",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=NumberLiteral\nvalue=1\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=4:2\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a\nkind=NumberLiteral\nvalue=1\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=4:2\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_INVALID_SPAN"]
       },
       "tags": ["validation", "event-shape", "span", "failure"]
@@ -216,11 +216,11 @@
       "description": "An extension field is rejected unless the selected validation context registers it exactly",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=NumberLiteral\nvalue=1\nx.example.claim=yes\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a\nkind=NumberLiteral\nvalue=1\nx.example.claim=yes\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_UNKNOWN_FIELD"]
       },
       "tags": ["validation", "extension", "failure"]
@@ -230,12 +230,12 @@
       "description": "Exact extension registration enables only the named field",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=NumberLiteral\nvalue=1\nx.example.claim=yes\n",
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a\nkind=NumberLiteral\nvalue=1\nx.example.claim=yes\n",
         "registered_fields": ["x.example.claim"]
       },
       "expected": {
         "valid": true,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "extension"]
@@ -245,7 +245,7 @@
       "description": "Syntax readers preserve unknown profiles but semantic validation fails closed",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=x.example.future.v1\n\npath=$.a\nkind=NumberLiteral\nvalue=1\n"
+        "telex": "telex.aes=1\nprofile=x.example.future.v1\n\npath=$.a\nkind=NumberLiteral\nvalue=1\n"
       },
       "expected": {
         "valid": false,
@@ -259,11 +259,11 @@
       "description": "Partial streams still require a known portable AES value kind",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=future-kind\nvalue=1\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a\nkind=future-kind\nvalue=1\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_UNKNOWN_KIND"]
       },
       "tags": ["validation", "event-shape", "kind", "failure"]
@@ -273,11 +273,11 @@
       "description": "Quoted members and attribute owners participate in the same complete path structure",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.a\nkind=ObjectNode\n\npath=$.a.@.[\"x.y\"]\nkind=ObjectNode\n\npath=$.a.@.[\"x.y\"].[\"deep key\"]\nkind=StringLiteral\nvalue=yes\n"
+        "telex": "telex.aes=1\n\npath=$.a\nkind=ObjectNode\n\npath=$.a.@.[\"x.y\"]\nkind=ObjectNode\n\npath=$.a.@.[\"x.y\"].[\"deep key\"]\nkind=StringLiteral\nvalue=yes\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "complete", "attributes", "quoted-member"]
@@ -287,11 +287,11 @@
       "description": "A member that is legal in bare form must use that canonical form",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.[\"a\"]\nkind=NumberLiteral\nvalue=1\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.[\"a\"]\nkind=NumberLiteral\nvalue=1\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_INVALID_PATH"]
       },
       "tags": ["validation", "path", "quoted-member", "failure"]
@@ -301,11 +301,11 @@
       "description": "The AEON document projection carries a complete flat header plane before a complete body",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:conventions\"]\nkind=ListNode\n\nheader=$.[\"aeon:conventions\"][0]\nkind=StringLiteral\nvalue=aeon.gp.security.v1\n\npath=$.a\nkind=NumberLiteral\nvalue=1\n"
+        "telex": "telex.aes=1\nprojection=aeon.document.v1\n\nheader=$.[\"aeon:conventions\"]\nkind=ListNode\n\nheader=$.[\"aeon:conventions\"][0]\nkind=StringLiteral\nvalue=aeon.gp.security.v1\n\npath=$.a\nkind=NumberLiteral\nvalue=1\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "projection", "header", "complete"]
@@ -315,11 +315,11 @@
       "description": "Header records are not part of the default body projection",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\nheader=$.[\"aeon:mode\"]\nkind=StringLiteral\nvalue=strict\n"
+        "telex": "telex.aes=1\n\nheader=$.[\"aeon:mode\"]\nkind=StringLiteral\nvalue=strict\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_HEADER_REQUIRES_PROJECTION"]
       },
       "tags": ["validation", "projection", "header", "failure"]
@@ -329,11 +329,11 @@
       "description": "An included header record cannot appear after a body event",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprojection=aeon.document.v0\n\npath=$.a\nkind=NumberLiteral\nvalue=1\n\nheader=$.[\"aeon:mode\"]\nkind=StringLiteral\nvalue=strict\n"
+        "telex": "telex.aes=1\nprojection=aeon.document.v1\n\npath=$.a\nkind=NumberLiteral\nvalue=1\n\nheader=$.[\"aeon:mode\"]\nkind=StringLiteral\nvalue=strict\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_HEADER_ORDER"]
       },
       "tags": ["validation", "projection", "header", "ordering", "failure"]
@@ -343,11 +343,11 @@
       "description": "A record cannot be both a header record and a body event",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:mode\"]\npath=$.a\nkind=StringLiteral\nvalue=strict\n"
+        "telex": "telex.aes=1\nprojection=aeon.document.v1\n\nheader=$.[\"aeon:mode\"]\npath=$.a\nkind=StringLiteral\nvalue=strict\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_MULTIPLE_ADDRESSES"]
       },
       "tags": ["validation", "projection", "address", "failure"]
@@ -357,11 +357,11 @@
       "description": "The document projection requires complete header ancestry even when body ancestry is partial",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\nprojection=aeon.document.v0\n\nheader=$.[\"aeon:conventions\"][0]\nkind=StringLiteral\nvalue=aeon.gp.security.v1\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\nprojection=aeon.document.v1\n\nheader=$.[\"aeon:conventions\"][0]\nkind=StringLiteral\nvalue=aeon.gp.security.v1\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_MISSING_PARENT"]
       },
       "tags": ["validation", "projection", "header", "partial", "failure"]
@@ -371,11 +371,11 @@
       "description": "A byte span without immutable source identity is not portable",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=NumberLiteral\nvalue=1\nspan=0:1\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a\nkind=NumberLiteral\nvalue=1\nspan=0:1\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_SPAN_REQUIRES_ORIGIN"]
       },
       "tags": ["validation", "provenance", "span", "failure"]
@@ -385,25 +385,25 @@
       "description": "A record may identify its exact source even when no exact byte range is known",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=NumberLiteral\nvalue=1\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a\nkind=NumberLiteral\nvalue=1\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "provenance", "origin"]
     },
     {
       "id": "telex-profile-028-origin-canonical-form",
-      "description": "Draft 0 origins require an exact lowercase SHA-256 digest payload",
+      "description": "AES v1 origins require an exact lowercase SHA-256 digest payload",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.short\nkind=NumberLiteral\nvalue=1\norigin=sha256:abc\n\npath=$.upper\nkind=NumberLiteral\nvalue=2\norigin=sha256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.short\nkind=NumberLiteral\nvalue=1\norigin=sha256:abc\n\npath=$.upper\nkind=NumberLiteral\nvalue=2\norigin=sha256:0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_INVALID_ORIGIN", "AES_INVALID_ORIGIN"]
       },
       "tags": ["validation", "provenance", "origin", "canonical", "failure"]
@@ -413,11 +413,11 @@
       "description": "Expanded node heads, independently identified occurrences, and reference payloads share the portable AES event-path domain",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.a\nkind=NodeLiteral\nidentity=binding-a\n\npath=$.a.@.x\nkind=StringLiteral\nidentity=binding-attribute\nvalue=outer\n\npath=$.a[0]\nkind=NodeHead\nidentity=head-a\nvalue=tag\n\npath=$.a[0].@.x\nkind=StringLiteral\nidentity=head-attribute\nvalue=head\n\npath=$.a[0][0]\nkind=NodeLiteral\nidentity=child-a\n\npath=$.a[0][0][0]\nkind=NodeHead\nidentity=child-head\nvalue=inner\n\npath=$.a[0][0][0][0]\nkind=StringLiteral\nidentity=leaf\nvalue=value\n\npath=$.clone\nkind=CloneReference\nvalue=$.a[0][0]\n\npath=$.pointer\nkind=PointerReference\nvalue=$.a[0][0][0][0]\n"
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NodeLiteral\nidentity=binding-a\n\npath=$.a.@.x\nkind=StringLiteral\nidentity=binding-attribute\nvalue=outer\n\npath=$.a[0]\nkind=NodeHead\nidentity=head-a\nvalue=tag\n\npath=$.a[0].@.x\nkind=StringLiteral\nidentity=head-attribute\nvalue=head\n\npath=$.a[0][0]\nkind=NodeLiteral\nidentity=child-a\n\npath=$.a[0][0][0]\nkind=NodeHead\nidentity=child-head\nvalue=inner\n\npath=$.a[0][0][0][0]\nkind=StringLiteral\nidentity=leaf\nvalue=value\n\npath=$.clone\nkind=CloneReference\nvalue=$.a[0][0]\n\npath=$.pointer\nkind=PointerReference\nvalue=$.a[0][0][0][0]\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "complete", "node", "node-head", "identity", "reference", "path"]
@@ -427,11 +427,11 @@
       "description": "WTC preserves civil, explicit-offset, and UTC anchors independently across local, named, and geographic references",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.civilLocal\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30&local\n\npath=$.offsetLocal\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30+02:00&local\n\npath=$.utcLocal\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T07:30Z&local\n\npath=$.civilNamed\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30&Australia/Melbourne\n\npath=$.offsetNamed\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30+11:00&Australia/Melbourne\n\npath=$.utcNamed\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2024-12-31T22:30Z&Australia/Melbourne\n\npath=$.civilGeo\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2035-01-01T09:00&-36.7590183/144.2826718\n\npath=$.offsetGeo\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2035-01-01T09:00+11:00&-36.7590183/144.2826718/213\n\npath=$.utcGeo\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2034-12-31T22:00Z&-36.7590183/144.2826718/213\n"
+        "telex": "telex.aes=1\n\npath=$.civilLocal\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30&local\n\npath=$.offsetLocal\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30+02:00&local\n\npath=$.utcLocal\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T07:30Z&local\n\npath=$.civilNamed\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30&Australia/Melbourne\n\npath=$.offsetNamed\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30+11:00&Australia/Melbourne\n\npath=$.utcNamed\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2024-12-31T22:30Z&Australia/Melbourne\n\npath=$.civilGeo\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2035-01-01T09:00&-36.7590183/144.2826718\n\npath=$.offsetGeo\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2035-01-01T09:00+11:00&-36.7590183/144.2826718/213\n\npath=$.utcGeo\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2034-12-31T22:00Z&-36.7590183/144.2826718/213\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "wtc", "temporal", "anchors", "local", "named", "geographic"]
@@ -441,11 +441,11 @@
       "description": "The reserved WTC local reference rejects non-canonical case variants",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.meeting\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30Z&Local\n"
+        "telex": "telex.aes=1\n\npath=$.meeting\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2025-01-01T09:30Z&Local\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_INVALID_VALUE"]
       },
       "tags": ["validation", "wtc", "local", "case", "failure"]
@@ -455,11 +455,11 @@
       "description": "The standard AES event contract has no document-supplied conflict-authority field",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.meeting\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2035-01-01T09:00+10:00&Australia/Melbourne\nconflict-authority=reference\n"
+        "telex": "telex.aes=1\n\npath=$.meeting\nkind=WTCDateTimeLiteral\ndatatype=wtc\nvalue=2035-01-01T09:00+10:00&Australia/Melbourne\nconflict-authority=reference\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_UNKNOWN_FIELD"]
       },
       "tags": ["validation", "wtc", "authority", "unknown-field", "failure"]
@@ -469,11 +469,11 @@
       "description": "A complete stream rejects a syntactically valid reference to an absent body event",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.alias\nkind=PointerReference\nvalue=$.missing\n"
+        "telex": "telex.aes=1\n\npath=$.alias\nkind=PointerReference\nvalue=$.missing\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": ["AES_MISSING_REFERENCE_TARGET"]
       },
       "tags": ["validation", "complete", "reference", "target", "failure"]
@@ -483,11 +483,11 @@
       "description": "A partial stream validates reference syntax without requiring the target event",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.alias\nkind=PointerReference\nvalue=$.missing\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.alias\nkind=PointerReference\nvalue=$.missing\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "partial", "reference", "target"]
@@ -497,11 +497,11 @@
       "description": "A portable source span must select at least one source byte",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a\nkind=StringLiteral\nvalue=\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=10:10\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a\nkind=StringLiteral\nvalue=\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=10:10\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_INVALID_SPAN"]
       },
       "tags": ["validation", "provenance", "span", "empty", "failure"]
@@ -511,11 +511,11 @@
       "description": "Complete-stream target existence does not require target-before-reference order",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\n\npath=$.alias\nkind=CloneReference\nvalue=$.source\n\npath=$.source\nkind=NumberLiteral\nvalue=1\n"
+        "telex": "telex.aes=1\n\npath=$.alias\nkind=CloneReference\nvalue=$.source\n\npath=$.source\nkind=NumberLiteral\nvalue=1\n"
       },
       "expected": {
         "valid": true,
-        "profile": "aes.complete.v0",
+        "profile": "aes.complete.v1",
         "diagnostic_codes": []
       },
       "tags": ["validation", "complete", "reference", "forward"]
@@ -525,11 +525,11 @@
       "description": "The unrepresented document root is not a canonical reference target event",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.alias\nkind=CloneReference\nvalue=$\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.alias\nkind=CloneReference\nvalue=$\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_INVALID_REFERENCE"]
       },
       "tags": ["validation", "partial", "reference", "root", "failure"]
@@ -539,11 +539,11 @@
       "description": "A node is value-less while a recognized node-head requires its tag payload",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.legacy\nkind=NodeLiteral\nvalue=tag\n\npath=$.head\nkind=NodeHead\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.legacy\nkind=NodeLiteral\nvalue=tag\n\npath=$.head\nkind=NodeHead\n"
       },
       "expected": {
         "valid": false,
-        "profile": "aes.partial.v0",
+        "profile": "aes.partial.v1",
         "diagnostic_codes": ["AES_UNEXPECTED_VALUE", "AES_MISSING_VALUE"]
       },
       "tags": ["validation", "partial", "node", "node-head", "value", "failure"]

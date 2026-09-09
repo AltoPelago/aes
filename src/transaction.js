@@ -7,16 +7,16 @@ import { PARTIAL_AES_PROFILE, validateTelexRecords } from './telex.js';
 
 export { AES_SOURCE_BACKED_PREPARATION } from './provenance.js';
 
-export const AES_TRANSACTION_CONTRACT = 'aes.transaction.v0';
-export const AES_TRANSACTION_ENVELOPE = 'aes.transaction.envelope.v0';
-export const AES_TRANSACTION_INTEGRITY = 'aes.transaction.integrity.v0';
-export const AES_TRANSACTION_SIGNATURE = 'aes.transaction.signature.v0';
-export const AES_SCALAR_REPLACEMENT_APPLICATION = 'aes.application.asp.scalar-replacement.v0';
-export const AES_ASP_TARGET = 'aes.target.asp.v0';
-export const AES_ASP_REVISION_PRECONDITION = 'aes.precondition.asp-revision.v0';
-export const AES_IDENTITY_PREPARATION = 'aes.preparation.identity.v0';
-export const AES_HOST_AUTHORIZATION = 'aes.authorization.host-context.v0';
-export const AES_LIMITS_CLAIM = 'aes.limits.claim.v0';
+export const AES_TRANSACTION_CONTRACT = 'aes.transaction.v1';
+export const AES_TRANSACTION_ENVELOPE = 'aes.transaction.envelope.v1';
+export const AES_TRANSACTION_INTEGRITY = 'aes.transaction.integrity.v1';
+export const AES_TRANSACTION_SIGNATURE = 'aes.transaction.signature.v1';
+export const AES_SCALAR_REPLACEMENT_APPLICATION = 'aes.application.asp.scalar-replacement.v1';
+export const AES_ASP_TARGET = 'aes.target.asp.v1';
+export const AES_ASP_REVISION_PRECONDITION = 'aes.precondition.asp-revision.v1';
+export const AES_IDENTITY_PREPARATION = 'aes.preparation.identity.v1';
+export const AES_HOST_AUTHORIZATION = 'aes.authorization.host-context.v1';
+export const AES_LIMITS_CLAIM = 'aes.limits.claim.v1';
 
 const TRANSACTION_DOMAIN = Buffer.from(`${AES_TRANSACTION_INTEGRITY}\0`, 'utf8');
 const SIGNATURE_DOMAIN = Buffer.from(`${AES_TRANSACTION_SIGNATURE}\0`, 'utf8');
@@ -64,8 +64,8 @@ export function validateAesTransactionBody(body, options = {}) {
   }
 
   exact(body.transaction, AES_TRANSACTION_CONTRACT, 'transaction', diagnostics);
-  exact(body.events, 'aes.events.v0', 'events', diagnostics);
-  exact(body.ordering, 'aes.order.exact.v0', 'ordering', diagnostics);
+  exact(body.events, 'aes.events.v1', 'events', diagnostics);
+  exact(body.ordering, 'aes.order.exact.v1', 'ordering', diagnostics);
   for (const field of ['id', 'intent', 'attempt']) identifier(body[field], field, diagnostics);
   if ([body.id, body.intent, body.attempt].every((value) => typeof value === 'string')
     && new Set([body.id, body.intent, body.attempt]).size !== 3) {
@@ -309,7 +309,7 @@ function validateIntegrityPolicy(value, diagnostics) {
 
 function validateScalarReplacement(body, diagnostics) {
   if (body.profile !== PARTIAL_AES_PROFILE || body.projection !== null) {
-    diagnostics.push(diagnostic('AES_TRANSACTION_APPLICATION_INVALID', 'Scalar replacement requires aes.partial.v0 body-only event context.', 'profile'));
+    diagnostics.push(diagnostic('AES_TRANSACTION_APPLICATION_INVALID', 'Scalar replacement requires aes.partial.v1 body-only event context.', 'profile'));
   }
   if (body.target?.contract !== AES_ASP_TARGET || body.target?.boundary !== '$') {
     diagnostics.push(diagnostic('AES_TRANSACTION_APPLICATION_INVALID', 'Scalar replacement requires the root-boundary ASP target contract.', 'target'));

@@ -9,7 +9,7 @@ import { normalizeTelexLimits } from './limits.js';
 
 export { DEFAULT_TELEX_LIMITS, normalizeTelexLimits } from './limits.js';
 
-const VERSION_LINE = 'telex.aes=0';
+const VERSION_LINE = 'telex.aes=1';
 const PROFILE_FIELD = 'profile';
 const PROJECTION_FIELD = 'projection';
 const FIELD_NAME = /^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)*$/;
@@ -72,10 +72,10 @@ const EXACT_VALUES = new Map([
   ['ToggleLiteral', new Set(['yes', 'no', 'on', 'off'])],
 ]);
 
-export const TELEX_VERSION = '0';
-export const COMPLETE_AES_PROFILE = 'aes.complete.v0';
-export const PARTIAL_AES_PROFILE = 'aes.partial.v0';
-export const AEON_DOCUMENT_PROJECTION = 'aeon.document.v0';
+export const TELEX_VERSION = '1';
+export const COMPLETE_AES_PROFILE = 'aes.complete.v1';
+export const PARTIAL_AES_PROFILE = 'aes.partial.v1';
+export const AEON_DOCUMENT_PROJECTION = 'aeon.document.v1';
 
 export class TelexSyntaxError extends Error {
   constructor(message, line, code = 'TELEX_SYNTAX_ERROR', details = {}) {

@@ -2,8 +2,8 @@
   "meta": {
     "suite_id": "logical-bytes-and-digests",
     "lane": "aes-integrity",
-    "integrity_contract": "aes.integrity.v0",
-    "event_contract": "aes.events.v0",
+    "integrity_contract": "aes.integrity.v1",
+    "event_contract": "aes.events.v1",
     "sut_protocol": "cts.protocol.v1",
     "spec_refs": [
       "specifications/aes.integrity.md#2-integrity-input",
@@ -14,7 +14,7 @@
     ]
   },
   "id": "logical-bytes-and-digests",
-  "title": "AES v0 Logical Bytes, Digests, and Signature Inputs",
+  "title": "AES v1 Logical Bytes, Digests, and Signature Inputs",
   "tests": [
     {
       "id": "aes-integrity-001-empty-expanded-context",
@@ -22,13 +22,13 @@
       "operation": "digest",
       "input": {
         "records": [],
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "f3a6aedb2eaa5533fc4112b5df7517b54a559e521b92a8964f2d2323a5ff3345",
-        "logical_hex": "6165732e696e746567726974792e7630006d393a73363a64696765737473363a73686132353673363a6576656e74737331333a6165732e6576656e74732e763073393a696e746567726974797331363a6165732e696e746567726974792e763073383a6f72646572696e677333313a6165732e6f726465722e63616e6f6e6963616c2d73656d616e7469632e763073373a70726f66696c657331353a6165732e636f6d706c6574652e76307331303a70726f6a656374696f6e6e7331303a70726f76656e616e63657332363a6165732e70726f76656e616e63652e6578636c756465642e763073373a7265636f7264736c303a73353a73636f70657331373a6165732e73636f70652e626f64792e7630",
+        "digest": "beb831c40d71ecb20c476f7fa2b24521f9b2104174561160da0bac351eded7fe",
+        "logical_hex": "6165732e696e746567726974792e7631006d393a73363a64696765737473363a73686132353673363a6576656e74737331333a6165732e6576656e74732e763173393a696e746567726974797331363a6165732e696e746567726974792e763173383a6f72646572696e677333313a6165732e6f726465722e63616e6f6e6963616c2d73656d616e7469632e763173373a70726f66696c657331353a6165732e636f6d706c6574652e76317331303a70726f6a656374696f6e6e7331303a70726f76656e616e63657332363a6165732e70726f76656e616e63652e6578636c756465642e763173373a7265636f7264736c303a73353a73636f70657331373a6165732e73636f70652e626f64792e7631",
         "record_addresses": []
       },
       "tags": ["defaults", "empty", "logical-bytes"]
@@ -42,12 +42,12 @@
           { "path": "$.b", "kind": "NumberLiteral", "value": "2" },
           { "path": "$.a", "kind": "NumberLiteral", "value": "1" }
         ],
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "71c3b812be86bc71ae554e383ef9c21abdf99a238a2ffa8ac35987172b480af7",
+        "digest": "17f7bcbd5d77d11201615936eb1d3e4bdae92cce49108dd9d005f1f83b3800b2",
         "record_addresses": ["$.a", "$.b"]
       },
       "tags": ["canonical-semantic", "ordering"]
@@ -61,12 +61,12 @@
           { "path": "$.a", "kind": "NumberLiteral", "value": "1" },
           { "path": "$.b", "kind": "NumberLiteral", "value": "2" }
         ],
-        "ordering": "aes.order.exact.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "ordering": "aes.order.exact.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "411ac22604b6abda3757b8cdd6ca47a0745843f9b1831453552d50b0c75c37c8",
+        "digest": "0209e321d3bbf7ad9cbfc57ccc8e82b6639873c2c18ccabc50fd889e05f277da",
         "record_addresses": ["$.a", "$.b"]
       },
       "tags": ["exact", "ordering"]
@@ -80,12 +80,12 @@
           { "path": "$.b", "kind": "NumberLiteral", "value": "2" },
           { "path": "$.a", "kind": "NumberLiteral", "value": "1" }
         ],
-        "ordering": "aes.order.exact.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "ordering": "aes.order.exact.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "346b92469df0c7ca38b896224bc98225d88e4a6a6311ed9490ec608a48756d8c",
+        "digest": "2ab60f71bf9e419b43b53006a5c20d36721234ff769cf51e27479c88c319312f",
         "record_addresses": ["$.b", "$.a"]
       },
       "tags": ["exact", "ordering"]
@@ -107,13 +107,13 @@
           }
         ],
         "registered_fields": ["x.example.note"],
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "fba96ca89d52cb06c6fe3f7adcadff2965cc0f9dd856263c1711e00ab3d40329",
-        "logical_hex": "6165732e696e746567726974792e7630006d393a73363a64696765737473363a73686132353673363a6576656e74737331333a6165732e6576656e74732e763073393a696e746567726974797331363a6165732e696e746567726974792e763073383a6f72646572696e677333313a6165732e6f726465722e63616e6f6e6963616c2d73656d616e7469632e763073373a70726f66696c657331353a6165732e636f6d706c6574652e76307331303a70726f6a656374696f6e6e7331303a70726f76656e616e63657332363a6165732e70726f76656e616e63652e6578636c756465642e763073373a7265636f7264736c313a6d373a7331303a636c61726966696572736c313a6d323a73343a6b696e647331333a537472696e674c69746572616c73353a76616c756573313a2e73383a646174617479706573333a63737673383a67656e65726963736c313a6d333a7331303a636c61726966696572736c303a73383a646174617479706573363a737472696e6773383a67656e65726963736c303a73343a6b696e647331363a536570617261746f724c69746572616c73343a7061746873353a242e63737673353a76616c756573373a6f6e652e74776f7331343a782e6578616d706c652e6e6f746573343af09f8c8a73353a73636f70657331373a6165732e73636f70652e626f64792e7630",
+        "digest": "bf8949f480dc63addd7cb878a715b8661444ea949574b1c187b1488d9ebf3ab5",
+        "logical_hex": "6165732e696e746567726974792e7631006d393a73363a64696765737473363a73686132353673363a6576656e74737331333a6165732e6576656e74732e763173393a696e746567726974797331363a6165732e696e746567726974792e763173383a6f72646572696e677333313a6165732e6f726465722e63616e6f6e6963616c2d73656d616e7469632e763173373a70726f66696c657331353a6165732e636f6d706c6574652e76317331303a70726f6a656374696f6e6e7331303a70726f76656e616e63657332363a6165732e70726f76656e616e63652e6578636c756465642e763173373a7265636f7264736c313a6d373a7331303a636c61726966696572736c313a6d323a73343a6b696e647331333a537472696e674c69746572616c73353a76616c756573313a2e73383a646174617479706573333a63737673383a67656e65726963736c313a6d333a7331303a636c61726966696572736c303a73383a646174617479706573363a737472696e6773383a67656e65726963736c303a73343a6b696e647331363a536570617261746f724c69746572616c73343a7061746873353a242e63737673353a76616c756573373a6f6e652e74776f7331343a782e6578616d706c652e6e6f746573343af09f8c8a73353a73636f70657331373a6165732e73636f70652e626f64792e7631",
         "record_addresses": ["$.csv"]
       },
       "tags": ["datatype", "extension", "unicode"]
@@ -124,12 +124,12 @@
       "operation": "digest",
       "input": {
         "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "x", "origin": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "span": "0:1" }],
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "b6cd5c12f84fa07a2e27b552e6cc687d87deb8417c9690036ee6c307b988137c",
+        "digest": "066e6918e98e423da85ce02442087cb192c02a2bd3016e87fa8eef667c42b732",
         "record_addresses": ["$.a"]
       },
       "tags": ["provenance", "semantic"]
@@ -140,12 +140,12 @@
       "operation": "digest",
       "input": {
         "records": [{ "path": "$.a", "kind": "StringLiteral", "value": "x", "origin": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "span": "0:1" }],
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.included.v0"
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.included.v1"
       },
       "expected": {
-        "digest": "47d47904403bad3ea8b20910be5072d35755ee2019a4a04bc68fdb7287ee39d2",
+        "digest": "074708d3163e5e954ed05a440f9803c992abbafea0e5d4a5f88b9eebfd8d810d",
         "record_addresses": ["$.a"]
       },
       "tags": ["provenance", "record"]
@@ -159,13 +159,13 @@
           { "header": "$.[\"aeon:mode\"]", "kind": "StringLiteral", "value": "strict" },
           { "path": "$.a", "kind": "StringLiteral", "value": "x" }
         ],
-        "projection": "aeon.document.v0",
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "projection": "aeon.document.v1",
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "7303f41de26fc933b165f218471fd40c1ff34465218267b157bab76c0e050442",
+        "digest": "2c7a4120a41fdcc06e05b0b90f0ca8632f038bab1dbf5d00da907ecac8642ea3",
         "record_addresses": ["$.a"]
       },
       "tags": ["header", "body-scope", "projection"]
@@ -179,13 +179,13 @@
           { "header": "$.[\"aeon:mode\"]", "kind": "StringLiteral", "value": "strict" },
           { "path": "$.a", "kind": "StringLiteral", "value": "x" }
         ],
-        "projection": "aeon.document.v0",
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.document.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "projection": "aeon.document.v1",
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.document.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "573cdd07b930acc3be4e4a41eb861a87f5514f3cdeb081c21025bac30e190efe",
+        "digest": "89865fd9be825a23e49bb31018dbe322a54d2093ad26f404f29e7fe9852286e5",
         "record_addresses": ["$.[\"aeon:mode\"]", "$.a"]
       },
       "tags": ["header", "document-scope", "projection"]
@@ -196,13 +196,13 @@
       "operation": "digest",
       "input": {
         "records": [{ "path": "$.[\"🌊\"]", "kind": "StringLiteral", "value": "é🌊" }],
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "923c91dff08b388eaeafcb58cbc36abe7861a3883538b13ca543073e2d7c124b",
-        "logical_hex": "6165732e696e746567726974792e7630006d393a73363a64696765737473363a73686132353673363a6576656e74737331333a6165732e6576656e74732e763073393a696e746567726974797331363a6165732e696e746567726974792e763073383a6f72646572696e677333313a6165732e6f726465722e63616e6f6e6963616c2d73656d616e7469632e763073373a70726f66696c657331353a6165732e636f6d706c6574652e76307331303a70726f6a656374696f6e6e7331303a70726f76656e616e63657332363a6165732e70726f76656e616e63652e6578636c756465642e763073373a7265636f7264736c313a6d333a73343a6b696e647331333a537472696e674c69746572616c73343a706174687331303a242e5b22f09f8c8a225d73353a76616c756573363ac3a9f09f8c8a73353a73636f70657331373a6165732e73636f70652e626f64792e7630",
+        "digest": "d3cf89212b7c486cb88ede1acee1b802d0a027f943ac86e06d077e26481a0981",
+        "logical_hex": "6165732e696e746567726974792e7631006d393a73363a64696765737473363a73686132353673363a6576656e74737331333a6165732e6576656e74732e763173393a696e746567726974797331363a6165732e696e746567726974792e763173383a6f72646572696e677333313a6165732e6f726465722e63616e6f6e6963616c2d73656d616e7469632e763173373a70726f66696c657331353a6165732e636f6d706c6574652e76317331303a70726f6a656374696f6e6e7331303a70726f76656e616e63657332363a6165732e70726f76656e616e63652e6578636c756465642e763173373a7265636f7264736c313a6d333a73343a6b696e647331333a537472696e674c69746572616c73343a706174687331303a242e5b22f09f8c8a225d73353a76616c756573363ac3a9f09f8c8a73353a73636f70657331373a6165732e73636f70652e626f64792e7631",
         "record_addresses": ["$.[\"🌊\"]"]
       },
       "tags": ["unicode", "utf8", "logical-bytes"]
@@ -216,10 +216,10 @@
           { "path": "$.a", "kind": "NumberLiteral", "value": "1" },
           { "path": "$.a", "kind": "NumberLiteral", "value": "2" }
         ],
-        "profile": "aes.partial.v0",
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "profile": "aes.partial.v1",
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": { "error_code": "AES_INTEGRITY_AMBIGUOUS_CANONICAL_ORDER" },
       "tags": ["canonical-semantic", "duplicate", "negative"]
@@ -233,13 +233,13 @@
           { "path": "$.a", "kind": "NumberLiteral", "value": "1" },
           { "path": "$.a", "kind": "NumberLiteral", "value": "2" }
         ],
-        "profile": "aes.partial.v0",
-        "ordering": "aes.order.exact.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "profile": "aes.partial.v1",
+        "ordering": "aes.order.exact.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "0e521ad27625569c4e0c21926ab865e918f605709e05ec57973108ade2c0ff09",
+        "digest": "ec69f47234166ae6c4178b869969f45ec8214511bf50b1fdb6200c408c9dcc9c",
         "record_addresses": ["$.a", "$.a"]
       },
       "tags": ["exact", "duplicate", "partial"]
@@ -249,12 +249,12 @@
       "description": "Signature input binds the digest, algorithm, and first key identity",
       "operation": "signature-input",
       "input": {
-        "digest": "f3a6aedb2eaa5533fc4112b5df7517b54a559e521b92a8964f2d2323a5ff3345",
+        "digest": "beb831c40d71ecb20c476f7fa2b24521f9b2104174561160da0bac351eded7fe",
         "alg": "ed25519",
         "kid": "alice"
       },
       "expected": {
-        "logical_hex": "6165732e7369676e61747572652e7630006d363a73333a616c6773373a6564323535313973363a64696765737473363a73686132353673343a686173687336343a6633613661656462326561613535333366633431313262356466373531376235346135353965353231623932613839363466326432333233613566663333343573393a696e746567726974797331363a6165732e696e746567726974792e763073333a6b696473353a616c69636573393a7369676e61747572657331363a6165732e7369676e61747572652e7630"
+        "logical_hex": "6165732e7369676e61747572652e7631006d363a73333a616c6773373a6564323535313973363a64696765737473363a73686132353673343a686173687336343a6265623833316334306437316563623230633437366637666132623234353231663962323130343137343536313136306461306261633335316564656437666573393a696e746567726974797331363a6165732e696e746567726974792e763173333a6b696473353a616c69636573393a7369676e61747572657331363a6165732e7369676e61747572652e7631"
       },
       "tags": ["signature", "kid", "logical-bytes"]
     },
@@ -263,12 +263,12 @@
       "description": "Changing only key identity changes signature input bytes",
       "operation": "signature-input",
       "input": {
-        "digest": "f3a6aedb2eaa5533fc4112b5df7517b54a559e521b92a8964f2d2323a5ff3345",
+        "digest": "beb831c40d71ecb20c476f7fa2b24521f9b2104174561160da0bac351eded7fe",
         "alg": "ed25519",
         "kid": "bob"
       },
       "expected": {
-        "logical_hex": "6165732e7369676e61747572652e7630006d363a73333a616c6773373a6564323535313973363a64696765737473363a73686132353673343a686173687336343a6633613661656462326561613535333366633431313262356466373531376235346135353965353231623932613839363466326432333233613566663333343573393a696e746567726974797331363a6165732e696e746567726974792e763073333a6b696473333a626f6273393a7369676e61747572657331363a6165732e7369676e61747572652e7630"
+        "logical_hex": "6165732e7369676e61747572652e7631006d363a73333a616c6773373a6564323535313973363a64696765737473363a73686132353673343a686173687336343a6265623833316334306437316563623230633437366637666132623234353231663962323130343137343536313136306461306261633335316564656437666573393a696e746567726974797331363a6165732e696e746567726974792e763173333a6b696473333a626f6273393a7369676e61747572657331363a6165732e7369676e61747572652e7631"
       },
       "tags": ["signature", "kid", "logical-bytes"]
     },
@@ -278,12 +278,12 @@
       "operation": "digest",
       "input": {
         "records": [{ "path": "$.when", "kind": "StringLiteral", "value": "2026-09-07" }],
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "359800b010387ebd4428a00d01b31ec6cf959ce2dc5943914ffe19c70b9142a1",
+        "digest": "59b03ba607becb8a1af797c4976f43c0684c62dff237893fe567e8e3ccc7d9a1",
         "record_addresses": ["$.when"]
       },
       "tags": ["representation-kind", "semantic-distinction", "string"]
@@ -294,12 +294,12 @@
       "operation": "digest",
       "input": {
         "records": [{ "path": "$.when", "kind": "DateLiteral", "value": "2026-09-07" }],
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": {
-        "digest": "ec88c6fdbca0b9b4173d14894d63e358512a41d5c4555c85e9ea5ed667ba0e7c",
+        "digest": "f3ebfbeec0d82010cc2f6e1e3ca218fc3fa5bc3618fe1812f94c2d029e257062",
         "record_addresses": ["$.when"]
       },
       "tags": ["representation-kind", "semantic-distinction", "temporal"]
@@ -310,9 +310,9 @@
       "operation": "digest",
       "input": {
         "records": [{ "path": "$.value", "kind": "NumberLiteral", "value": "42", "raw": "4_2" }],
-        "ordering": "aes.order.canonical-semantic.v0",
-        "scope": "aes.scope.body.v0",
-        "provenance": "aes.provenance.excluded.v0"
+        "ordering": "aes.order.canonical-semantic.v1",
+        "scope": "aes.scope.body.v1",
+        "provenance": "aes.provenance.excluded.v1"
       },
       "expected": { "error_code": "AES_INTEGRITY_INVALID_LOGICAL_VALUE" },
       "tags": ["source-spelling", "raw", "negative"]

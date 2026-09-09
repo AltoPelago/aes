@@ -3,10 +3,10 @@
     "version": "0.1.0-dev",
     "status": "draft",
     "lane": "aes-transaction",
-    "transaction_contract": "aes.transaction.v0",
-    "envelope_contract": "aes.transaction.envelope.v0",
+    "transaction_contract": "aes.transaction.v1",
+    "envelope_contract": "aes.transaction.envelope.v1",
     "sut_protocol": "cts.protocol.v1",
-    "description": "Mutable AES v0 transaction body, envelope, integrity, support-gating, and initial scalar-application candidate"
+    "description": "Mutable AES v1 transaction body, envelope, integrity, support-gating, and initial scalar-application candidate"
   },
   "suites": [
     {

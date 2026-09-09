@@ -73,7 +73,7 @@ AltoPelago language implementation here.
 The shared structural checks now use one contract across all four validators.
 Complete streams produce exact aggregate counts. Partial streams enforce lower
 bounds over admitted records and require the completing or applying consumer to
-revalidate the completed structure. The mutable Telex v0 candidate carries
+revalidate the completed structure. The mutable Telex v1 candidate carries
 at-limit and one-over vectors for all six counters; the released snapshot is
 unchanged.
 

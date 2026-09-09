@@ -4,11 +4,11 @@ Status: implementation audit, 2026-09-07
 
 ## Outcome
 
-Portable AES encoding paths preserve the named `aes.events.v0` record model,
+Portable AES encoding paths preserve the named `aes.events.v1` record model,
 effective profile/projection declarations, record order, and expanded datatype
-fields. The follow-up `aes.integrity.v0` contract now defines encoding-neutral
+fields. The follow-up `aes.integrity.v1` contract now defines encoding-neutral
 logical bytes, SHA-256 digests, two explicit ordering policies, coverage and
-provenance policies, and the domain-separated `aes.signature.v0` input.
+provenance policies, and the domain-separated `aes.signature.v1` input.
 Existing hashes and fingerprints remain valid only in their explicitly named
 legacy or application-specific domains; none is silently upgraded.
 
@@ -24,8 +24,8 @@ interchange route.
   type while they remain internal to one implementation.
 - A serialized implementation-native event array must carry a named source
   contract and must not claim portable AES compatibility.
-- A portable boundary uses a validated `aes.events.v0` carrier such as
-  `telex.aes=0`, including its effective profile, projection, and record order.
+- A portable boundary uses a validated `aes.events.v1` carrier such as
+  `telex.aes=1`, including its effective profile, projection, and record order.
 - A hash, fingerprint, receipt, or signature is portable AES evidence only if
   its versioned integrity contract defines and binds the complete logical
   scope. A SHA-256 digest alone does not make that claim.
@@ -48,10 +48,10 @@ interchange route.
 ## Portable integrity follow-up resolution
 
 The audit inventory was resolved by the normative-draft
-`aes.integrity.v0` contract and a candidate CTS lane shared by independent
+`aes.integrity.v1` contract and a candidate CTS lane shared by independent
 JavaScript and Rust implementations:
 
-1. An encoding-neutral deterministic mapping for `aes.events.v0`, including
+1. An encoding-neutral deterministic mapping for `aes.events.v1`, including
    closed field presence/absence rules and expanded `datatype`, `generics`, and
    `clarifiers`.
 2. Explicit binding of the effective semantic profile and projection,
@@ -74,7 +74,7 @@ JavaScript and Rust implementations:
 Implementations must not compute a purported portable AES signature by signing
 canonical Telex bytes, a legacy
 `AssignmentEvent` hash, an ASP content fingerprint, or an application journal
-fingerprint. They apply `aes.integrity.v0` after decoding and validating the
+fingerprint. They apply `aes.integrity.v1` after decoding and validating the
 transport-neutral records.
 
 ## Definition of done for this audit

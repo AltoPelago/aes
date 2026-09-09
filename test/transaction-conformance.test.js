@@ -21,7 +21,7 @@ import {
 } from '../src/transaction.js';
 
 const root = path.resolve(import.meta.dirname, '..');
-const manifestPath = path.join(root, 'conformance/transactions/v0/aes-transaction-cts.v0.json');
+const manifestPath = path.join(root, 'conformance/transactions/v1/aes-transaction-cts.v1.json');
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 const suites = await Promise.all(manifest.suites.map(async (entry) => JSON.parse(await readFile(
   path.join(path.dirname(manifestPath), entry.file),
@@ -32,8 +32,8 @@ function scalarBody() {
   return {
     transaction: AES_TRANSACTION_CONTRACT,
     id: 'tx-1', intent: 'intent-1', attempt: 'attempt-1',
-    events: 'aes.events.v0', profile: 'aes.partial.v0', projection: null,
-    ordering: 'aes.order.exact.v0',
+    events: 'aes.events.v1', profile: 'aes.partial.v1', projection: null,
+    ordering: 'aes.order.exact.v1',
     application: { contract: AES_SCALAR_REPLACEMENT_APPLICATION },
     target: { contract: AES_ASP_TARGET, id: 'database-1', boundary: '$' },
     preconditions: [{ contract: AES_ASP_REVISION_PRECONDITION, scope: '$', revision: '7' }],

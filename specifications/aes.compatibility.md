@@ -1,9 +1,9 @@
-# Portable AES Compatibility Contract v0
+# Portable AES Compatibility Contract v1
 
 Scope: explicit legacy adapters, durable read views, and reader-before-writer
 migration for portable AES.
 
-Portable contract: `aes.events.v0`
+Portable contract: `aes.events.v1`
 
 This document defines how existing implementation-specific AES records may be
 read alongside the portable event contract. It also defines the deployment
@@ -14,19 +14,19 @@ It does not declare every historical JSON event shape to be portable AES.
 
 ## 1. Compatibility boundary
 
-Portable AES has an explicit event-contract identity: `aes.events.v0`.
-`aes.complete.v0` and `aes.partial.v0` are profiles within that contract; they
+Portable AES has an explicit event-contract identity: `aes.events.v1`.
+`aes.complete.v1` and `aes.partial.v1` are profiles within that contract; they
 are not substitutes for the contract identity.
 
 A carrier establishes the contract before profile defaults apply. Telex does
-so through `telex.aes=0`, which maps to `aes.events.v0`. Other encodings,
+so through `telex.aes=1`, which maps to `aes.events.v1`. Other encodings,
 protocol envelopes, database schemas, and API versions MUST bind their records
-to `aes.events.v0` explicitly.
+to `aes.events.v1` explicitly.
 
 An untagged JSON object or array is not identified as portable AES merely
 because it contains fields such as `path`, `kind`, or `value`. In particular,
 omitting `profile` from an untagged legacy surface does not select
-`aes.complete.v0`. That default applies only after the carrier has established
+`aes.complete.v1`. That default applies only after the carrier has established
 the portable contract.
 
 Implementations MUST NOT infer legacy-versus-portable interpretation from
@@ -40,7 +40,7 @@ There is no single legacy AES contract. Each compatibility adapter declares:
 
 - one implementation-owned and versioned source-contract identifier;
 - its source profile or storage schema when one exists;
-- `aes.events.v0` as its portable target contract;
+- `aes.events.v1` as its portable target contract;
 - the selected portable profile and projection;
 - its adapter version; and
 - whether loss requiring caller authorization is permitted.
@@ -56,13 +56,13 @@ default mode succeeds only for a semantically lossless conversion under the
 selected target context. An explicitly authorized lossy mode records each
 loss; it never silently drops data.
 
-The logical v0 report has these fields. Host APIs may use their conventional
+The logical v1 report has these fields. Host APIs may use their conventional
 member spelling, but a serialized report uses the names below.
 
 | Field | Meaning |
 | --- | --- |
 | `sourceContract` | implementation-owned, versioned source contract |
-| `targetContract` | `aes.events.v0` |
+| `targetContract` | `aes.events.v1` |
 | `adapter` | stable adapter identifier |
 | `adapterVersion` | implementation version of that mapping |
 | `profile` | selected portable AES profile |
@@ -83,23 +83,23 @@ The initial implementation-owned adapter registry is:
 
 | Source contract | Adapter | Adapter version |
 | --- | --- | --- |
-| `aeon.typescript.assignment-events.v0` | `aeon.typescript.assignment-events.v0-to-aes.events.v0` | `0.1.0-candidate` |
-| `aeon.rust.assignment-events.v0` | `aeon.rust.assignment-events.v0-to-aes.events.v0` | `0.1.0-candidate` |
-| `aeon.python.assignment-events.v0` | `aeon.python.assignment-events.v0-to-aes.events.v0` | `0.1.0-candidate` |
-| `aeon.php.assignment-events.v0` | `aeon.php.assignment-events.v0-to-aes.events.v0` | `0.1.0-candidate` |
-| `asp.read-result.v0` | `asp.read-result.v0-to-aes.events.v0` | `0.1.0-candidate` |
+| `aeon.typescript.assignment-events.v0` | `aeon.typescript.assignment-events.v0-to-aes.events.v1` | `1.0.0` |
+| `aeon.rust.assignment-events.v0` | `aeon.rust.assignment-events.v0-to-aes.events.v1` | `1.0.0` |
+| `aeon.python.assignment-events.v0` | `aeon.python.assignment-events.v0-to-aes.events.v1` | `1.0.0` |
+| `aeon.php.assignment-events.v0` | `aeon.php.assignment-events.v0-to-aes.events.v1` | `1.0.0` |
+| `asp.read-result.v0` | `asp.read-result.v0-to-aes.events.v1` | `1.0.0` |
 
 The first four identifiers name the corresponding implementation's legacy
 assignment-event/inspect model; they do not make untagged JSON portable AES.
 Their named adapter entry points accept the implementation's native equivalent
-of that source contract, return `aes.complete.v0`, retain source order, and
+of that source contract, return `aes.complete.v1`, retain source order, and
 omit local spans that lack an immutable origin. Existing same-process
 projection helpers are conveniences and are not substitutes for a named
 compatibility result at a serialized boundary.
 
 Current native assignment-event producers additionally retain an occurrence's
 source plane as `header` or `body`. This is implementation-contract metadata,
-not a field in `aes.events.v0`: portable records express the distinction with
+not a field in `aes.events.v1`: portable records express the distinction with
 their mutually exclusive `header` and `path` address fields. Native consumers
 must prefer explicit source-plane identity over key spelling. A compatibility
 reader may infer legacy header records from the implementation's retained
@@ -148,9 +148,9 @@ still differ. A named source contract may designate one of two redundant views
 as authoritative only when both views represent the same source occurrence;
 that is schema mapping, not value-based deduplication.
 
-If duplicates instead reach portable validation, `aes.complete.v0` reports
+If duplicates instead reach portable validation, `aes.complete.v1` reports
 `AES_DUPLICATE_PATH`. Intentional repeated addresses remain distinct ordered
-records under `aes.partial.v0`.
+records under `aes.partial.v1`.
 
 ### 3.3 Identity
 
@@ -167,7 +167,7 @@ validation failure.
 ### 3.4 Headers
 
 Legacy synthetic `aeon:*` body events are excluded from the default body-only
-projection. When `projection=aeon.document.v0` is explicitly selected, a
+projection. When `projection=aeon.document.v1` is explicitly selected, a
 source-contract-specific adapter may move recognized header events to the
 `header` address plane and MUST prove that no ordinary body binding is being
 reclassified.
@@ -228,7 +228,7 @@ complete ownership and order have been established.
 ## 5. Durable history
 
 The default persistence strategy keeps existing legacy history immutable and
-provides a versioned read-time projection into `aes.events.v0`. It does not
+provides a versioned read-time projection into `aes.events.v1`. It does not
 rewrite an existing log, snapshot, checkpoint, signature, digest, or span in
 place.
 
@@ -289,10 +289,10 @@ reader; it cannot be claimed by a read-time projection alone.
 
 ## 7. Capability and evidence
 
-A reader acknowledgement names `aes.events.v0`, each supported profile, and
-each supported projection. Support for `aes.complete.v0` does not imply support
-for `aes.partial.v0`, and body-only support does not imply
-`aeon.document.v0` support.
+A reader acknowledgement names `aes.events.v1`, each supported profile, and
+each supported projection. Support for `aes.complete.v1` does not imply support
+for `aes.partial.v1`, and body-only support does not imply
+`aeon.document.v1` support.
 
 Writer activation evidence records the exact contract, profile, projection,
 adapter versions, reader deployments, target stores or interfaces, canary

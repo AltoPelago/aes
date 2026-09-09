@@ -1,19 +1,19 @@
-# Assignment Event Transaction Contract v0
+# Assignment Event Transaction Contract v1
 
 Scope: transport-neutral prepared transaction bodies, non-actionable carrier
 validation, exact-order transaction integrity, the initial ASP scalar-value
 replacement application, and composition with trusted hosts and AEON security
 envelopes.
 
-Transaction contract: `aes.transaction.v0`
+Transaction contract: `aes.transaction.v1`
 
-Logical envelope: `aes.transaction.envelope.v0`
+Logical envelope: `aes.transaction.envelope.v1`
 
-Integrity contract: `aes.transaction.integrity.v0`
+Integrity contract: `aes.transaction.integrity.v1`
 
-Initial application contract: `aes.application.asp.scalar-replacement.v0`
+Initial application contract: `aes.application.asp.scalar-replacement.v1`
 
-This contract sits above `aes.events.v0`. It does not change Telex framing,
+This contract sits above `aes.events.v1`. It does not change Telex framing,
 infer mutation intent from event content, authorize a write, or extend ASP v0
 storage. A transaction becomes actionable only when a trusted consumer supports
 every named sub-contract, validates the complete envelope, independently
@@ -41,9 +41,9 @@ It does not own Telex or Film bytes, endpoint negotiation, authenticated actor
 identity, key trust, application-specific authorization decisions, AEOS schema
 selection, ASP persistence, commit receipts, or encryption.
 
-`telex.aes=0` remains an event-stream encoding. A Telex stream never becomes
+`telex.aes=1` remains an event-stream encoding. A Telex stream never becomes
 actionable by containing a transaction-looking path or value. A physical AET
-carrier must identify `aes.transaction.envelope.v0` before decoding its body;
+carrier must identify `aes.transaction.envelope.v1` before decoding its body;
 Poem, AEON, or an API may provide that physical mapping separately.
 
 ## 2. Logical envelope
@@ -52,8 +52,8 @@ The logical envelope is a map with exactly:
 
 | Field | Presence | Meaning |
 | --- | --- | --- |
-| `envelope` | required | `aes.transaction.envelope.v0` |
-| `body` | required | one validated `aes.transaction.v0` body |
+| `envelope` | required | `aes.transaction.envelope.v1` |
+| `body` | required | one validated `aes.transaction.v1` body |
 | `evidence` | required | null or transaction integrity/signature evidence |
 
 The explicit null distinguishes an unsigned carrier from a truncated carrier.
@@ -72,14 +72,14 @@ registered `x.<owner>.<name>` extensions:
 
 | Field | Logical value |
 | --- | --- |
-| `transaction` | `aes.transaction.v0` |
+| `transaction` | `aes.transaction.v1` |
 | `id` | non-empty transaction identity |
 | `intent` | non-empty semantic-intent identity |
 | `attempt` | non-empty prepared-attempt identity |
-| `events` | `aes.events.v0` |
+| `events` | `aes.events.v1` |
 | `profile` | explicit effective AES profile |
 | `projection` | explicit effective projection, or null for body-only |
-| `ordering` | `aes.order.exact.v0` |
+| `ordering` | `aes.order.exact.v1` |
 | `application` | application map |
 | `target` | target map |
 | `preconditions` | ordered precondition-map list |
@@ -87,7 +87,7 @@ registered `x.<owner>.<name>` extensions:
 | `authorization` | authorization-context map |
 | `limits` | limits-claim map |
 | `assertions` | assertions map |
-| `records` | ordered `aes.events.v0` record list |
+| `records` | ordered `aes.events.v1` record list |
 | `integrity` | transaction-integrity policy map |
 
 `id`, `intent`, and `attempt` are distinct strings of 1 through 256 Unicode
@@ -97,7 +97,7 @@ mapping.
 
 All effective event context is explicit even when the same values could have
 been omitted from a Telex preamble. `ordering` is fixed to exact supplied order
-in v0. Reordering produces a different transaction and requires new integrity
+in v1. Reordering produces a different transaction and requires new integrity
 evidence.
 
 Unknown core fields fail closed. A registered extension is covered by
@@ -129,14 +129,14 @@ not make an unknown application actionable.
 | `id` | opaque target resource identity |
 | `boundary` | target-defined atomic boundary |
 
-The initial ASP target contract is `aes.target.asp.v0`. Its `id` is the trusted
+The initial ASP target contract is `aes.target.asp.v1`. Its `id` is the trusted
 ASP database identity and its `boundary` is the canonical source scope that
 will be locked and revision-checked. The initial scalar application requires
 `boundary="$"`.
 
 ### 4.3 Preconditions
 
-`preconditions` is ordered. In v0 each entry has exactly `contract`, `scope`,
+`preconditions` is ordered. In v1 each entry has exactly `contract`, `scope`,
 and canonical unsigned-decimal `revision` fields. The named contract owns the
 meaning of that revision check. The initial registered contract is the ASP
 revision form below; a different field shape requires a later transaction
@@ -144,7 +144,7 @@ extension or version.
 
 ```text
 {
-  contract: "aes.precondition.asp-revision.v0",
+  contract: "aes.precondition.asp-revision.v1",
   scope: "$",
   revision: "42"
 }
@@ -158,7 +158,7 @@ sufficient.
 
 #### 4.4.1 Identity preparation
 
-The initial `aes.preparation.identity.v0` map contains only its `contract`.
+The initial `aes.preparation.identity.v1` map contains only its `contract`.
 It asserts that the supplied record order and values are already the final
 prepared payload. Any transformation or reordering selects another registered
 preparation contract and produces a new `attempt`, transaction `id`, and digest.
@@ -168,7 +168,7 @@ consumer to execute document-supplied code.
 
 #### 4.4.2 Source-backed preparation
 
-`aes.preparation.source-backed.v0` registers the operation gate for an
+`aes.preparation.source-backed.v1` registers the operation gate for an
 application that claims every payload record has exact retained source
 evidence. Its map also contains only `contract`; record-local origins bind the
 artifacts and do not expose storage locators in the transaction body.
@@ -209,7 +209,7 @@ claim.
 | `contract` | trusted host authorization-context contract |
 | `context` | opaque non-empty context identity |
 
-The initial identifier is `aes.authorization.host-context.v0`. The field binds
+The initial identifier is `aes.authorization.host-context.v1`. The field binds
 the transaction to a host-known authorization context; it is not a credential
 and never self-authorizes. A consumer matches it to authenticated host state and
 still performs request and prepared-plan authorization.
@@ -220,7 +220,7 @@ still performs request and prepared-plan authorization.
 
 | Field | Meaning |
 | --- | --- |
-| `contract` | `aes.limits.claim.v0` |
+| `contract` | `aes.limits.claim.v1` |
 | `id` | immutable named limit-set line |
 | `version` | exact limit-set revision |
 
@@ -251,7 +251,7 @@ not define container assertion semantics requires an empty list.
 
 ```text
 {
-  contract: "aes.transaction.integrity.v0",
+  contract: "aes.transaction.integrity.v1",
   digest: "sha256"
 }
 ```
@@ -261,7 +261,7 @@ Evidence carrying the resulting hash remains outside the body.
 
 ## 5. Event payload
 
-`records` is the final ordered logical `aes.events.v0` sequence. Validation
+`records` is the final ordered logical `aes.events.v1` sequence. Validation
 uses the explicit `profile` and `projection` from the body. Transport-specific
 combined datatype spellings are expanded before transaction validation and
 integrity encoding.
@@ -270,7 +270,7 @@ AET does not change event semantics. Structural identity remains metadata,
 node heads remain explicit `[0]` events, attributes remain flat paths, and
 provenance remains optional and record-local. Every present event field,
 including `origin`, `span`, and registered extensions, is covered by transaction
-integrity. Transaction v0 has no provenance-exclusion switch.
+integrity. Transaction v1 has no provenance-exclusion switch.
 
 The base transaction carrier preserves duplicate records and addresses because
 an application contract owns their meaning. The initial scalar application
@@ -278,18 +278,18 @@ forbids them by requiring exactly one record.
 
 ## 6. Initial scalar-value replacement application
 
-`aes.application.asp.scalar-replacement.v0` is the only application registered
+`aes.application.asp.scalar-replacement.v1` is the only application registered
 by this draft. It maps to the already-tested ASP v0 scalar-replacement behavior
 without widening ASP storage.
 
 Its transaction body additionally requires:
 
-- `profile="aes.partial.v0"` and `projection=null`;
-- `application.contract="aes.application.asp.scalar-replacement.v0"`;
-- `target.contract="aes.target.asp.v0"` and `target.boundary="$"`;
-- exactly one `aes.precondition.asp-revision.v0` entry for scope `$`;
-- `preparation.contract="aes.preparation.identity.v0"`;
-- `authorization.contract="aes.authorization.host-context.v0"`;
+- `profile="aes.partial.v1"` and `projection=null`;
+- `application.contract="aes.application.asp.scalar-replacement.v1"`;
+- `target.contract="aes.target.asp.v1"` and `target.boundary="$"`;
+- exactly one `aes.precondition.asp-revision.v1` entry for scope `$`;
+- `preparation.contract="aes.preparation.identity.v1"`;
+- `authorization.contract="aes.authorization.host-context.v1"`;
 - an empty container-assertion list and `eventCount="1"`; and
 - exactly one body record containing only `path`, `kind`, and `value`.
 
@@ -313,14 +313,14 @@ existing implementation candidates are not promoted by this carrier.
 
 ## 7. Transaction integrity
 
-`aes.transaction.integrity.v0` reuses the deterministic structural mapping
-`E(value)` from `aes.integrity.v0`. It does not reuse the event-stream integrity
+`aes.transaction.integrity.v1` reuses the deterministic structural mapping
+`E(value)` from `aes.integrity.v1`. It does not reuse the event-stream integrity
 input map or its domain.
 
 The transaction logical bytes are:
 
 ```text
-UTF8("aes.transaction.integrity.v0") || 0x00 || E(body)
+UTF8("aes.transaction.integrity.v1") || 0x00 || E(body)
 ```
 
 Here `0x00` is one zero octet. `body` is the complete logical body map after
@@ -338,22 +338,22 @@ The optional envelope evidence map contains exactly:
 
 | Field | Logical value |
 | --- | --- |
-| `integrity` | `aes.transaction.integrity.v0` |
+| `integrity` | `aes.transaction.integrity.v1` |
 | `digest` | `sha256` |
 | `hash` | canonical transaction digest |
 | `signatures` | ordered signature-entry list |
 
 An empty `signatures` list is valid digest-only evidence. Each signature entry
 contains exactly `signature`, `alg`, `kid`, and `sig`, where `signature` is
-`aes.transaction.signature.v0`. `sig` is a non-empty string in the encoding
+`aes.transaction.signature.v1`. `sig` is a non-empty string in the encoding
 selected by the trusted signature profile.
 
 Signature input is:
 
 ```text
-UTF8("aes.transaction.signature.v0") || 0x00 || E({
-  signature: "aes.transaction.signature.v0",
-  integrity: "aes.transaction.integrity.v0",
+UTF8("aes.transaction.signature.v1") || 0x00 || E({
+  signature: "aes.transaction.signature.v1",
+  integrity: "aes.transaction.integrity.v1",
   digest: "sha256",
   hash: <transaction digest>,
   alg: <exact algorithm identifier>,
@@ -370,7 +370,7 @@ trusted security profile.
 When AEON carries an AET, the transaction body is ordinary covered document
 content. The final `aeon:envelope` may carry the transaction evidence, reusing
 AEON signature field vocabulary while explicitly identifying
-`aes.transaction.integrity.v0` and `aes.transaction.signature.v0`. It must not
+`aes.transaction.integrity.v1` and `aes.transaction.signature.v1`. It must not
 label the transaction digest as `aeon.gp.integrity.v1`.
 
 The security envelope is excluded from transaction bytes to avoid recursion.
@@ -378,16 +378,16 @@ An envelope attached to the original source artifact is separate lineage
 evidence and does not authenticate the prepared transaction.
 
 Poem may later define endpoint framing, negotiation, streaming, replies, and
-delivery guarantees around `aes.transaction.envelope.v0`. That work does not
-change `telex.aes=0` or this logical envelope. Encryption remains blocked until
+delivery guarantees around `aes.transaction.envelope.v1`. That work does not
+change `telex.aes=1` or this logical envelope. Encryption remains blocked until
 a carrier profile defines plaintext/ciphertext coverage, authenticated visible
 metadata, and processing order.
 
 ## 9. Validation and application lifecycle
 
 1. Apply physical carrier and resource limits before trusting body claims.
-2. Establish `aes.transaction.envelope.v0` and validate its closed shape.
-3. Validate the complete `aes.transaction.v0` body and event stream.
+2. Establish `aes.transaction.envelope.v1` and validate its closed shape.
+3. Validate the complete `aes.transaction.v1` body and event stream.
 4. Resolve every named application, target, precondition, preparation,
    authorization, limits, extension, integrity, and security contract against
    trusted consumer capabilities.

@@ -117,7 +117,7 @@ fn milliseconds(duration: Duration) -> f64 {
 fn build_telex(event_count: usize) -> String {
     assert!((1..=100_000).contains(&event_count));
     let mut output = String::with_capacity(event_count * 60);
-    output.push_str("telex.aes=0\n\npath=$.items\nkind=ListNode\ndatatype=list<string>\n");
+    output.push_str("telex.aes=1\n\npath=$.items\nkind=ListNode\ndatatype=list<string>\n");
     for index in 0..event_count - 1 {
         output.push_str("\npath=$.items[");
         output.push_str(&index.to_string());

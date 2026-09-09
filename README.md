@@ -31,31 +31,31 @@ telex.aes    film.aes
 ## Current status
 
 This repository remains the implementation-adjacent AES workspace. Canonical
-publication sources live under `sources/aes/v0/` in
-[`aeonite-specs`](../../aeonite-org/aeonite-specs/). The AES v0 index, portable
+publication sources live under `sources/aes/v1/` in
+[`aeonite-specs`](../../aeonite-org/aeonite-specs/). The AES v1 index, portable
 event contract, compatibility contract, and Telex encoding are published;
-their declared lifecycle and normativity govern v0. The Aeonic Semantic
+their declared lifecycle and normativity govern v1. The Aeonic Semantic
 Language remains a proposal. The integrity and Assignment Event Transaction
 contracts are normative drafts. The Markdown documents here are
 working/reference copies and do not override those canonical sources.
 
-- [Portable AES Event Contract v0](specifications/aes.events.md) owns the
+- [Portable AES Event Contract v1](specifications/aes.events.md) owns the
   transport-neutral record, profile, projection, and fidelity rules.
-- [Portable AES Compatibility Contract v0](specifications/aes.compatibility.md)
+- [Portable AES Compatibility Contract v1](specifications/aes.compatibility.md)
   defines explicit legacy adapters, durable read views, and the
   reader-before-writer deployment barrier.
-- [Portable AES Integrity Contract v0](specifications/aes.integrity.md) defines
+- [Portable AES Integrity Contract v1](specifications/aes.integrity.md) defines
   encoding-neutral logical bytes, SHA-256 digests, canonical-semantic and exact
   ordering policies, optional provenance coverage, and domain-separated
   signature inputs without treating Telex or Film bytes as the signed form.
-- [Assignment Event Transaction Contract v0](specifications/aes.transactions.md)
+- [Assignment Event Transaction Contract v1](specifications/aes.transactions.md)
   defines the non-actionable logical transaction envelope, exact-order
   transaction integrity, trusted-host boundaries, source-backed preparation,
   and the initial narrow ASP scalar-value replacement application without
   changing Telex framing.
-- [Telex v0](specifications/telex.aes.md) owns textual framing, escaping,
+- [Telex v1](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
-- [Film v0 binary encoding proposal](proposals/film.aes.md) records the
+- [Film v1 binary encoding proposal](proposals/film.aes.md) records the
   transport boundary, initial streaming direction, performance contract, and
   deferred wire-format decision gates for the binary AES encoding.
 - [Current event-model inventory](notes/current-event-model.md) records the
@@ -74,10 +74,10 @@ working/reference copies and do not override those canonical sources.
   that the framing can be parsed and produced with a very small implementation;
   it deliberately does not decide AES value semantics. It preserves an
   explicit stream profile, and its separate `checkTelexCompleteness` helper
-  reports missing structural prefixes without claiming full `aes.complete.v0`
+  reports missing structural prefixes without claiming full `aes.complete.v1`
   validation. `validateTelex` and `validateTelexRecords` apply the event-local
-  v0 rules and the selected profile's structural checks. AEON headers are
-  absent by default; `projection=aeon.document.v0` explicitly enables flat
+  v1 rules and the selected profile's structural checks. AEON headers are
+  absent by default; `projection=aeon.document.v1` explicitly enables flat
   `header=` control records in a separate address plane. Optional provenance
   uses a record-local `origin=sha256:<digest>` and permits `span` only alongside
   that origin. Its decoder expands compact Telex datatype lines into logical
@@ -89,18 +89,18 @@ working/reference copies and do not override those canonical sources.
 - [`src/provenance.js`](src/provenance.js) audits record-local origin digests
   and UTF-8 byte spans against exact caller-retained bytes. It reports artifact
   availability separately from evidence validity and gates
-  `aes.preparation.source-backed.v0` without turning source coordinates into
+  `aes.preparation.source-backed.v1` without turning source coordinates into
   mutation authority.
 - [`examples/customer.telex.aes`](examples/customer.telex.aes) is an early
   illustrative stream, not a frozen conformance vector.
-- [`conformance/`](conformance/README.md) contains language-neutral v0
+- [`conformance/`](conformance/README.md) contains language-neutral v1
   vectors for syntax, canonicalization, AES profile validation, exact-source
   provenance, resource-limit boundaries, and the optional AEON document
   projection. Stable external
-  targets are published separately as `aes-events-cts-v0-snapshot-0.1` and
-  `telex-cts-v0-snapshot-0.1` in the shared `aeonite-cts` repository.
+  targets are published separately as `aes-events-cts-v1-snapshot-0.1` and
+  `telex-cts-v1-snapshot-0.1` in the shared `aeonite-cts` repository.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
-  Rust implementation of the same v0 event, Telex, integrity, provenance, and
+  Rust implementation of the same v1 event, Telex, integrity, provenance, and
   transaction contracts.
   Its Telex codec has no runtime dependencies; portable SHA-256 integrity uses
   the audited `sha2` crate.
@@ -160,7 +160,7 @@ ambiguity.
 1. Continue compatibility readers and adapters across the existing producers
    and consumers.
 2. Prototype and resolve the decision gates in the
-   [Film v0 binary encoding proposal](proposals/film.aes.md).
+   [Film v1 binary encoding proposal](proposals/film.aes.md).
 3. Consolidate the later Film and Tape specifications here.
 4. Advance shared value behavior through the Aeonic Semantic Language proposal.
 

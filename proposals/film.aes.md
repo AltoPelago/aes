@@ -1,4 +1,4 @@
-# Film v0 binary encoding proposal
+# Film v1 binary encoding proposal
 
 Status: deferred proposal
 
@@ -6,7 +6,7 @@ Scope: binary framing and encoding of portable AES event streams
 
 Proposed file suffix: `.film.aes`
 
-Portable event contract: [`aes.events.v0`](../specifications/aes.events.md)
+Portable event contract: [`aes.events.v1`](../specifications/aes.events.md)
 
 ## 1. Summary
 
@@ -62,7 +62,7 @@ Telex decoder recovers. Transcoding between canonical Telex and canonical Film
 must not require AEON source, an AEON parser, schema inference, or downstream
 semantic interpretation.
 
-Film v0 should map statically to `aes.events.v0`, just as Telex v0 does. An
+Film v1 should map statically to `aes.events.v1`, just as Telex v1 does. An
 incompatible mapping or binary grammar requires another Film format version.
 
 ## 3. Required semantic invariants
@@ -84,13 +84,13 @@ Binary encoding does not change the AES value model.
 Film may represent a logical string with compact binary machinery. For example,
 it may store a SHA-256 origin digest as 32 bytes rather than 64 hexadecimal
 characters. The decoder must nevertheless expose the logical AES value in the
-form required by `aes.events.v0`.
+form required by `aes.events.v1`.
 
 ## 4. Goals
 
-Film v0 should:
+Film v1 should:
 
-1. Encode every valid `aes.events.v0` stream without loss.
+1. Encode every valid `aes.events.v1` stream without loss.
 2. Decode incrementally from a byte stream with bounded buffering.
 3. Frame each record so a decoder can skip or reject it without scanning for a
    textual delimiter.
@@ -106,7 +106,7 @@ Film v0 should:
 
 ## 5. Non-goals
 
-Film v0 should not:
+Film v1 should not:
 
 - define different event semantics from Telex;
 - encode an implementation-specific AST or JSON object layout;
@@ -121,7 +121,7 @@ Film v0 should not:
   conversion cost.
 
 Compression, transport integrity, encryption, indexing, and random-access
-containers may wrap or extend Film later. They should not complicate the v0
+containers may wrap or extend Film later. They should not complicate the v1
 event stream unless measurements show a compelling need.
 
 ## 6. Proposed stream architecture
@@ -150,7 +150,7 @@ properties:
 
 - the preamble rejects accidental interpretation as another format;
 - the version establishes the event-contract mapping;
-- omission of profile selects `aes.complete.v0`;
+- omission of profile selects `aes.complete.v1`;
 - omission of projection selects the ordinary body-only stream;
 - a canonical empty stream consists only of its required stream header;
 - each record has one explicit byte length;
@@ -197,7 +197,7 @@ forms could decode to the same field.
 
 ## 8. Primitive representations
 
-The likely v0 primitives are:
+The likely v1 primitives are:
 
 - unsigned integers encoded with a unique shortest varint representation;
 - byte strings encoded as `length + bytes`;
@@ -247,7 +247,7 @@ Both body `path` and control-plane `header` addresses belong to the canonical
 SANSA address domain defined by the AES contract. Film must distinguish the two
 planes without inserting a synthetic field into the decoded event.
 
-There are two viable v0 encodings:
+There are two viable v1 encodings:
 
 1. length-prefixed canonical UTF-8 addresses; or
 2. binary address segments with an exact, bidirectional mapping to canonical
@@ -264,8 +264,8 @@ use so sequential decoding remains possible.
 
 ## 11. Values and kinds
 
-Value kinds should use a fixed v0 numeric tag table. Value presence continues
-to follow `aes.events.v0`; Film does not carry a value-presence flag that can
+Value kinds should use a fixed v1 numeric tag table. Value presence continues
+to follow `aes.events.v1`; Film does not carry a value-presence flag that can
 contradict the selected kind.
 
 Value payloads should initially use their canonical AES string form. This
@@ -279,7 +279,7 @@ avoided.
 
 ## 12. Provenance
 
-The v0 provenance direction is:
+The v1 provenance direction is:
 
 - encode the origin algorithm as a small tag;
 - encode a SHA-256 digest as its 32 raw bytes;
@@ -442,7 +442,7 @@ safe substitute for validating the binary preamble.
 The following gates should be taken one at a time when Film work resumes:
 
 1. **Preamble and versioning:** exact magic, version representation, and static
-   mapping to `aes.events.v0`.
+   mapping to `aes.events.v1`.
 2. **Integer primitive:** shortest varints, fixed-width integers, or a measured
    hybrid.
 3. **Record framing:** length prefix width, maximum record size, and whether a
@@ -452,12 +452,12 @@ The following gates should be taken one at a time when Film work resumes:
 5. **Kind table:** numeric assignments and behavior for unknown kind codes.
 6. **Datatype layout:** recursive descriptor tags, counts, and canonicality.
 7. **Address encoding:** canonical UTF-8 paths versus binary SANSA segments.
-8. **Compression tables:** whether v0 includes bounded backward references for
+8. **Compression tables:** whether v1 includes bounded backward references for
    paths, strings, datatypes, or origins.
 9. **Extensions:** canonical named-extension representation and generic relay
    preservation.
 10. **Provenance:** raw digest representation and whether repeated origins use
-    a table in v0.
+    a table in v1.
 11. **Canonical Film:** complete uniqueness rules for every valid byte stream.
 12. **Limits:** format-local counter names, defaults, and exhaustion errors.
 13. **Streaming recovery:** fail-fast only or an independently framed chunk

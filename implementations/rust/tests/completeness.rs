@@ -5,7 +5,7 @@ use aes_telex::{
 #[test]
 fn reports_missing_prefixes_without_full_profile_validation() {
     let result = check_telex_completeness(
-        "telex.aes=0\nprofile=aes.partial.v0\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n",
+        "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.a.b\nkind=NumberLiteral\nvalue=1\n",
     )
     .expect("valid Telex must be checkable");
 
@@ -19,7 +19,7 @@ fn reports_missing_prefixes_without_full_profile_validation() {
 #[test]
 fn keeps_header_and_body_address_planes_disjoint() {
     let parsed = parse_telex(
-        "telex.aes=0\nprojection=aeon.document.v0\nprofile=aes.partial.v0\n\nheader=$.[\"aeon:mode\"].name\nkind=StringLiteral\nvalue=strict\n\npath=$.name\nkind=StringLiteral\nvalue=value\n",
+        "telex.aes=1\nprojection=aeon.document.v1\nprofile=aes.partial.v1\n\nheader=$.[\"aeon:mode\"].name\nkind=StringLiteral\nvalue=strict\n\npath=$.name\nkind=StringLiteral\nvalue=value\n",
     )
     .expect("fixture must parse");
     let result = check_prefix_completeness(&parsed.records, Some(AEON_DOCUMENT_PROJECTION))

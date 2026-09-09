@@ -1,4 +1,4 @@
-telex.aes=0
+telex.aes=1
 
 path=$.customer
 kind=ObjectNode

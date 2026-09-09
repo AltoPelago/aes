@@ -1,15 +1,15 @@
 # Telex conformance vectors
 
-The repository-local Draft 0 vectors are rooted at:
+The repository-local v1 vectors are rooted at:
 
 ```text
-telex/v0/telex-cts.v0.json
+telex/v1/telex-cts.v1.json
 ```
 
 JSON is only the language-neutral manifest envelope. Each `input.telex` value
 contains the actual Telex representation under test. The manifest and each
-suite bind those vectors to portable contract `aes.events.v0`; `format_version`
-continues to identify Telex encoding version `0` independently.
+suite bind those vectors to portable contract `aes.events.v1`; `format_version`
+continues to identify Telex encoding version `1` independently.
 
 An optional `input.limits` object supplies normalized effective integer limits
 to the harness using the canonical snake-case counter names. It is trusted test
@@ -23,7 +23,7 @@ derive from `specifications/telex.aes.md`.
 The separate mutable AES integrity candidate is rooted at:
 
 ```text
-integrity/v0/aes-integrity-cts.v0.json
+integrity/v1/aes-integrity-cts.v1.json
 ```
 
 Its vectors derive from `specifications/aes.integrity.md` and compare
@@ -34,18 +34,18 @@ published snapshot 0.1 and does not change those stable external targets.
 The separate mutable Assignment Event Transaction candidate is rooted at:
 
 ```text
-transactions/v0/aes-transaction-cts.v0.json
+transactions/v1/aes-transaction-cts.v1.json
 ```
 
 It covers the transport-neutral transaction body and logical envelope,
 exact-order transaction integrity, support-versus-authority gating, and the
 initial narrow ASP scalar-value replacement application. It does not change
-Telex v0 framing or enable bare-stream, Wire, or CLI mutation ingress.
+Telex v1 framing or enable bare-stream, Wire, or CLI mutation ingress.
 
 The separate mutable exact-source provenance candidate is rooted at:
 
 ```text
-provenance/v0/aes-provenance-cts.v0.json
+provenance/v1/aes-provenance-cts.v1.json
 ```
 
 It verifies record-local origins and UTF-8 byte ranges against exact retained
@@ -62,7 +62,7 @@ The manifest separates:
 - explicit AEON document projection and header-plane validation;
 - optional record-local origin and non-empty span validation;
 - WTC anchor/reference preservation and consumer-authority boundaries; and
-- inclusive at-limit and rejecting one-over-limit behavior for every Telex v0
+- inclusive at-limit and rejecting one-over-limit behavior for every Telex v1
   format counter and every shared AES structural counter applied at Telex
   ingress.
 
@@ -94,9 +94,9 @@ but external conformance claims must not treat this working path as stable.
 
 The first stable shared publication separates the owning contracts:
 
-- `aes-events-cts-v0-snapshot-0.1` contains 38 transport-neutral event and
+- `aes-events-cts-v1-snapshot-0.1` contains 38 transport-neutral event and
   profile-validation vectors;
-- `telex-cts-v0-snapshot-0.1` contains 50 Telex syntax, canonicalization, and
+- `telex-cts-v1-snapshot-0.1` contains 50 Telex syntax, canonicalization, and
   format-limit vectors.
 
 Both manifests live in `aeonite-cts`, pin a SHA-256 digest for every suite, and

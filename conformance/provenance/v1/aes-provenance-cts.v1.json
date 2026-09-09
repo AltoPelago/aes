@@ -3,10 +3,10 @@
     "version": "0.1.0-dev",
     "status": "draft",
     "lane": "aes-provenance",
-    "event_contract": "aes.events.v0",
-    "preparation_contract": "aes.preparation.source-backed.v0",
+    "event_contract": "aes.events.v1",
+    "preparation_contract": "aes.preparation.source-backed.v1",
     "sut_protocol": "cts.protocol.v1",
-    "description": "Mutable AES v0 exact-source digest, UTF-8 range, availability, and source-backed preparation candidate"
+    "description": "Mutable AES v1 exact-source digest, UTF-8 range, availability, and source-backed preparation candidate"
   },
   "suites": [
     {

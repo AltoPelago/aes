@@ -32,7 +32,7 @@ fn reports_structured_limit_exhaustion() {
         max_input_bytes: 11,
         ..TelexLimits::default()
     };
-    let error = parse_telex_with_limits("telex.aes=0\n", &limits)
+    let error = parse_telex_with_limits("telex.aes=1\n", &limits)
         .expect_err("input should exceed its configured byte limit");
     assert_eq!(error.code, "TELEX_LIMIT_EXCEEDED");
     assert_eq!(error.counter, Some("max_input_bytes"));
@@ -51,7 +51,7 @@ fn encoder_enforces_shared_structural_limits() {
         max_attribute_depth: 1,
         ..TelexLimits::default()
     };
-    let error = encode_telex_with_limits(&records, Some("aes.partial.v0"), &limits)
+    let error = encode_telex_with_limits(&records, Some("aes.partial.v1"), &limits)
         .expect_err("encode should enforce the selected structural limit");
     assert_eq!(error.code, "TELEX_LIMIT_EXCEEDED");
     assert_eq!(error.counter, Some("max_attribute_depth"));

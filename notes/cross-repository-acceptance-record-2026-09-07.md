@@ -9,11 +9,11 @@ new ASP integration vector closes the previously unrepresented supported path:
 
 ```text
 AEON source
-  -> portable aes.events.v0 encoded as telex.aes=0
+  -> portable aes.events.v1 encoded as telex.aes=1
   -> named SO scalar-replacement application
   -> ASP v0 / durable AES-DB
-  -> strict portable aes.events.v0 view
-  -> canonical telex.aes=0
+  -> strict portable aes.events.v1 view
+  -> canonical telex.aes=1
 ```
 
 The fixture derives the mutation address and expected kind from the source
@@ -173,7 +173,7 @@ snapshot 0.1.
 Public AET ingress and encryption, Rust independent anonymous-occurrence
 ranges, and head-aware ASP storage remain separate unchecked requirements.
 Base event-stream integrity belongs to
-`aes.integrity.v0`, while
-`aes.transaction.v0` supplies the support-gated logical carrier, transaction
+`aes.integrity.v1`, while
+`aes.transaction.v1` supplies the support-gated logical carrier, transaction
 digest, and source-backed preparation gate. Neither completion changes this
 earlier read/export and supported-application acceptance run.

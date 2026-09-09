@@ -32,8 +32,8 @@ limits_version = "1.0.0"
 
 profile_claims = [
   "aeon.gp.profile.v1"
-  "aes.complete.v0"
-  "aes.partial.v0"
+  "aes.complete.v1"
+  "aes.partial.v1"
 ]
 
 structure = {
@@ -220,7 +220,7 @@ developer-facing runtime configuration may place both references together for
 convenience:
 
 ```aeon
-profile = "aes.complete.v0"
+profile = "aes.complete.v1"
 limits = {
   id = "altopelago.aeonic-limits.v1"
   version = "1.0.0"
@@ -357,7 +357,7 @@ JavaScript integrity and transaction APIs pass their selected `limits` through
 to direct portable record validation. Rust keeps the existing default APIs and
 provides `_with_limits` companions across integrity encoding/digest verification
 and transaction validation, digest verification, envelope validation, and
-inspection. A transaction `aes.limits.claim.v0` member is authenticated input;
+inspection. A transaction `aes.limits.claim.v1` member is authenticated input;
 it describes the claimed policy identity but never selects or relaxes the
 caller's trusted effective limits.
 

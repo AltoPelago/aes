@@ -22,7 +22,7 @@ use serde_json::{Map, Value};
 #[test]
 fn passes_aes_transaction_candidate_vectors() -> Result<(), Box<dyn Error>> {
     let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../conformance/transactions/v0/aes-transaction-cts.v0.json");
+        .join("../../conformance/transactions/v1/aes-transaction-cts.v1.json");
     let manifest: Value = serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
     assert_eq!(
         manifest["meta"]["transaction_contract"],

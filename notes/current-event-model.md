@@ -61,7 +61,7 @@ The portable profile needs explicit decisions for:
 8. **Ordering:** reconcile lexical binding order with synthetic indexed child
    events and future database-originated events.
 
-Draft 0 makes three fidelity boundaries explicit. Telex record round trips
+v1 makes three fidelity boundaries explicit. Telex record round trips
 preserve ordered scalar fields and structured datatype components, including
 provenance and unknown fields, but
 canonicalization need not preserve tolerant input bytes. Portable AES semantic
@@ -112,7 +112,7 @@ Portable spans use only an inclusive start and exclusive end measured as
 zero-based UTF-8 byte offsets. Line and column coordinates are derived rather
 than transported. Both provenance fields are optional. A source-less record
 omits both; a known source may carry `origin` alone; and `span` is valid only
-with `origin`. Draft 0 identifies the exact, unnormalized source bytes with a
+with `origin`. v1 identifies the exact, unnormalized source bytes with a
 record-local `sha256:<64 lowercase hex>` digest, including any accepted source
 BOM and original line endings. This keeps multi-source streams flat and lets
 Film compress repeated origins later.
@@ -129,18 +129,18 @@ unless an active profile registers the exact field. The prefix never makes an
 extension implicitly optional, and new required core fields require a new AES
 event-contract version.
 
-The complete, self-contained `aes.complete.v0` profile is the AES default.
+The complete, self-contained `aes.complete.v1` profile is the AES default.
 Omitting the Telex profile declaration carries that default; streams that relax
-cross-event constraints must explicitly declare `aes.partial.v0` or a future
+cross-event constraints must explicitly declare `aes.partial.v1` or a future
 specialized profile.
-`aeon.gp.profile.v1` references `aes.complete.v0` explicitly so its projection
+`aeon.gp.profile.v1` references `aes.complete.v1` explicitly so its projection
 contract remains visible even though Telex would apply the same default.
 The partial profile still requires individually valid AES events; it relaxes
 cross-event ancestry, uniqueness, compatibility, and ordering claims rather
 than turning arbitrary Telex stanzas into AES events.
 
 AEON headers use an independent projection axis. The default AEON-to-AES
-projection emits body events only. `projection=aeon.document.v0` explicitly
+projection emits body events only. `projection=aeon.document.v1` explicitly
 adds a complete, flat control plane whose records use
 `header=$.["aeon:..."]` instead of `path`. Structured and shorthand AEON
 headers normalize to the same records; those records precede body events and
@@ -171,7 +171,7 @@ portable AES event contract
 The adapter is important. It makes implementation-only data loss or derivation
 visible and testable instead of burying it inside a serializer.
 
-The Draft 0 direction deliberately makes each portable plane flat:
+The v1 direction deliberately makes each portable plane flat:
 
 ```text
 path + kind + optional datatype/value/identity/provenance

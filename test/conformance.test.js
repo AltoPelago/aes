@@ -12,7 +12,7 @@ import {
 } from '../src/telex.js';
 
 const manifestUrl = process.env.TELEX_CTS_MANIFEST === undefined
-  ? new URL('../conformance/telex/v0/telex-cts.v0.json', import.meta.url)
+  ? new URL('../conformance/telex/v1/telex-cts.v1.json', import.meta.url)
   : pathToFileURL(resolve(process.env.TELEX_CTS_MANIFEST));
 const manifest = readJson(manifestUrl);
 const seenIds = new Set();
@@ -23,15 +23,15 @@ const datatypeSource = readFileSync(new URL('../src/datatype.js', import.meta.ur
 
 test('Telex conformance manifest has resolvable suites and unique vector IDs', () => {
   assert.equal(manifest.meta.format, 'telex.aes');
-  assert.equal(manifest.meta.format_version, '0');
+  assert.equal(manifest.meta.format_version, '1');
   if (manifest.meta.status === 'draft') {
     assert.match(manifest.meta.version, /-dev$/u);
     assert.equal(Object.hasOwn(manifest.meta, 'snapshot_id'), false);
     assert.equal(Object.hasOwn(manifest.meta, 'spec_snapshot_id'), false);
   } else {
     assert.equal(manifest.meta.status, 'released');
-    assert.match(manifest.meta.snapshot_id, /^telex-cts-v0-snapshot-\d+\.\d+$/u);
-    assert.match(manifest.meta.spec_snapshot_id, /^telex-specs-v0-snapshot-\d+\.\d+$/u);
+    assert.match(manifest.meta.snapshot_id, /^telex-cts-v1-snapshot-\d+\.\d+$/u);
+    assert.match(manifest.meta.spec_snapshot_id, /^telex-specs-v1-snapshot-\d+\.\d+$/u);
   }
   assert.notEqual(portableContract, undefined);
   assert.equal(manifest.meta.event_contract, portableContract);

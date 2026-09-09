@@ -1,6 +1,6 @@
 # Rust Telex reference implementation
 
-This crate independently implements the v0 `telex.aes` candidate's parsing,
+This crate independently implements the v1 `telex.aes` candidate's parsing,
 canonicalization, and AES profile validation.
 
 Its decoded records expose a base-name `datatype`, recursive ordered
@@ -16,7 +16,7 @@ events, cumulative decoded payload bytes, paths, and all datatype dimensions;
 limits are enforced without truncation.
 
 The default stream contains body events only. The optional
-`aeon.document.v0` projection adds flat `header` records in a disjoint address
+`aeon.document.v1` projection adds flat `header` records in a disjoint address
 plane; it remains independent of the complete/partial AES profile selection.
 Optional source provenance is record-local: `origin` may stand alone, while
 `span` requires a canonical SHA-256 origin.
@@ -25,11 +25,11 @@ bounds, and scalar boundaries while distinguishing missing artifacts from
 invalid evidence.
 
 The crate also implements the candidate transport-neutral
-`aes.transaction.v0` body, support-gated logical envelope, exact-order
+`aes.transaction.v1` body, support-gated logical envelope, exact-order
 transaction digest, and signature input. Generic inspection can report that a
 verified transaction is ready for trusted authorization, but always reports
 `actionable=false`. A transaction selecting
-`aes.preparation.source-backed.v0` additionally remains unready until its
+`aes.preparation.source-backed.v1` additionally remains unready until its
 record provenance audit is complete.
 
 The Telex codec has no runtime dependencies. Portable integrity uses the

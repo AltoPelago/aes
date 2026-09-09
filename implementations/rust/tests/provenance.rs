@@ -8,7 +8,7 @@ use serde_json::Value;
 #[test]
 fn passes_aes_provenance_candidate_vectors() -> Result<(), Box<dyn Error>> {
     let manifest_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../conformance/provenance/v0/aes-provenance-cts.v0.json");
+        .join("../../conformance/provenance/v1/aes-provenance-cts.v1.json");
     let manifest: Value = serde_json::from_str(&fs::read_to_string(&manifest_path)?)?;
     assert_eq!(manifest["meta"]["lane"], "aes-provenance");
     let mut count = 0_usize;

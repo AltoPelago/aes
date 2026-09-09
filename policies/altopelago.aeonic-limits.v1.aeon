@@ -3,8 +3,8 @@ limits_version = "1.0.0"
 
 profile_claims = [
   "aeon.gp.profile.v1"
-  "aes.complete.v0"
-  "aes.partial.v0"
+  "aes.complete.v1"
+  "aes.partial.v1"
 ]
 
 structure = {

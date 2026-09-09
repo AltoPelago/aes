@@ -8,7 +8,7 @@ import {
 } from '../src/integrity.js';
 
 const manifestUrl = new URL(
-  '../conformance/integrity/v0/aes-integrity-cts.v0.json',
+  '../conformance/integrity/v1/aes-integrity-cts.v1.json',
   import.meta.url,
 );
 const manifest = readJson(manifestUrl);
@@ -16,8 +16,8 @@ const manifest = readJson(manifestUrl);
 test('AES integrity candidate manifest is internally consistent', () => {
   assert.equal(manifest.meta.status, 'draft');
   assert.equal(manifest.meta.lane, 'aes-integrity');
-  assert.equal(manifest.meta.integrity_contract, 'aes.integrity.v0');
-  assert.equal(manifest.meta.event_contract, 'aes.events.v0');
+  assert.equal(manifest.meta.integrity_contract, 'aes.integrity.v1');
+  assert.equal(manifest.meta.event_contract, 'aes.events.v1');
 });
 
 let vectorCount = 0;

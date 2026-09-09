@@ -1,9 +1,9 @@
-# `telex.aes` v0
+# `telex.aes` v1
 
 Scope: textual framing, escaping, canonical encoding, and decoding of portable
 AES event streams.
 
-Format version: `0`
+Format version: `1`
 
 File suffix: `.telex.aes`
 
@@ -25,7 +25,7 @@ Telex defines only their text framing, escaping, canonical bytes, and syntax
 diagnostics. The future `film.aes` will encode the same records with different
 physical tradeoffs.
 
-Format version `0` identifies this published wire contract. An incompatible
+Format version `1` identifies this published wire contract. An incompatible
 framing or decoding change requires a new Telex format version.
 
 ## 2. Design constraints
@@ -57,7 +57,7 @@ customer:object = {
 a Telex projection could be:
 
 ```text
-telex.aes=0
+telex.aes=1
 
 path=$.customer
 kind=ObjectNode
@@ -102,34 +102,34 @@ the decoded Unicode scalar sequence exactly.
 The first line is exactly:
 
 ```text
-telex.aes=0
+telex.aes=1
 ```
 
-This preamble establishes both Telex encoding version `0` and its static
-mapping to portable event contract `aes.events.v0`. A Telex reader does not
+This preamble establishes both Telex encoding version `1` and its static
+mapping to portable event contract `aes.events.v1`. A Telex reader does not
 need a second contract declaration. Future Telex versions state their event
 contract mapping in their own specification.
 
 The preamble may be followed by one profile declaration:
 
 ```text
-profile=aes.partial.v0
+profile=aes.partial.v1
 ```
 
 and one optional projection declaration:
 
 ```text
-projection=aeon.document.v0
+projection=aeon.document.v1
 ```
 
 `profile` and `projection` are the independent context axes defined by
-`aes.events.v0`. A canonical stream places `profile` before `projection`.
-Omitting profile selects `aes.complete.v0`; omitting projection selects the
+`aes.events.v1`. A canonical stream places `profile` before `projection`.
+Omitting profile selects `aes.complete.v1`; omitting projection selects the
 ordinary body-only stream.
 
 The stream header is followed by a blank line when at least one record follows.
 A canonical zero-record stream ends with exactly one LF immediately after its
-last stream-header line. Therefore `telex.aes=0\n` is the canonical empty
+last stream-header line. Therefore `telex.aes=1\n` is the canonical empty
 default stream; an explicit profile or projection, when present, becomes the
 last line before that LF. There is no trailing blank line.
 
@@ -139,7 +139,7 @@ plane records are records and therefore require the ordinary blank separator.
 Future Telex versions use another preamble value rather than an inferred
 feature set.
 
-Profile and projection identifiers use Telex payload escaping. Telex v0 permits
+Profile and projection identifiers use Telex payload escaping. Telex v1 permits
 at most one declaration of each and rejects an empty identifier. A syntax
 reader preserves an unknown non-empty identifier; semantic validation rejects
 unsupported context.
@@ -268,7 +268,7 @@ datatype=tuple<tuple<int, 2>[16], string>["x", "x"]
 ```
 
 A decoder expands each such line into a base-name string and the two ordered
-arrays defined by `aes.events.v0`. A datatype argument becomes a recursive
+arrays defined by `aes.events.v1`. A datatype argument becomes a recursive
 descriptor, a numeric generic argument becomes a tagged `NumberLiteral`, and a
 clarifier becomes a tagged `StringLiteral` or `NumberLiteral`. Numeric payloads
 remain strings. An encoder performs the inverse mapping. `generics` and
@@ -282,7 +282,7 @@ datatype-component limits selected by its consumer before accepting a record.
 Telex does not derive either value from the stream's semantic profile.
 
 Field presence, payload meaning, value kinds, canonical paths, identity,
-provenance, completeness, ordering, and the `aeon.document.v0` control plane
+provenance, completeness, ordering, and the `aeon.document.v1` control plane
 are AES rules. A Telex syntax parser may successfully decode a record or stream
 that later fails those semantic rules.
 
@@ -346,10 +346,10 @@ A tiny parser may implement only layer 1. It must not claim AES conformance
 merely because it can split fields.
 
 The reference `validateTelex` helper implements the event-local rules defined
-by the portable contract. Under `aes.complete.v0`, it additionally checks path
+by the portable contract. Under `aes.complete.v1`, it additionally checks path
 and identity uniqueness, ancestry, parent compatibility, and node-head
-placement. Under `aes.partial.v0`, it omits body cross-record checks. Under
-`aeon.document.v0`, it independently checks header ordering, ancestry, and
+placement. Under `aes.partial.v1`, it omits body cross-record checks. Under
+`aeon.document.v1`, it independently checks header ordering, ancestry, and
 compatibility.
 
 `checkTelexCompleteness(input)` and `checkPrefixCompleteness(records)` provide
@@ -362,7 +362,7 @@ AES semantic diagnostic codes are defined in
 
 ## 8. Unknown fields and versioning
 
-A Telex v0 syntax parser accepts and preserves every syntactically valid field,
+A Telex v1 syntax parser accepts and preserves every syntactically valid field,
 including unknown fields. Canonical output includes them after core fields.
 Telex does not interpret the `x.<owner>.<name>` convention or treat such fields
 as optional.
@@ -405,7 +405,7 @@ it does not let an input stream select or relax those limits.
 
 The last three groups are portable AES event-model counters, not Telex byte
 counters. Their measurement and partial-stream lower-bound behavior are defined
-by `aes.events.v0`; a non-Telex carrier applies the same rules to the same
+by `aes.events.v1`; a non-Telex carrier applies the same rules to the same
 logical records.
 
 Syntax decoding performs no reference resolution, schema loading, network
@@ -413,22 +413,22 @@ access, datatype execution, or source-language evaluation.
 
 ## 10. Published conformance baseline
 
-Published Telex v0 requires the settled Telex syntax and referenced AES event
+Published Telex v1 requires the settled Telex syntax and referenced AES event
 rules to exist as conformance vectors in at least two independent
 implementations.
 
-The repository-local `conformance/telex/v0` manifest remains a mutable v0
-candidate with no snapshot identity. Stable conformance is split by authority:
-`telex-cts-v0-snapshot-0.1` owns 50 syntax, canonicalization, and format-limit
-vectors, while `aes-events-cts-v0-snapshot-0.1` owns 38 transport-neutral event
+The repository-local `conformance/telex/v1` manifest remains a mutable
+development candidate with no snapshot identity. Stable conformance is split by authority:
+`telex-cts-v1-snapshot-0.1` owns 50 syntax, canonicalization, and format-limit
+vectors, while `aes-events-cts-v1-snapshot-0.1` owns 38 transport-neutral event
 and profile-validation vectors. Both immutable manifests are published in the
 shared CTS repository with per-suite content digests and pass independently in
 the JavaScript and Rust implementations. These snapshots are the stable
-conformance baseline for the published v0 contract. Later compatible additions
+conformance baseline for the published v1 contract. Later compatible additions
 require a new immutable snapshot identifier; incompatible wire changes require
 a new Telex format version.
 
-Transport media types and external registration are outside the v0 format
+Transport media types and external registration are outside the v1 format
 decision gates.
 
 ## 11. Relationship to AES semantics

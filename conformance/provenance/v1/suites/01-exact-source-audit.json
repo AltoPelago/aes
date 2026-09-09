@@ -2,8 +2,8 @@
   "meta": {
     "suite_id": "exact-source-audit",
     "lane": "aes-provenance",
-    "event_contract": "aes.events.v0",
-    "preparation_contract": "aes.preparation.source-backed.v0",
+    "event_contract": "aes.events.v1",
+    "preparation_contract": "aes.preparation.source-backed.v1",
     "sut_protocol": "cts.protocol.v1",
     "spec_refs": [
       "specifications/aes.events.md#7-provenance-and-spans",
@@ -11,7 +11,7 @@
     ]
   },
   "id": "exact-source-audit",
-  "title": "AES v0 Exact Source-Backed Provenance Audit",
+  "title": "AES v1 Exact Source-Backed Provenance Audit",
   "tests": [
     {
       "id": "aes-provenance-001-origin-only",

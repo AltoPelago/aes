@@ -5,14 +5,14 @@ import test from 'node:test';
 
 import { auditAesSourceProvenance } from '../src/provenance.js';
 
-const manifestUrl = new URL('../conformance/provenance/v0/aes-provenance-cts.v0.json', import.meta.url);
+const manifestUrl = new URL('../conformance/provenance/v1/aes-provenance-cts.v1.json', import.meta.url);
 const manifest = readJson(manifestUrl);
 
 test('AES provenance candidate manifest is internally consistent', () => {
   assert.equal(manifest.meta.status, 'draft');
   assert.equal(manifest.meta.lane, 'aes-provenance');
-  assert.equal(manifest.meta.event_contract, 'aes.events.v0');
-  assert.equal(manifest.meta.preparation_contract, 'aes.preparation.source-backed.v0');
+  assert.equal(manifest.meta.event_contract, 'aes.events.v1');
+  assert.equal(manifest.meta.preparation_contract, 'aes.preparation.source-backed.v1');
 });
 
 let vectorCount = 0;

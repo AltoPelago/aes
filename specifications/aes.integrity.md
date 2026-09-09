@@ -1,15 +1,15 @@
-# Portable AES Integrity Contract v0
+# Portable AES Integrity Contract v1
 
 Scope: deterministic logical bytes, digests, ordering policies, coverage,
 provenance, signatures, and AEON security-envelope composition for portable AES.
 
-Contract identifier: `aes.integrity.v0`
+Contract identifier: `aes.integrity.v1`
 
-Ordering policies: `aes.order.canonical-semantic.v0`, `aes.order.exact.v0`
+Ordering policies: `aes.order.canonical-semantic.v1`, `aes.order.exact.v1`
 
-Signature-input contract: `aes.signature.v0`
+Signature-input contract: `aes.signature.v1`
 
-This contract operates on validated `aes.events.v0` records. It is independent
+This contract operates on validated `aes.events.v1` records. It is independent
 of Telex, Film, JSON, AEON source spelling, and implementation-native event
 objects. An encoding decoder first recovers the transport-neutral stream; this
 contract then produces identical logical bytes from that stream.
@@ -29,7 +29,7 @@ This document owns:
 It does not define event validity, Telex or Film bytes, private-key handling,
 trusted-key discovery, algorithm approval, authorization, encryption, ledger
 storage, or Assignment Event Transaction envelopes. Those are defined by the
-separate [`aes.transaction.v0`](./aes.transactions.md) draft.
+separate [`aes.transaction.v1`](./aes.transactions.md) draft.
 
 `aeon.gp.integrity.v1` remains the AEON final-document-state hash. Its existing
 path/value serialization and signatures are not portable AES evidence and are
@@ -41,19 +41,19 @@ The logical integrity input is a map with exactly these fields:
 
 | Field | Logical value |
 | --- | --- |
-| `integrity` | `aes.integrity.v0` |
-| `events` | `aes.events.v0` |
+| `integrity` | `aes.integrity.v1` |
+| `events` | `aes.events.v1` |
 | `profile` | effective non-empty AES profile identifier |
 | `projection` | effective projection identifier, or null for body-only |
 | `ordering` | selected ordering-policy identifier |
-| `scope` | `aes.scope.body.v0` or `aes.scope.document.v0` |
-| `provenance` | `aes.provenance.excluded.v0` or `aes.provenance.included.v0` |
+| `scope` | `aes.scope.body.v1` or `aes.scope.document.v1` |
+| `provenance` | `aes.provenance.excluded.v1` or `aes.provenance.included.v1` |
 | `digest` | `sha256` |
 | `records` | the policy-produced record sequence |
 
 Every field is present in the logical input. Carrier omission does not become
 integrity-input omission: an omitted AES profile is expanded to
-`aes.complete.v0`, and an omitted projection becomes logical null.
+`aes.complete.v1`, and an omitted projection becomes logical null.
 
 The base digest does not bind a consumer's runtime resource limits. Limits do
 not change AES event meaning. An enclosing application or transaction contract
@@ -62,12 +62,12 @@ logical input; it must not inject local limits into this map.
 
 ## 3. Scope
 
-`aes.scope.body.v0` includes body records and excludes every header record. It
+`aes.scope.body.v1` includes body records and excludes every header record. It
 still binds the effective projection, so the same body selected from two
 different projections is not silently treated as the same integrity input.
 
-`aes.scope.document.v0` includes the ordered header plane followed by the body
-plane and requires `projection=aeon.document.v0`. A later projection may
+`aes.scope.document.v1` includes the ordered header plane followed by the body
+plane and requires `projection=aeon.document.v1`. A later projection may
 register its own compatible document-scope rule. Document scope fails when no
 selected projection defines a header plane.
 
@@ -75,12 +75,12 @@ Scope filtering occurs before provenance processing and ordering.
 
 ## 4. Provenance policy
 
-`aes.provenance.excluded.v0` removes `origin` and `span` from every covered
+`aes.provenance.excluded.v1` removes `origin` and `span` from every covered
 record. It is the semantic-value policy and does not attest source bytes.
 
-`aes.provenance.included.v0` retains both fields exactly when present. A signer
+`aes.provenance.included.v1` retains both fields exactly when present. A signer
 claiming source-backed verification must additionally perform the source
-artifact audit defined by `aes.events.v0`; syntactic inclusion alone does not
+artifact audit defined by `aes.events.v1`; syntactic inclusion alone does not
 prove that an artifact was available or checked.
 
 All other core fields and all present extension fields remain covered. A field
@@ -88,7 +88,7 @@ is never omitted merely because the signer does not understand it.
 
 ## 5. Ordering policies
 
-### 5.1 `aes.order.exact.v0`
+### 5.1 `aes.order.exact.v1`
 
 Exact order preserves the supplied order of the covered records. Repeated
 addresses and repeated identical records remain distinct ordered occurrences.
@@ -98,7 +98,7 @@ any application where chronology or repeated writes are significant.
 A relay that changes record order produces different logical bytes and cannot
 retain the former digest or signature as evidence over the new sequence.
 
-### 5.2 `aes.order.canonical-semantic.v0`
+### 5.2 `aes.order.canonical-semantic.v1`
 
 Canonical-semantic order asserts that supplied record order is not part of the
 evidence being signed. It is valid only when every covered address is unique
@@ -127,7 +127,7 @@ Each record is encoded as a map of its present logical fields after the selected
 scope and provenance projections. Absence is represented by an absent map key;
 it is distinct from an empty string, empty array, and null.
 
-Datatype information is always the expanded `aes.events.v0` structure:
+Datatype information is always the expanded `aes.events.v1` structure:
 
 - `datatype` is the base-name string;
 - `generics` is an ordered list of datatype maps or tagged numeric-literal maps;
@@ -143,7 +143,7 @@ No normalization, case folding, numeric parsing, null reinterpretation, or
 reference resolution occurs. The record's normative `kind` is independently
 covered, so equal string payloads under distinct recognized representation
 kinds remain distinct integrity inputs. Source-only fields such as `raw` are
-not part of `aes.events.v0` and fail validation instead of entering the digest.
+not part of `aes.events.v1` and fail validation instead of entering the digest.
 
 ## 7. Deterministic structural byte mapping
 
@@ -169,7 +169,7 @@ performed.
 The complete logical bytes are:
 
 ```text
-UTF8("aes.integrity.v0") || 0x00 || E(integrity-input-map)
+UTF8("aes.integrity.v1") || 0x00 || E(integrity-input-map)
 ```
 
 Here `0x00` is one zero octet. Implementations reject
@@ -181,7 +181,7 @@ and does not compete with Telex or Film.
 
 ## 8. Digest
 
-AES v0 defines `sha256`. The digest is SHA-256 over the complete logical bytes.
+AES v1 defines `sha256`. The digest is SHA-256 over the complete logical bytes.
 Its portable textual form is exactly 64 lowercase hexadecimal digits.
 
 The `digest=sha256` member is inside the hashed integrity-input map. Algorithm
@@ -194,7 +194,7 @@ non-canonical hexadecimal spelling.
 
 ## 9. Signature input
 
-`aes.signature.v0` reuses the AEON signature-entry vocabulary where possible,
+`aes.signature.v1` reuses the AEON signature-entry vocabulary where possible,
 but defines a separate coverage rule. A signature entry supplies:
 
 - signature algorithm `alg`;
@@ -206,8 +206,8 @@ The signature-context map has exactly:
 
 | Field | Logical value |
 | --- | --- |
-| `signature` | `aes.signature.v0` |
-| `integrity` | `aes.integrity.v0` |
+| `signature` | `aes.signature.v1` |
+| `integrity` | `aes.integrity.v1` |
 | `digest` | `sha256` |
 | `hash` | the 64-character lowercase digest string |
 | `alg` | the exact signature algorithm identifier |
@@ -216,7 +216,7 @@ The signature-context map has exactly:
 Signature input bytes are:
 
 ```text
-UTF8("aes.signature.v0") || 0x00 || E(signature-context-map)
+UTF8("aes.signature.v1") || 0x00 || E(signature-context-map)
 ```
 
 `sig` is excluded to avoid recursion. Binding `alg` and `kid` prevents metadata
@@ -229,15 +229,15 @@ security-profile concerns.
 An AEON document may carry AES integrity evidence inside its ordinary
 `aeon:envelope`. The carrier must preserve all integrity-input context fields,
 the digest, and signature fields. `aeon.gp.signature.v1` field names may be
-reused, but an entry must identify `aes.signature.v0`; it must not claim that an
+reused, but an entry must identify `aes.signature.v1`; it must not claim that an
 AES digest is an `aeon.gp.integrity.v1` final-state hash.
 
 The envelope remains outside the covered AES record stream. For document scope,
-the `aeon.document.v0` header plane and body plane are covered, while the
+the `aeon.document.v1` header plane and body plane are covered, while the
 security envelope containing the evidence is excluded to avoid recursion.
 
 Signing does not authorize an AES application or ASP write. The separate
-`aes.transaction.integrity.v0` contract reuses this structural mapping while
+`aes.transaction.integrity.v1` contract reuses this structural mapping while
 binding transaction identity, target, application/preparation contracts,
 preconditions, assertions, effective limits claims, authorization context, and
 extensions under a distinct domain.
@@ -250,7 +250,7 @@ structure before encrypted AES evidence is issued.
 
 To compute AES integrity evidence:
 
-1. Establish and validate `aes.events.v0`, its effective profile and projection,
+1. Establish and validate `aes.events.v1`, its effective profile and projection,
    and any registered extension fields.
 2. Require explicit ordering, scope, and provenance policies.
 3. Select records by scope.

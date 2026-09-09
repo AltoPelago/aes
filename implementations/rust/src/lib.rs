@@ -6,7 +6,7 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
-const VERSION_LINE: &str = "telex.aes=0";
+const VERSION_LINE: &str = "telex.aes=1";
 const CORE_FIELDS: [&str; 10] = [
     "header",
     "path",
@@ -45,36 +45,36 @@ const VALUE_KINDS: [&str; 23] = [
     "PointerReference",
 ];
 
-pub const TELEX_VERSION: &str = "0";
-pub const COMPLETE_AES_PROFILE: &str = "aes.complete.v0";
-pub const PARTIAL_AES_PROFILE: &str = "aes.partial.v0";
-pub const AEON_DOCUMENT_PROJECTION: &str = "aeon.document.v0";
-pub const AES_INTEGRITY_CONTRACT: &str = "aes.integrity.v0";
-pub const AES_EVENT_CONTRACT: &str = "aes.events.v0";
-pub const AES_CANONICAL_SEMANTIC_ORDER: &str = "aes.order.canonical-semantic.v0";
-pub const AES_EXACT_ORDER: &str = "aes.order.exact.v0";
-pub const AES_BODY_SCOPE: &str = "aes.scope.body.v0";
-pub const AES_DOCUMENT_SCOPE: &str = "aes.scope.document.v0";
-pub const AES_PROVENANCE_EXCLUDED: &str = "aes.provenance.excluded.v0";
-pub const AES_PROVENANCE_INCLUDED: &str = "aes.provenance.included.v0";
+pub const TELEX_VERSION: &str = "1";
+pub const COMPLETE_AES_PROFILE: &str = "aes.complete.v1";
+pub const PARTIAL_AES_PROFILE: &str = "aes.partial.v1";
+pub const AEON_DOCUMENT_PROJECTION: &str = "aeon.document.v1";
+pub const AES_INTEGRITY_CONTRACT: &str = "aes.integrity.v1";
+pub const AES_EVENT_CONTRACT: &str = "aes.events.v1";
+pub const AES_CANONICAL_SEMANTIC_ORDER: &str = "aes.order.canonical-semantic.v1";
+pub const AES_EXACT_ORDER: &str = "aes.order.exact.v1";
+pub const AES_BODY_SCOPE: &str = "aes.scope.body.v1";
+pub const AES_DOCUMENT_SCOPE: &str = "aes.scope.document.v1";
+pub const AES_PROVENANCE_EXCLUDED: &str = "aes.provenance.excluded.v1";
+pub const AES_PROVENANCE_INCLUDED: &str = "aes.provenance.included.v1";
 pub const AES_DIGEST_SHA256: &str = "sha256";
-pub const AES_SIGNATURE_CONTRACT: &str = "aes.signature.v0";
-pub const AES_TRANSACTION_CONTRACT: &str = "aes.transaction.v0";
-pub const AES_TRANSACTION_ENVELOPE: &str = "aes.transaction.envelope.v0";
-pub const AES_TRANSACTION_INTEGRITY: &str = "aes.transaction.integrity.v0";
-pub const AES_TRANSACTION_SIGNATURE: &str = "aes.transaction.signature.v0";
-pub const AES_SCALAR_REPLACEMENT_APPLICATION: &str = "aes.application.asp.scalar-replacement.v0";
-pub const AES_ASP_TARGET: &str = "aes.target.asp.v0";
-pub const AES_ASP_REVISION_PRECONDITION: &str = "aes.precondition.asp-revision.v0";
-pub const AES_IDENTITY_PREPARATION: &str = "aes.preparation.identity.v0";
-pub const AES_SOURCE_BACKED_PREPARATION: &str = "aes.preparation.source-backed.v0";
-pub const AES_HOST_AUTHORIZATION: &str = "aes.authorization.host-context.v0";
-pub const AES_LIMITS_CLAIM: &str = "aes.limits.claim.v0";
+pub const AES_SIGNATURE_CONTRACT: &str = "aes.signature.v1";
+pub const AES_TRANSACTION_CONTRACT: &str = "aes.transaction.v1";
+pub const AES_TRANSACTION_ENVELOPE: &str = "aes.transaction.envelope.v1";
+pub const AES_TRANSACTION_INTEGRITY: &str = "aes.transaction.integrity.v1";
+pub const AES_TRANSACTION_SIGNATURE: &str = "aes.transaction.signature.v1";
+pub const AES_SCALAR_REPLACEMENT_APPLICATION: &str = "aes.application.asp.scalar-replacement.v1";
+pub const AES_ASP_TARGET: &str = "aes.target.asp.v1";
+pub const AES_ASP_REVISION_PRECONDITION: &str = "aes.precondition.asp-revision.v1";
+pub const AES_IDENTITY_PREPARATION: &str = "aes.preparation.identity.v1";
+pub const AES_SOURCE_BACKED_PREPARATION: &str = "aes.preparation.source-backed.v1";
+pub const AES_HOST_AUTHORIZATION: &str = "aes.authorization.host-context.v1";
+pub const AES_LIMITS_CLAIM: &str = "aes.limits.claim.v1";
 
-const INTEGRITY_DOMAIN: &[u8] = b"aes.integrity.v0\0";
-const SIGNATURE_DOMAIN: &[u8] = b"aes.signature.v0\0";
-const TRANSACTION_DOMAIN: &[u8] = b"aes.transaction.integrity.v0\0";
-const TRANSACTION_SIGNATURE_DOMAIN: &[u8] = b"aes.transaction.signature.v0\0";
+const INTEGRITY_DOMAIN: &[u8] = b"aes.integrity.v1\0";
+const SIGNATURE_DOMAIN: &[u8] = b"aes.signature.v1\0";
+const TRANSACTION_DOMAIN: &[u8] = b"aes.transaction.integrity.v1\0";
+const TRANSACTION_SIGNATURE_DOMAIN: &[u8] = b"aes.transaction.signature.v1\0";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TelexLimits {
@@ -264,7 +264,7 @@ pub fn audit_aes_source_provenance(
         if !valid_origin(origin) {
             diagnostics.push(provenance_diagnostic(
                 "AES_INVALID_ORIGIN",
-                "Origin is not a canonical AES v0 source digest.",
+                "Origin is not a canonical AES v1 source digest.",
                 index,
                 "origin",
             ));
@@ -1582,7 +1582,7 @@ fn validate_scalar_transaction(
     if body.profile != PARTIAL_AES_PROFILE || body.projection.is_some() {
         diagnostics.push(transaction_diagnostic(
             "AES_TRANSACTION_APPLICATION_INVALID",
-            "Scalar replacement requires aes.partial.v0 body-only event context.",
+            "Scalar replacement requires aes.partial.v1 body-only event context.",
             Some("profile"),
         ));
     }

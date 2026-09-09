@@ -39,7 +39,7 @@ test('publishes the AltoPelago Telex limit defaults', () => {
     maxDatatypeComponents: 64,
   });
   assert.throws(
-    () => parseTelex('telex.aes=0\n', { limits: { maxInputBytes: 11 } }),
+    () => parseTelex('telex.aes=1\n', { limits: { maxInputBytes: 11 } }),
     (error) => error instanceof TelexSyntaxError
       && error.code === 'TELEX_LIMIT_EXCEEDED'
       && error.counter === 'max_input_bytes'
@@ -53,7 +53,7 @@ test('enforces shared structural limits on direct portable records', () => {
     {
       counter: 'max_attribute_depth',
       records: [{ path: '$.a.@.x.@.y', kind: 'NumberLiteral', value: '1' }],
-      options: { profile: 'aes.partial.v0', maxAttributeDepth: 1 },
+      options: { profile: 'aes.partial.v1', maxAttributeDepth: 1 },
     },
     {
       counter: 'max_value_nesting_depth',
@@ -115,7 +115,7 @@ test('round-trips records and canonicalizes core field order', () => {
 
   const encoded = encodeTelex(records);
   assert.equal(encoded, [
-    'telex.aes=0',
+    'telex.aes=1',
     '',
     'path=$.message',
     'kind=StringLiteral',
@@ -125,7 +125,7 @@ test('round-trips records and canonicalizes core field order', () => {
     '',
   ].join('\n'));
   assert.deepEqual(parseTelex(encoded), {
-    version: '0',
+    version: '1',
     profile: COMPLETE_AES_PROFILE,
     profileExplicit: false,
     projection: null,
@@ -322,7 +322,7 @@ test('reports missing structural prefixes without requiring parent-first order',
 });
 
 test('applies caller-selected parser limits during completeness checks', () => {
-  const source = 'telex.aes=0\n\npath=$.answer\nkind=NumberLiteral\nvalue=42\n';
+  const source = 'telex.aes=1\n\npath=$.answer\nkind=NumberLiteral\nvalue=42\n';
   assert.throws(
     () => checkTelexCompleteness(source, { maxEvents: 0 }),
     (error) => error?.code === 'TELEX_LIMIT_EXCEEDED',
@@ -344,7 +344,7 @@ test('treats an attribute selector and its key as one structural path step', () 
 
 test('preserves unknown extension fields without interpreting them', () => {
   const input = [
-    'telex.aes=0',
+    'telex.aes=1',
     '',
     'path=$.a',
     'kind=NumberLiteral',
@@ -367,8 +367,8 @@ test('round-trips an explicit partial profile without treating it as an event', 
   const records = [{ path: '$.a.b', kind: 'NumberLiteral', value: '1' }];
   const encoded = encodeTelex(records, { profile: PARTIAL_AES_PROFILE });
   assert.equal(encoded, [
-    'telex.aes=0',
-    'profile=aes.partial.v0',
+    'telex.aes=1',
+    'profile=aes.partial.v1',
     '',
     'path=$.a.b',
     'kind=NumberLiteral',
@@ -376,7 +376,7 @@ test('round-trips an explicit partial profile without treating it as an event', 
     '',
   ].join('\n'));
   assert.deepEqual(parseTelex(encoded), {
-    version: '0',
+    version: '1',
     profile: PARTIAL_AES_PROFILE,
     profileExplicit: true,
     projection: null,
@@ -388,9 +388,9 @@ test('round-trips an explicit partial profile without treating it as an event', 
 });
 
 test('accepts unknown non-empty profiles at the syntax layer', () => {
-  const input = 'telex.aes=0\nprofile=x.example.future.v1\n';
+  const input = 'telex.aes=1\nprofile=x.example.future.v1\n';
   assert.deepEqual(parseTelex(input), {
-    version: '0',
+    version: '1',
     profile: 'x.example.future.v1',
     profileExplicit: true,
     projection: null,
@@ -402,7 +402,7 @@ test('accepts unknown non-empty profiles at the syntax layer', () => {
 
 test('rejects an empty profile declaration', () => {
   assert.throws(
-    () => parseTelex('telex.aes=0\nprofile=\n'),
+    () => parseTelex('telex.aes=1\nprofile=\n'),
     (error) => error instanceof TelexSyntaxError && /must not be empty/u.test(error.message),
   );
   assert.throws(
@@ -418,8 +418,8 @@ test('round-trips an explicit AEON document projection with flat header records'
   ];
   const encoded = encodeTelex(records, { projection: AEON_DOCUMENT_PROJECTION });
   assert.equal(encoded, [
-    'telex.aes=0',
-    'projection=aeon.document.v0',
+    'telex.aes=1',
+    'projection=aeon.document.v1',
     '',
     'header=$.["aeon:mode"]',
     'kind=StringLiteral',
@@ -602,35 +602,35 @@ test('validates the profile selected by a Telex stream', () => {
 });
 
 test('accepts tolerant syntax and exposes that it is non-canonical', () => {
-  const input = 'telex.aes=0\r\n\r\nkind=StringLiteral\r\npath=$.x\r\nvalue=\\u{000041}\r\n';
+  const input = 'telex.aes=1\r\n\r\nkind=StringLiteral\r\npath=$.x\r\nvalue=\\u{000041}\r\n';
   const parsed = parseTelex(input);
   assert.equal(parsed.records[0].value, 'A');
   assert.equal(parsed.canonical, false);
-  assert.equal(canonicalizeTelex(input), 'telex.aes=0\n\npath=$.x\nkind=StringLiteral\nvalue=A\n');
+  assert.equal(canonicalizeTelex(input), 'telex.aes=1\n\npath=$.x\nkind=StringLiteral\nvalue=A\n');
 });
 
 test('rejects duplicate fields', () => {
   assert.throws(
-    () => parseTelex('telex.aes=0\n\npath=$.x\npath=$.y\n'),
+    () => parseTelex('telex.aes=1\n\npath=$.x\npath=$.y\n'),
     (error) => error instanceof TelexSyntaxError && /Duplicate field/u.test(error.message),
   );
 });
 
 test('rejects unknown escapes and bare carriage returns', () => {
   assert.throws(
-    () => parseTelex('telex.aes=0\n\npath=$.assign\\qment\n'),
+    () => parseTelex('telex.aes=1\n\npath=$.assign\\qment\n'),
     (error) => error instanceof TelexSyntaxError && /Unknown escape/u.test(error.message),
   );
   assert.throws(
-    () => parseTelex('telex.aes=0\r\npath=$.x\r'),
+    () => parseTelex('telex.aes=1\r\npath=$.x\r'),
     (error) => error instanceof TelexSyntaxError && /Bare carriage returns/u.test(error.message),
   );
 });
 
 test('supports an empty stream', () => {
-  assert.equal(encodeTelex([]), 'telex.aes=0\n');
-  assert.deepEqual(parseTelex('telex.aes=0\n'), {
-    version: '0',
+  assert.equal(encodeTelex([]), 'telex.aes=1\n');
+  assert.deepEqual(parseTelex('telex.aes=1\n'), {
+    version: '1',
     profile: COMPLETE_AES_PROFILE,
     profileExplicit: false,
     projection: null,
@@ -638,7 +638,7 @@ test('supports an empty stream', () => {
     records: [],
     canonical: true,
   });
-  assert.equal(parseTelex('telex.aes=0\n\n').canonical, false);
+  assert.equal(parseTelex('telex.aes=1\n\n').canonical, false);
 });
 
 test('keeps the repository example canonical', () => {
@@ -654,7 +654,7 @@ test('rejects surrogate code units', () => {
     /Unicode scalar values/u,
   );
   assert.throws(
-    () => parseTelex('telex.aes=0\n\npath=$.x\nvalue=\uD800\n'),
+    () => parseTelex('telex.aes=1\n\npath=$.x\nvalue=\uD800\n'),
     /surrogate/u,
   );
 });
