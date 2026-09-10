@@ -2,7 +2,7 @@
 
 Status: living working list
 
-Updated: 2026-09-08
+Updated: 2026-09-11
 
 ## Scope
 
@@ -19,6 +19,33 @@ repository-local conformance notes.
 Checkboxes describe implementation or specification work. Checked decision
 statements are the current AES design baseline, not claims that every ecosystem
 component already conforms.
+
+## Current public rollout boundary
+
+The Telex/AES v1 rollout is complete for the ecosystem surfaces that currently
+have an approved public release channel:
+
+- the AES v1 specifications, immutable CTS baselines, first-class website
+  section, and AES reference repository are public;
+- `@altopelago/sansa@0.10.1` provides the public SANSA Telex consumer and
+  mutation boundary;
+- the AEON TypeScript workspace is published on npm at `0.12.1`, including
+  Core projection/export, the AES codec, AEOS validation, canonicalization,
+  finalization, SDK/runtime/transport surfaces, the CLI, Tonics integration,
+  integrity support, and Rust/WASM Telex operations; and
+- a clean external npm installation, with no workspace links, passed Core
+  projection, Telex parse/encode/validation/canonicalization, datatype
+  decomposition, headers, provenance, completeness, limits, AEOS attributes
+  and node-head validation, WASM validation/materialization, and CLI smoke
+  checks.
+
+The Rust and Python implementations are present and conformance-tested in the
+public AEON source repository, but neither currently has a crates.io or PyPI
+release channel. Their `0.12.1` implementation versions are parity identifiers,
+not claims of independently published packages. PHP and private operational
+systems remain implementation/acceptance surfaces unless their owners approve
+a separate public release boundary. Those publication decisions do not reopen
+Telex/AES compatibility or block the completed npm rollout.
 
 ## 0. Ecosystem release gates
 
@@ -1327,17 +1354,29 @@ above.
   and rebuild and validate the publication artifacts. Signed local commits
   `4d8c539` (specifications), `3dad21e` (CTS), and `8a0ab96` (website lock)
   record the immutable AES projection snapshot 0.3 and its publication inputs.
-- [ ] Deploy the revised published lifecycle metadata. No push or deployment
-  is part of the local preparation and acceptance work.
-- [ ] Phase 3 — publish the locally completed compatibility readers/adapters in
-  TypeScript, Rust, Python, and PHP while released producers retain the legacy
-  shape.
-- [ ] Phase 4 — publish the locally completed SANSA, AEOS, Tonics, validator,
-  SDK, SO, ASP, AES-DB, relay, canonicalizer, and signing/hashing consumer
-  updates.
+- [x] Deploy the revised published lifecycle metadata and the first-class AES
+  v1 website section from the pinned specification/CTS inputs.
+- [x] Phase 3a — publish the TypeScript compatibility readers, adapters, and
+  Telex producer surfaces in the AEON npm workspace at `0.12.1`.
+- [x] Phase 3b — make the conformance-tested Rust and Python implementations
+  available in the public AEON source repository. They have no crates.io or
+  PyPI release mechanism, so this phase makes no independent package-release
+  claim. The conforming PHP implementation remains outside the current public
+  release boundary.
+- [x] Phase 4a — publish the consumers with existing approved public npm
+  channels: SANSA at `0.10.1` and the AEON `0.12.1` workspace packages,
+  including AEOS, Core, SDK/runtime, finalization, transport, canonicalization,
+  Tonics, integrity, CLI, and WASM surfaces. A clean registry-only consumer
+  smoke test passed after publication.
+- [ ] Phase 4b — create standalone release channels for PHP, validator, SO,
+  ASP, AES-DB, relay, or other source/private operational surfaces only after
+  an owner approves their package, security, support, and versioning policy.
+  This is deferred release infrastructure, not a Telex/AES compatibility
+  blocker and not part of the current rollout definition of done.
 - [ ] Phase 5 — provide versioned read views or migrations for a future revised
   persisted record, then rebuild or invalidate affected indexes. Current ASP v0
-  read-time projection and index lifecycle verification are complete.
+  read-time projection and index lifecycle verification are complete. This is
+  blocked until a revised persisted record/writer contract is approved.
 - [x] Phase 6a — run the local cross-repository acceptance suite across the
   revised producers, compatibility readers, Telex codecs, and current ASP v0
   projection/application boundary.
@@ -1345,10 +1384,29 @@ above.
   This is blocked until a versioned revised ASP record and reader contract
   exists; the current compatibility boundary projects explicitly identified
   ASP v0 state and does not infer or dual-write a revised record shape.
-- [ ] Phase 7 — enable revised producers only after all required readers and
-  durable consumers have passed compatibility checks.
-- [ ] Review every completed ecosystem decision for additional repository,
-  migration, and CTS work before closing the rollout.
+- [x] Phase 7a — enable the revised public TypeScript/npm producer after its
+  readers, consumers, CTS lanes, publication preflight, and clean external
+  installation passed.
+- [ ] Phase 7b — enable a revised durable ASP/AES-DB writer only after the
+  versioned storage work in Phases 5 and 6b. This remains deliberately blocked;
+  no current Telex import grants mutation authority.
+- [x] Review every completed ecosystem decision for additional repository,
+  migration, CTS, and release work. Remaining work is classified above or in
+  the release-cleanup list below rather than being treated as an open-ended
+  continuation of the Telex rollout.
+
+### Deferred release cleanup
+
+- [ ] Correct the AEON TypeScript release instructions from `pnpm ci` to
+  `pnpm run ci`; `ci` is a workspace script and pnpm has no implemented built-in
+  `ci` command.
+- [ ] Pin the Rust/WASM generation toolchain, or explicitly document that the
+  reviewed committed WASM artifact must be retained during a patch release.
+  Regenerating `0.12.1` locally with `wasm-pack 0.14.0` and Rust `1.93.1`
+  produced different binary bytes despite no source/version change.
+- [ ] Add crates.io or PyPI packaging only if an independently installable Rust
+  or Python release becomes a product requirement. Until then, public source
+  plus conformance evidence is the intended implementation surface.
 
 ## Deferred: Telex-specific work
 
