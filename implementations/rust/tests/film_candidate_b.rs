@@ -61,6 +61,42 @@ fn removing_a_predecessor_breaks_stateful_record_decoding() {
 }
 
 #[test]
+fn removing_a_middle_record_can_silently_retarget_a_later_address() {
+    let stream = FilmStream {
+        profile: PARTIAL_AES_PROFILE.to_owned(),
+        profile_explicit: true,
+        projection: None,
+        projection_explicit: false,
+        records: ["$.a.other", "$.a.long.x", "$.a.long.y"]
+            .into_iter()
+            .enumerate()
+            .map(|(index, path)| {
+                TelexRecord::new(vec![
+                    ("path".to_owned(), path.to_owned()),
+                    ("kind".to_owned(), "StringLiteral".to_owned()),
+                    ("value".to_owned(), format!("value-{index}")),
+                ])
+            })
+            .collect(),
+    };
+    let encoded = encode_film_candidate_b(&stream, &[]).expect("Candidate B must encode");
+    let context_end = context_end(&encoded);
+    let (first_length, first_payload) = read_uleb(&encoded, context_end);
+    let second_frame = first_payload.saturating_add(first_length);
+    let (second_length, second_payload) = read_uleb(&encoded, second_frame);
+    let third_frame = second_payload.saturating_add(second_length);
+    let mut without_middle = encoded[..second_frame].to_vec();
+    without_middle.extend_from_slice(&encoded[third_frame..]);
+
+    let decoded = decode_film_candidate_b(&without_middle, &[])
+        .expect("The retargeted partial stream remains locally valid");
+    assert_eq!(decoded.records.len(), 2);
+    assert_eq!(decoded.records[0].get("path"), Some("$.a.other"));
+    assert_eq!(decoded.records[1].get("path"), Some("$.a.othery"));
+    assert_ne!(decoded.records[1].get("path"), Some("$.a.long.y"));
+}
+
+#[test]
 fn comparator_bytes_are_canonical_for_the_same_logical_stream() {
     let stream = hierarchical_stream();
     let encoded = encode_film_candidate_b(&stream, &[]).expect("Candidate B must encode");
