@@ -7,6 +7,7 @@ use std::fmt;
 use sha2::{Digest, Sha256};
 
 pub mod film_candidate_a;
+pub mod film_candidate_b;
 
 const VERSION_LINE: &str = "telex.aes=1";
 const CORE_FIELDS: [&str; 10] = [

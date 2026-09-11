@@ -65,9 +65,19 @@ This module is research code in an unpublished crate. It is not a released Film
 specification or conformance target, and its bytes must not be used for durable
 interchange before the Film v1 layout and CTS are frozen.
 
+`film_candidate_b` is a deliberately stateful comparator. It replaces each
+address with the longest UTF-8 prefix shared with the previous address in the
+same address plane plus an inline suffix. It uses the distinct experimental
+`O_B FF 00` preamble and can never be represented as `film.aes=1`.
+
 Run its focused tests and native benchmark with:
 
 ```bash
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_a
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_b
 cargo run --release --locked --example bench_film_candidate_a --manifest-path implementations/rust/Cargo.toml
+cargo run --release --locked --example compare_film_layouts --manifest-path implementations/rust/Cargo.toml -- path/to/input.telex.aes
 ```
+
+Set `FILM_BENCH_OUTPUT_DIR` or `FILM_COMPARE_OUTPUT_DIR` to retain generated
+Telex and candidate bytes for equal external-compression comparisons.
