@@ -22,8 +22,8 @@ Its job is intentionally narrow:
 The transport-neutral AES contract defines record meaning, value kinds,
 structure, profiles, projections, provenance, ordering, and semantic fidelity.
 Telex defines only their text framing, escaping, canonical bytes, and syntax
-diagnostics. The future `film.aes` will encode the same records with different
-physical tradeoffs.
+diagnostics. The [`film.aes` v1 draft](./film.aes.md) encodes the same records
+with different physical tradeoffs.
 
 Format version `1` identifies this published wire contract. An incompatible
 framing or decoding change requires a new Telex format version.

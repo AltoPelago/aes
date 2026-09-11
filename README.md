@@ -7,10 +7,9 @@ event model, interchange formats, conformance material, and the Aeonic Semantic
 Language used by AES-family technologies.
 
 The [portable AES event contract](specifications/aes.events.md) defines the
-shared model. [`telex.aes`](specifications/telex.aes.md) is its first encoding:
-a small text format for exchanging records between implementations. `film.aes`
-will later provide a binary encoding of the same model. Neither format defines
-different event semantics.
+shared model. [`telex.aes`](specifications/telex.aes.md) is its textual encoding.
+The [`film.aes` v1 draft](specifications/film.aes.md) defines a compact binary
+encoding of the same model. Neither format defines different event semantics.
 
 AES is semantically lossless relative to a selected event profile and
 projection, not relative to original source bytes. Telex preserves portable
@@ -56,6 +55,9 @@ working/reference copies and do not override those canonical sources.
   changing Telex framing.
 - [Telex v1](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
+- [Film v1](specifications/film.aes.md) is the normative binary-encoding draft.
+  Its table-free wire layout is resolved, but it is not a released conformance
+  target and has no immutable CTS snapshot.
 - [AltoPelago Aeonic Limits v1](notes/altopelago-aeonic-limits-v1.md) defines
   the informative, consumer-owned configuration shape used to align structural
   and processing limits across AltoPelago implementations. Format byte limits
@@ -93,7 +95,7 @@ working/reference copies and do not override those canonical sources.
   `telex-cts-v1-snapshot-0.1` in the shared `aeonite-cts` repository.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
   Rust implementation of the same v1 event, Telex, integrity, provenance, and
-  transaction contracts.
+  transaction contracts, plus explicitly non-released Film layout prototypes.
   Its Telex codec has no runtime dependencies; portable SHA-256 integrity uses
   the audited `sha2` crate.
 
@@ -170,8 +172,8 @@ maintained in the separate AEON family roadmap. Material is promoted into this
 repository when it becomes an AES-owned specification, policy, conformance
 asset, release procedure, or implementation reference.
 
-The next planned encoding work is Film; a later stage will cover Tape and the
-Aeonic Semantic Language.
+The next Film work is its mutable CTS and independent decoder. A later stage
+will cover Tape and the Aeonic Semantic Language.
 
 ## Design rule
 

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Reference implementations and development material for the Assignment Event Stream and Telex v1",
+  "description": "Reference implementations and development material for AES, Telex v1, and the Film v1 draft",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/AltoPelago/aes.git"
@@ -16,7 +16,8 @@
     "aeon",
     "aes",
     "assignment-event-stream",
-    "telex"
+    "telex",
+    "film"
   ],
   "engines": {
     "node": ">=20"

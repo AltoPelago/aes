@@ -19,9 +19,11 @@ Portable AES has an explicit event-contract identity: `aes.events.v1`.
 are not substitutes for the contract identity.
 
 A carrier establishes the contract before profile defaults apply. Telex does
-so through `telex.aes=1`, which maps to `aes.events.v1`. Other encodings,
-protocol envelopes, database schemas, and API versions MUST bind their records
-to `aes.events.v1` explicitly.
+so through `telex.aes=1`, and the Film v1 draft does so through its
+`4F 5F 5F FF 01` preamble; both map statically to `aes.events.v1`. Other
+encodings, protocol envelopes, database schemas, and API versions MUST bind
+their records to `aes.events.v1` explicitly. Film remains a draft rather than a
+released compatibility target until its lifecycle requirements are satisfied.
 
 An untagged JSON object or array is not identified as portable AES merely
 because it contains fields such as `path`, `kind`, or `value`. In particular,

@@ -63,6 +63,13 @@ artifacts, distinguishes unavailable evidence from invalid evidence, and gates
 the source-backed preparation contract. It is not a published immutable CTS
 snapshot.
 
+The [`film.aes` v1 specification](../specifications/film.aes.md) is a normative
+draft. No repository-local Film CTS manifest or immutable Film snapshot exists
+yet. Rust Candidate A tests and benchmarks are implementation evidence only and
+must not be cited as a Film conformance claim. The future mutable Film lane will
+map to `aes.events.v1` while keeping Film syntax and canonicality vectors
+separate from the transport-neutral event vectors.
+
 The manifest separates:
 
 - syntax and canonicalization;
