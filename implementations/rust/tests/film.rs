@@ -1,10 +1,9 @@
 use std::fs;
 use std::path::Path;
 
-use aes_telex::film_candidate_a::{
-    FILM_V1_PREAMBLE, FilmLimits, FilmStream, decode_film_candidate_a,
-    decode_film_candidate_a_with_limits, encode_film_candidate_a, film_candidate_a_to_telex,
-    telex_to_film_candidate_a,
+use aes_telex::film::{
+    FILM_V1_PREAMBLE, FilmLimits, FilmStream, decode_film, decode_film_with_limits, encode_film,
+    film_to_telex, telex_to_film,
 };
 use aes_telex::{
     COMPLETE_AES_PROFILE, ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument,
@@ -13,7 +12,7 @@ use aes_telex::{
 use serde_json::Value;
 
 #[test]
-fn default_empty_stream_has_exact_bytes() {
+fn film_default_empty_stream_has_exact_bytes() {
     let stream = FilmStream {
         profile: COMPLETE_AES_PROFILE.to_owned(),
         profile_explicit: false,
@@ -21,10 +20,10 @@ fn default_empty_stream_has_exact_bytes() {
         projection_explicit: false,
         records: Vec::new(),
     };
-    let encoded = encode_film_candidate_a(&stream, &[]).expect("empty Film must encode");
+    let encoded = encode_film(&stream, &[]).expect("empty Film must encode");
     assert_eq!(encoded, [FILM_V1_PREAMBLE.as_slice(), &[0x00]].concat());
     assert_eq!(
-        decode_film_candidate_a(&encoded, &[]).expect("empty Film must decode"),
+        decode_film(&encoded, &[]).expect("empty Film must decode"),
         stream
     );
 }
@@ -67,12 +66,12 @@ fn complex_record_round_trips_without_telex_reconstruction() {
         projection_explicit: false,
         records: vec![record],
     };
-    let encoded = encode_film_candidate_a(&stream, &["x.example.note"]).expect("Film must encode");
-    let decoded = decode_film_candidate_a(&encoded, &["x.example.note"])
-        .expect("Film must decode and validate");
+    let encoded = encode_film(&stream, &["x.example.note"]).expect("Film must encode");
+    let decoded =
+        decode_film(&encoded, &["x.example.note"]).expect("Film must decode and validate");
     assert_eq!(decoded, stream);
     assert_eq!(
-        encode_film_candidate_a(&decoded, &["x.example.note"]).expect("Film must re-encode"),
+        encode_film(&decoded, &["x.example.note"]).expect("Film must re-encode"),
         encoded
     );
 }
@@ -153,8 +152,8 @@ fn all_assigned_kind_codes_round_trip() {
         projection_explicit: false,
         records,
     };
-    let encoded = encode_film_candidate_a(&stream, &[]).expect("all kinds must encode");
-    let decoded = decode_film_candidate_a(&encoded, &[]).expect("all kinds must decode");
+    let encoded = encode_film(&stream, &[]).expect("all kinds must encode");
+    let decoded = decode_film(&encoded, &[]).expect("all kinds must decode");
     assert_eq!(decoded, stream);
 }
 
@@ -171,9 +170,9 @@ fn telex_transcoding_preserves_explicit_context_and_order() {
         "kind=NumberLiteral\n",
         "value=42\n"
     );
-    let film = telex_to_film_candidate_a(telex, &[]).expect("Telex must transcode");
+    let film = telex_to_film(telex, &[]).expect("Telex must transcode");
     assert_eq!(
-        film_candidate_a_to_telex(&film, &[]).expect("Film must transcode"),
+        film_to_telex(&film, &[]).expect("Film must transcode"),
         telex
     );
 }
@@ -190,7 +189,7 @@ fn malformed_or_noncanonical_frames_fail_closed() {
         (&b"O__\xff\x01\x00\x01\x00"[..], "FILM_TRUNCATED"),
     ];
     for (input, code) in cases {
-        let error = decode_film_candidate_a(input, &[]).expect_err("input must fail");
+        let error = decode_film(input, &[]).expect_err("input must fail");
         assert_eq!(error.code, code, "input: {input:?}");
     }
 }
@@ -208,14 +207,13 @@ fn film_limits_apply_before_record_decode() {
             ("value".to_owned(), "payload".to_owned()),
         ])],
     };
-    let encoded = encode_film_candidate_a(&stream, &[]).expect("Film must encode");
+    let encoded = encode_film(&stream, &[]).expect("Film must encode");
     let limits = FilmLimits {
         max_record_bytes: 1,
         ..FilmLimits::default()
     };
-    let error =
-        decode_film_candidate_a_with_limits(&encoded, &[], &limits, &TelexLimits::default())
-            .expect_err("oversized record must fail");
+    let error = decode_film_with_limits(&encoded, &[], &limits, &TelexLimits::default())
+        .expect_err("oversized record must fail");
     assert_eq!(error.code, "FILM_LIMIT_EXCEEDED");
     assert_eq!(error.component, "record");
 }
@@ -234,15 +232,14 @@ fn unknown_extensions_require_registration() {
             ("x.example.claim".to_owned(), "yes".to_owned()),
         ])],
     };
-    let error = encode_film_candidate_a(&stream, &[])
-        .expect_err("unregistered extension must fail semantic encoding");
+    let error =
+        encode_film(&stream, &[]).expect_err("unregistered extension must fail semantic encoding");
     assert_eq!(error.code, "FILM_AES_INVALID");
-    encode_film_candidate_a(&stream, &["x.example.claim"])
-        .expect("registered extension must encode");
+    encode_film(&stream, &["x.example.claim"]).expect("registered extension must encode");
 }
 
 #[test]
-fn released_telex_semantic_examples_round_trip_through_candidate_a() {
+fn released_telex_semantic_examples_round_trip_through_film() {
     let suite_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../conformance/telex/v1/suites/02-event-and-profile-validation.json");
     let suite: Value = serde_json::from_str(
@@ -270,9 +267,9 @@ fn released_telex_semantic_examples_round_trip_through_candidate_a() {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        let film = telex_to_film_candidate_a(telex, &registered)
+        let film = telex_to_film(telex, &registered)
             .unwrap_or_else(|error| panic!("{id}: Film encoding failed: {error}"));
-        let round_trip = film_candidate_a_to_telex(&film, &registered)
+        let round_trip = film_to_telex(&film, &registered)
             .unwrap_or_else(|error| panic!("{id}: Film decoding failed: {error}"));
         assert_eq!(round_trip, telex, "{id}");
         exercised = exercised.saturating_add(1);

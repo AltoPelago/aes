@@ -53,13 +53,15 @@ The Rust and JavaScript implementations intentionally do not call each other or
 share codec source. Their common authorities are the transport-neutral portable
 AES event contract, the published Telex encoding, and the shared vectors.
 
-## Experimental Film Candidate A
+## Film v1 draft reference
 
-`film_candidate_a` exercises the table-free binary layout defined by the Film
-v1 normative draft. It implements canonical stream context, framed records, the
-fixed kind table, structured datatypes, provenance, spans, named extensions,
-Film-local limits, and direct Telex transcoders over the existing portable AES
-record model.
+`film` implements the selected table-free binary layout defined by the Film v1
+normative draft. It provides borrowed Film views, explicit owned
+materialization and complete validation, canonical stream context, framed
+records, the fixed kind table, structured datatypes, provenance, spans, named
+extensions, Film-local limits, and direct Telex transcoders over the existing
+portable AES record model. The historical `film_candidate_a` module re-exports
+this surface temporarily for local prototype compatibility.
 
 This module is research code in an unpublished crate. It passes the mutable
 68-vector Film CTS but is not an independent decoder or a released conformance
@@ -75,7 +77,8 @@ experimental `O_B FF 00` preamble and can never be represented as
 Run its focused tests and native benchmark with:
 
 ```bash
-cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_a
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_api
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_conformance
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_b
 cargo run --release --locked --example bench_film_candidate_a --manifest-path implementations/rust/Cargo.toml

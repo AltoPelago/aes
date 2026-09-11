@@ -25,6 +25,10 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ### Changed
 
+- Refactored the selected Rust Film draft implementation behind
+  specification-shaped encode, borrowed-decode, validated owned-decode, and
+  Telex-transcoding APIs; retained Candidate A names as temporary local
+  compatibility aliases.
 - Promoted the pre-publication AES and Telex identifiers to their v1 contract
   lines across reference implementations, examples, policies, and working
   documentation.

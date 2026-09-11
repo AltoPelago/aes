@@ -5,7 +5,7 @@ use std::hint::black_box;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use aes_telex::film_candidate_a::{FilmStream, decode_film_candidate_a, encode_film_candidate_a};
+use aes_telex::film::{FilmStream, decode_film, encode_film};
 use aes_telex::film_candidate_b::{decode_film_candidate_b, encode_film_candidate_b};
 use aes_telex::{encode_telex_with_projection, parse_telex};
 
@@ -46,13 +46,11 @@ fn main() {
         let parsed = parse_telex(&telex).expect("generated Telex must parse");
         let stream = FilmStream::from(&parsed);
         let repetition = repetition_measurements(&stream);
-        let candidate_a = encode_film_candidate_a(&stream, &[]).expect("Candidate A must encode");
+        let candidate_a = encode_film(&stream, &[]).expect("Candidate A must encode");
         let candidate_b = encode_film_candidate_b(&stream, &[]).expect("Candidate B must encode");
         write_samples(case.name, &telex, &candidate_a, &candidate_b);
         let a_encode = measure(case.iterations, case.warmups, || {
-            black_box(
-                encode_film_candidate_a(black_box(&stream), &[]).expect("Candidate A must encode"),
-            );
+            black_box(encode_film(black_box(&stream), &[]).expect("Candidate A must encode"));
         });
         let b_encode = measure(case.iterations, case.warmups, || {
             black_box(
@@ -60,10 +58,7 @@ fn main() {
             );
         });
         let a_decode = measure(case.iterations, case.warmups, || {
-            black_box(
-                decode_film_candidate_a(black_box(&candidate_a), &[])
-                    .expect("Candidate A must decode"),
-            );
+            black_box(decode_film(black_box(&candidate_a), &[]).expect("Candidate A must decode"));
         });
         let b_decode = measure(case.iterations, case.warmups, || {
             black_box(
@@ -72,8 +67,8 @@ fn main() {
             );
         });
         let a_to_telex = measure(case.iterations, case.warmups, || {
-            let decoded = decode_film_candidate_a(black_box(&candidate_a), &[])
-                .expect("Candidate A must decode");
+            let decoded =
+                decode_film(black_box(&candidate_a), &[]).expect("Candidate A must decode");
             black_box(
                 encode_telex_with_projection(&decoded.records, None, None)
                     .expect("decoded records must encode as Telex"),

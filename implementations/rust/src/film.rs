@@ -1,8 +1,8 @@
-//! Experimental Film v1 Candidate A codec.
+//! Selected Film v1 draft reference codec.
 //!
-//! This module exercises the table-free layout recorded in the Film roadmap.
-//! It is research code in an unpublished crate, not a released conformance
-//! target. Comparator encodings must use a different preamble.
+//! This module implements the selected table-free Film v1 layout. The format
+//! and its conformance suite remain mutable drafts rather than a released
+//! conformance target. Comparator encodings must use a different preamble.
 
 use std::error::Error;
 use std::fmt;
@@ -51,6 +51,189 @@ pub struct FilmStream {
     pub records: Vec<TelexRecord>,
 }
 
+/// Explicit name for Film data whose field storage is owned. Ownership alone
+/// does not imply AES validation; use [`decode_film`] or
+/// [`FilmStreamView::to_validated_owned`] when semantic acceptance is required.
+pub type OwnedFilmStream = FilmStream;
+
+/// A decoded address that borrows its UTF-8 bytes from the Film input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FilmAddressView<'a> {
+    Path(&'a str),
+    Header(&'a str),
+}
+
+impl FilmAddressView<'_> {
+    #[must_use]
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Path(_) => "path",
+            Self::Header(_) => "header",
+        }
+    }
+
+    #[must_use]
+    pub fn value(&self) -> &str {
+        match self {
+            Self::Path(value) | Self::Header(value) => value,
+        }
+    }
+}
+
+/// A datatype generic that retains borrowed Film string storage.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FilmGenericView<'a> {
+    Datatype(FilmDatatypeView<'a>),
+    NumberLiteral(&'a str),
+}
+
+/// A datatype clarifier that retains borrowed Film string storage.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilmClarifierView<'a> {
+    pub kind: ClarifierKind,
+    pub value: &'a str,
+}
+
+/// A recursive datatype descriptor whose text fields borrow from Film input.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilmDatatypeView<'a> {
+    pub datatype: &'a str,
+    pub generics: Vec<FilmGenericView<'a>>,
+    pub clarifiers: Vec<FilmClarifierView<'a>>,
+}
+
+impl FilmDatatypeView<'_> {
+    #[must_use]
+    pub fn to_owned(&self) -> DatatypeDescriptor {
+        DatatypeDescriptor {
+            datatype: self.datatype.to_owned(),
+            generics: self
+                .generics
+                .iter()
+                .map(|generic| match generic {
+                    FilmGenericView::Datatype(datatype) => {
+                        GenericArgument::Datatype(datatype.to_owned())
+                    }
+                    FilmGenericView::NumberLiteral(value) => {
+                        GenericArgument::NumberLiteral((*value).to_owned())
+                    }
+                })
+                .collect(),
+            clarifiers: self
+                .clarifiers
+                .iter()
+                .map(|clarifier| DatatypeClarifier {
+                    kind: clarifier.kind.clone(),
+                    value: clarifier.value.to_owned(),
+                })
+                .collect(),
+        }
+    }
+}
+
+/// One named extension whose name and value borrow from Film input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FilmExtensionView<'a> {
+    pub name: &'a str,
+    pub value: &'a str,
+}
+
+/// A physically decoded Film record. AES event and stream validation remain
+/// provisional until the view is materialized and validated as a complete
+/// stream.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilmRecordView<'a> {
+    pub address: FilmAddressView<'a>,
+    pub kind: &'static str,
+    pub datatype: Option<FilmDatatypeView<'a>>,
+    pub identity: Option<&'a str>,
+    pub value: Option<&'a str>,
+    pub origin: Option<&'a [u8; 32]>,
+    pub span: Option<(u64, u64)>,
+    pub extensions: Vec<FilmExtensionView<'a>>,
+}
+
+impl FilmRecordView<'_> {
+    #[must_use]
+    pub fn to_owned(&self) -> TelexRecord {
+        let mut fields = vec![
+            (
+                self.address.name().to_owned(),
+                self.address.value().to_owned(),
+            ),
+            ("kind".to_owned(), self.kind.to_owned()),
+        ];
+        if let Some(datatype) = &self.datatype {
+            fields.push(("datatype".to_owned(), datatype.datatype.to_owned()));
+        }
+        if let Some(identity) = self.identity {
+            fields.push(("identity".to_owned(), identity.to_owned()));
+        }
+        if let Some(value) = self.value {
+            fields.push(("value".to_owned(), value.to_owned()));
+        }
+        if let Some(origin) = self.origin {
+            fields.push(("origin".to_owned(), encode_origin(origin)));
+        }
+        if let Some((start, end)) = self.span {
+            fields.push(("span".to_owned(), format!("{start}:{end}")));
+        }
+        fields.extend(
+            self.extensions
+                .iter()
+                .map(|extension| (extension.name.to_owned(), extension.value.to_owned())),
+        );
+        match &self.datatype {
+            Some(datatype) => TelexRecord::with_datatype(fields, datatype.to_owned()),
+            None => TelexRecord::new(fields),
+        }
+    }
+}
+
+/// A Film stream view whose encoded string fields and origin digests borrow
+/// from the caller's input buffer. An omitted profile uses the static AES
+/// default. The view has passed Film framing, syntax, and canonicality checks,
+/// but remains provisional with respect to AES event and stream semantics.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilmStreamView<'a> {
+    pub profile: &'a str,
+    pub profile_explicit: bool,
+    pub projection: Option<&'a str>,
+    pub projection_explicit: bool,
+    pub records: Vec<FilmRecordView<'a>>,
+    input_bytes: usize,
+}
+
+impl FilmStreamView<'_> {
+    #[must_use]
+    pub fn input_bytes(&self) -> usize {
+        self.input_bytes
+    }
+
+    #[must_use]
+    pub fn to_owned_unvalidated(&self) -> OwnedFilmStream {
+        FilmStream {
+            profile: self.profile.to_owned(),
+            profile_explicit: self.profile_explicit,
+            projection: self.projection.map(str::to_owned),
+            projection_explicit: self.projection_explicit,
+            records: self.records.iter().map(FilmRecordView::to_owned).collect(),
+        }
+    }
+
+    /// Materializes borrowed fields and performs complete AES validation under
+    /// the selected profile and projection.
+    pub fn to_validated_owned(
+        &self,
+        registered_fields: &[&str],
+        aes_limits: &TelexLimits,
+    ) -> Result<OwnedFilmStream, FilmError> {
+        let stream = self.to_owned_unvalidated();
+        validate_stream(&stream, registered_fields, aes_limits, self.input_bytes)?;
+        Ok(stream)
+    }
+}
+
 impl From<&ParsedTelex> for FilmStream {
     fn from(parsed: &ParsedTelex) -> Self {
         Self {
@@ -93,15 +276,17 @@ impl fmt::Display for FilmError {
 impl Error for FilmError {}
 
 #[must_use]
-pub fn candidate_a_is_research_only() -> bool {
+pub fn film_v1_is_draft() -> bool {
     true
 }
 
-pub fn encode_film_candidate_a(
-    stream: &FilmStream,
-    registered_fields: &[&str],
-) -> Result<Vec<u8>, FilmError> {
-    encode_film_candidate_a_with_limits(
+#[must_use]
+pub fn candidate_a_is_research_only() -> bool {
+    film_v1_is_draft()
+}
+
+pub fn encode_film(stream: &FilmStream, registered_fields: &[&str]) -> Result<Vec<u8>, FilmError> {
+    encode_film_with_limits(
         stream,
         registered_fields,
         &FilmLimits::default(),
@@ -109,7 +294,7 @@ pub fn encode_film_candidate_a(
     )
 }
 
-pub fn encode_film_candidate_a_with_limits(
+pub fn encode_film_with_limits(
     stream: &FilmStream,
     registered_fields: &[&str],
     film_limits: &FilmLimits,
@@ -183,11 +368,8 @@ pub fn encode_film_candidate_a_with_limits(
     Ok(output)
 }
 
-pub fn decode_film_candidate_a(
-    input: &[u8],
-    registered_fields: &[&str],
-) -> Result<FilmStream, FilmError> {
-    decode_film_candidate_a_with_limits(
+pub fn decode_film(input: &[u8], registered_fields: &[&str]) -> Result<FilmStream, FilmError> {
+    decode_film_with_limits(
         input,
         registered_fields,
         &FilmLimits::default(),
@@ -195,12 +377,33 @@ pub fn decode_film_candidate_a(
     )
 }
 
-pub fn decode_film_candidate_a_with_limits(
+pub fn decode_film_with_limits(
     input: &[u8],
     registered_fields: &[&str],
     film_limits: &FilmLimits,
     aes_limits: &TelexLimits,
 ) -> Result<FilmStream, FilmError> {
+    decode_film_view_with_limits(input, film_limits, aes_limits)?
+        .to_validated_owned(registered_fields, aes_limits)
+}
+
+/// Decodes Film framing, fields, and canonical physical form while borrowing
+/// string and origin storage from `input`. The returned stream remains
+/// provisional until AES validation succeeds or it is passed through
+/// [`decode_film`].
+pub fn decode_film_view(input: &[u8]) -> Result<FilmStreamView<'_>, FilmError> {
+    decode_film_view_with_limits(input, &FilmLimits::default(), &TelexLimits::default())
+}
+
+/// Limit-aware borrowed Film decoding. Film-local limits apply to physical
+/// bytes and shared AES limits bound structural parsing, but this function does
+/// not perform profile, projection, path, extension-registration, or other AES
+/// semantic validation.
+pub fn decode_film_view_with_limits<'a>(
+    input: &'a [u8],
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+) -> Result<FilmStreamView<'a>, FilmError> {
     enforce_limit(
         "max_input_bytes",
         input.len(),
@@ -243,12 +446,12 @@ pub fn decode_film_candidate_a_with_limits(
     let profile_explicit = context & CONTEXT_PROFILE != 0;
     let projection_explicit = context & CONTEXT_PROJECTION != 0;
     let profile = if profile_explicit {
-        reader.read_nonempty_context_string(film_limits, "profile")?
+        reader.read_nonempty_context_str(film_limits, "profile")?
     } else {
-        COMPLETE_AES_PROFILE.to_owned()
+        COMPLETE_AES_PROFILE
     };
     let projection = if projection_explicit {
-        Some(reader.read_nonempty_context_string(film_limits, "projection")?)
+        Some(reader.read_nonempty_context_str(film_limits, "projection")?)
     } else {
         None
     };
@@ -287,7 +490,7 @@ pub fn decode_film_candidate_a_with_limits(
         )?;
         let payload_offset = reader.absolute_position();
         let payload = reader.read_exact(payload_length, "record")?;
-        records.push(decode_record(
+        records.push(decode_record_view(
             payload,
             payload_offset,
             record_index,
@@ -296,21 +499,17 @@ pub fn decode_film_candidate_a_with_limits(
         )?);
     }
 
-    let stream = FilmStream {
+    Ok(FilmStreamView {
         profile,
         profile_explicit,
         projection,
         projection_explicit,
         records,
-    };
-    validate_stream(&stream, registered_fields, aes_limits, input.len())?;
-    Ok(stream)
+        input_bytes: input.len(),
+    })
 }
 
-pub fn telex_to_film_candidate_a(
-    telex: &str,
-    registered_fields: &[&str],
-) -> Result<Vec<u8>, FilmError> {
+pub fn telex_to_film(telex: &str, registered_fields: &[&str]) -> Result<Vec<u8>, FilmError> {
     let parsed = parse_telex(telex)
         .map_err(|error| film_error(error.code, 0, None, "telex-source", error.detail))?;
     if !parsed.canonical {
@@ -322,14 +521,11 @@ pub fn telex_to_film_candidate_a(
             "Telex-to-Film transcoding requires canonical Telex input",
         ));
     }
-    encode_film_candidate_a(&FilmStream::from(&parsed), registered_fields)
+    encode_film(&FilmStream::from(&parsed), registered_fields)
 }
 
-pub fn film_candidate_a_to_telex(
-    film: &[u8],
-    registered_fields: &[&str],
-) -> Result<String, FilmError> {
-    let stream = decode_film_candidate_a(film, registered_fields)?;
+pub fn film_to_telex(film: &[u8], registered_fields: &[&str]) -> Result<String, FilmError> {
+    let stream = decode_film(film, registered_fields)?;
     let profile = stream.profile_explicit.then_some(stream.profile.as_str());
     let projection = stream
         .projection_explicit
@@ -337,6 +533,55 @@ pub fn film_candidate_a_to_telex(
         .flatten();
     encode_telex_with_projection(&stream.records, profile, projection)
         .map_err(|error| film_error(error.code, 0, None, "telex-target", error.detail))
+}
+
+// Temporary compatibility names for the pre-selection prototype API. The
+// crate is unpublished, but retaining these wrappers keeps local experiments
+// reproducible while callers move to the specification-shaped names above.
+pub fn encode_film_candidate_a(
+    stream: &FilmStream,
+    registered_fields: &[&str],
+) -> Result<Vec<u8>, FilmError> {
+    encode_film(stream, registered_fields)
+}
+
+pub fn encode_film_candidate_a_with_limits(
+    stream: &FilmStream,
+    registered_fields: &[&str],
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+) -> Result<Vec<u8>, FilmError> {
+    encode_film_with_limits(stream, registered_fields, film_limits, aes_limits)
+}
+
+pub fn decode_film_candidate_a(
+    input: &[u8],
+    registered_fields: &[&str],
+) -> Result<FilmStream, FilmError> {
+    decode_film(input, registered_fields)
+}
+
+pub fn decode_film_candidate_a_with_limits(
+    input: &[u8],
+    registered_fields: &[&str],
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+) -> Result<FilmStream, FilmError> {
+    decode_film_with_limits(input, registered_fields, film_limits, aes_limits)
+}
+
+pub fn telex_to_film_candidate_a(
+    telex: &str,
+    registered_fields: &[&str],
+) -> Result<Vec<u8>, FilmError> {
+    telex_to_film(telex, registered_fields)
+}
+
+pub fn film_candidate_a_to_telex(
+    film: &[u8],
+    registered_fields: &[&str],
+) -> Result<String, FilmError> {
+    film_to_telex(film, registered_fields)
 }
 
 fn validate_context(stream: &FilmStream) -> Result<(), FilmError> {
@@ -550,13 +795,13 @@ fn encode_record(
     Ok(output)
 }
 
-fn decode_record(
-    payload: &[u8],
+fn decode_record_view<'a>(
+    payload: &'a [u8],
     payload_offset: usize,
     record_index: usize,
     film_limits: &FilmLimits,
     aes_limits: &TelexLimits,
-) -> Result<TelexRecord, FilmError> {
+) -> Result<FilmRecordView<'a>, FilmError> {
     let mut reader = Reader::new(payload, payload_offset, Some(record_index));
     let control = reader.read_byte("record-control")?;
     if control & !0x1f != 0 {
@@ -587,40 +832,42 @@ fn decode_record(
             "Unassigned Film v1 kind code",
         )
     })?;
-    let address = reader.read_string(film_limits, "address")?;
-    let address_name = if control & RECORD_HEADER != 0 {
-        "header"
+    let address_value = reader.read_str(film_limits, "address")?;
+    let address = if control & RECORD_HEADER != 0 {
+        FilmAddressView::Header(address_value)
     } else {
-        "path"
+        FilmAddressView::Path(address_value)
     };
-    let mut fields = vec![
-        (address_name.to_owned(), address),
-        ("kind".to_owned(), kind.to_owned()),
-    ];
     let datatype = if control & RECORD_DATATYPE != 0 {
-        let descriptor = reader.read_descriptor(film_limits, aes_limits, 0)?;
-        fields.push(("datatype".to_owned(), descriptor.datatype.clone()));
-        Some(descriptor)
+        Some(reader.read_descriptor_view(film_limits, aes_limits, 0)?)
     } else {
         None
     };
-    if control & RECORD_IDENTITY != 0 {
-        fields.push((
-            "identity".to_owned(),
-            reader.read_string(film_limits, "identity")?,
-        ));
-    }
-    if kind_has_value(kind) {
-        fields.push((
-            "value".to_owned(),
-            reader.read_string(film_limits, "value")?,
-        ));
-    }
-    if control & RECORD_ORIGIN != 0 {
+    let identity = if control & RECORD_IDENTITY != 0 {
+        Some(reader.read_str(film_limits, "identity")?)
+    } else {
+        None
+    };
+    let value = if kind_has_value(kind) {
+        Some(reader.read_str(film_limits, "value")?)
+    } else {
+        None
+    };
+    let origin = if control & RECORD_ORIGIN != 0 {
         let bytes = reader.read_exact(32, "origin")?;
-        fields.push(("origin".to_owned(), encode_origin(bytes)));
-    }
-    if control & RECORD_SPAN != 0 {
+        Some(<&[u8; 32]>::try_from(bytes).map_err(|_| {
+            film_error(
+                "FILM_INVALID_RECORD",
+                reader.absolute_position(),
+                Some(record_index),
+                "origin",
+                "Film origin must contain exactly 32 bytes",
+            )
+        })?)
+    } else {
+        None
+    };
+    let span = if control & RECORD_SPAN != 0 {
         let start = reader.read_uleb("span-start")?;
         let end = reader.read_uleb("span-end")?;
         if start >= end {
@@ -632,14 +879,17 @@ fn decode_record(
                 "Film span requires start < end",
             ));
         }
-        fields.push(("span".to_owned(), format!("{start}:{end}")));
-    }
+        Some((start, end))
+    } else {
+        None
+    };
 
-    let mut previous_extension: Option<String> = None;
+    let mut previous_extension: Option<&str> = None;
+    let mut extensions = Vec::new();
     while !reader.is_empty() {
         let name_offset = reader.absolute_position();
-        let name = reader.read_nonempty_string(film_limits, "extension-name")?;
-        if !valid_extension_name(&name) {
+        let name = reader.read_str(film_limits, "extension-name")?;
+        if !valid_extension_name(name) {
             return Err(film_error(
                 "FILM_INVALID_EXTENSION",
                 name_offset,
@@ -648,10 +898,7 @@ fn decode_record(
                 format!("Invalid Film extension name: {name}"),
             ));
         }
-        if previous_extension
-            .as_ref()
-            .is_some_and(|previous| previous >= &name)
-        {
+        if previous_extension.is_some_and(|previous| previous >= name) {
             return Err(film_error(
                 "FILM_NONCANONICAL",
                 name_offset,
@@ -660,14 +907,20 @@ fn decode_record(
                 "Extensions must be strictly ordered without duplicates",
             ));
         }
-        let value = reader.read_string(film_limits, "extension-value")?;
-        previous_extension = Some(name.clone());
-        fields.push((name, value));
+        let value = reader.read_str(film_limits, "extension-value")?;
+        previous_extension = Some(name);
+        extensions.push(FilmExtensionView { name, value });
     }
 
-    Ok(match datatype {
-        Some(descriptor) => TelexRecord::with_datatype(fields, descriptor),
-        None => TelexRecord::new(fields),
+    Ok(FilmRecordView {
+        address,
+        kind,
+        datatype,
+        identity,
+        value,
+        origin,
+        span,
+        extensions,
     })
 }
 
@@ -1173,11 +1426,11 @@ impl<'a> Reader<'a> {
         Ok(length)
     }
 
-    fn read_string(
+    fn read_str(
         &mut self,
         limits: &FilmLimits,
         component: &'static str,
-    ) -> Result<String, FilmError> {
+    ) -> Result<&'a str, FilmError> {
         let offset = self.absolute_position();
         let length = self.read_length(limits, component)?;
         let bytes = self.read_exact(length, component)?;
@@ -1190,35 +1443,16 @@ impl<'a> Reader<'a> {
                 "Film strings must contain valid UTF-8",
             )
         })?;
-        Ok(value.to_owned())
-    }
-
-    fn read_nonempty_string(
-        &mut self,
-        limits: &FilmLimits,
-        component: &'static str,
-    ) -> Result<String, FilmError> {
-        let offset = self.absolute_position();
-        let value = self.read_string(limits, component)?;
-        if value.is_empty() {
-            return Err(film_error(
-                "FILM_INVALID_RECORD",
-                offset,
-                self.record,
-                component,
-                "This Film string must not be empty",
-            ));
-        }
         Ok(value)
     }
 
-    fn read_nonempty_context_string(
+    fn read_nonempty_context_str(
         &mut self,
         limits: &FilmLimits,
         component: &'static str,
-    ) -> Result<String, FilmError> {
+    ) -> Result<&'a str, FilmError> {
         let offset = self.absolute_position();
-        let value = self.read_string(limits, component)?;
+        let value = self.read_str(limits, component)?;
         if value.is_empty() {
             return Err(film_error(
                 "FILM_INVALID_CONTEXT",
@@ -1231,12 +1465,12 @@ impl<'a> Reader<'a> {
         Ok(value)
     }
 
-    fn read_descriptor(
+    fn read_descriptor_view(
         &mut self,
         film_limits: &FilmLimits,
         aes_limits: &TelexLimits,
         depth: usize,
-    ) -> Result<DatatypeDescriptor, FilmError> {
+    ) -> Result<FilmDatatypeView<'a>, FilmError> {
         if depth > aes_limits.max_generic_depth {
             return Err(aes_limit_error(
                 "max_generic_depth",
@@ -1252,7 +1486,7 @@ impl<'a> Reader<'a> {
         let bytes = self.read_exact(length, "datatype")?;
         let mut descriptor = Reader::new(bytes, offset, self.record);
         let datatype_offset = descriptor.absolute_position();
-        let datatype = descriptor.read_string(film_limits, "datatype-name")?;
+        let datatype = descriptor.read_str(film_limits, "datatype-name")?;
         if datatype.is_empty() {
             return Err(film_error(
                 "FILM_INVALID_DATATYPE",
@@ -1277,13 +1511,13 @@ impl<'a> Reader<'a> {
         for _ in 0..generic_count {
             let tag_offset = descriptor.absolute_position();
             match descriptor.read_byte("generic-tag")? {
-                0x00 => generics.push(GenericArgument::Datatype(descriptor.read_descriptor(
+                0x00 => generics.push(FilmGenericView::Datatype(descriptor.read_descriptor_view(
                     film_limits,
                     aes_limits,
                     depth.saturating_add(1),
                 )?)),
-                0x02 => generics.push(GenericArgument::NumberLiteral(
-                    descriptor.read_string(film_limits, "generic-number")?,
+                0x02 => generics.push(FilmGenericView::NumberLiteral(
+                    descriptor.read_str(film_limits, "generic-number")?,
                 )),
                 _ => {
                     return Err(film_error(
@@ -1323,9 +1557,9 @@ impl<'a> Reader<'a> {
                     ));
                 }
             };
-            clarifiers.push(DatatypeClarifier {
+            clarifiers.push(FilmClarifierView {
                 kind,
-                value: descriptor.read_string(film_limits, "clarifier-value")?,
+                value: descriptor.read_str(film_limits, "clarifier-value")?,
             });
         }
         if !descriptor.is_empty() {
@@ -1337,7 +1571,7 @@ impl<'a> Reader<'a> {
                 "Datatype descriptor length was not consumed exactly",
             ));
         }
-        Ok(DatatypeDescriptor {
+        Ok(FilmDatatypeView {
             datatype,
             generics,
             clarifiers,

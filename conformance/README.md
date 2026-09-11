@@ -78,7 +78,7 @@ and canonicality failures separate from transport-neutral AES diagnostics.
 
 The Film candidate carries no `snapshot_id` or `spec_snapshot_id`. Passing it
 does not establish an immutable external conformance claim, and the current
-Rust Candidate A runner is not a second independent decoder.
+selected Rust reference runner is not a second independent decoder.
 
 The manifest separates:
 

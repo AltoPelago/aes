@@ -172,9 +172,9 @@ maintained in the separate AEON family roadmap. Material is promoted into this
 repository when it becomes an AES-owned specification, policy, conformance
 asset, release procedure, or implementation reference.
 
-The next Film work is refactoring Candidate A around the specification-shaped
-API, followed by an independent decoder. A later stage will cover Tape and the
-Aeonic Semantic Language.
+The selected Rust Film draft reference now exposes specification-shaped
+borrowed and owned decoding surfaces. The next Film work is an independent
+decoder. A later stage will cover Tape and the Aeonic Semantic Language.
 
 ## Design rule
 

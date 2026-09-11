@@ -1,4 +1,4 @@
-use aes_telex::film_candidate_a::{FILM_V1_PREAMBLE, FilmStream, decode_film_candidate_a};
+use aes_telex::film::{FILM_V1_PREAMBLE, FilmStream, decode_film, encode_film};
 use aes_telex::film_candidate_b::{
     FILM_CANDIDATE_B_PREAMBLE, decode_film_candidate_b, encode_film_candidate_b,
 };
@@ -7,8 +7,7 @@ use aes_telex::{PARTIAL_AES_PROFILE, TelexRecord};
 #[test]
 fn comparator_has_distinct_identity_and_round_trips() {
     let stream = hierarchical_stream();
-    let candidate_a = aes_telex::film_candidate_a::encode_film_candidate_a(&stream, &[])
-        .expect("Candidate A must encode");
+    let candidate_a = encode_film(&stream, &[]).expect("Candidate A must encode");
     let candidate_b = encode_film_candidate_b(&stream, &[]).expect("Candidate B must encode");
     assert_eq!(
         candidate_a.get(..FILM_V1_PREAMBLE.len()),
@@ -25,7 +24,7 @@ fn comparator_has_distinct_identity_and_round_trips() {
         stream
     );
     assert_eq!(
-        decode_film_candidate_a(&candidate_b, &[])
+        decode_film(&candidate_b, &[])
             .expect_err("Candidate A must reject Candidate B")
             .code,
         "FILM_INVALID_PREAMBLE"

@@ -6,9 +6,9 @@
 //! and therefore uses a distinct non-v1 preamble.
 
 use crate::TelexLimits;
-use crate::film_candidate_a::{
-    FILM_V1_PREAMBLE, FilmError, FilmLimits, FilmStream, decode_film_candidate_a_with_limits,
-    encode_film_candidate_a_with_limits,
+use crate::film::{
+    FILM_V1_PREAMBLE, FilmError, FilmLimits, FilmStream, decode_film_with_limits,
+    encode_film_with_limits,
 };
 
 pub const FILM_CANDIDATE_B_PREAMBLE: [u8; 5] = [0x4f, 0x5f, 0x42, 0xff, 0x00];
@@ -33,8 +33,7 @@ pub fn encode_film_candidate_b_with_limits(
     film_limits: &FilmLimits,
     aes_limits: &TelexLimits,
 ) -> Result<Vec<u8>, FilmError> {
-    let candidate_a =
-        encode_film_candidate_a_with_limits(stream, registered_fields, film_limits, aes_limits)?;
+    let candidate_a = encode_film_with_limits(stream, registered_fields, film_limits, aes_limits)?;
     candidate_a_to_b(&candidate_a, film_limits)
 }
 
@@ -57,7 +56,7 @@ pub fn decode_film_candidate_b_with_limits(
     aes_limits: &TelexLimits,
 ) -> Result<FilmStream, FilmError> {
     let candidate_a = candidate_b_to_a(input, film_limits)?;
-    decode_film_candidate_a_with_limits(&candidate_a, registered_fields, film_limits, aes_limits)
+    decode_film_with_limits(&candidate_a, registered_fields, film_limits, aes_limits)
 }
 
 fn candidate_a_to_b(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmError> {

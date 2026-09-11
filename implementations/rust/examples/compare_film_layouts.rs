@@ -2,7 +2,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use aes_telex::film_candidate_a::{FilmStream, encode_film_candidate_a};
+use aes_telex::film::{FilmStream, encode_film};
 use aes_telex::film_candidate_b::encode_film_candidate_b;
 use aes_telex::parse_telex;
 
@@ -32,7 +32,7 @@ fn compare(path: &Path) {
         path.display()
     );
     let stream = FilmStream::from(&parsed);
-    let candidate_a = encode_film_candidate_a(&stream, &[])
+    let candidate_a = encode_film(&stream, &[])
         .unwrap_or_else(|error| panic!("Candidate A failed for {}: {error}", path.display()));
     let candidate_b = encode_film_candidate_b(&stream, &[])
         .unwrap_or_else(|error| panic!("Candidate B failed for {}: {error}", path.display()));

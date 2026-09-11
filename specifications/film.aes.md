@@ -686,8 +686,17 @@ host authorization.
 ## 19. Conformance and lifecycle
 
 This document is a normative draft. It defines the intended Film v1 bytes but
-is not yet a released conformance target. The Rust Candidate A implementation
-is prototype evidence and cannot establish conformance by itself.
+is not yet a released conformance target. The selected Rust reference
+implementation is prototype evidence and cannot establish conformance by
+itself.
+
+The repository's informative Rust API exposes borrowed physical views through
+`decode_film_view` and `decode_film_view_with_limits`. Those views retain field
+storage from the caller's Film bytes and remain provisional until
+`to_validated_owned` applies registered-extension and AES semantic validation.
+`decode_film` and `decode_film_with_limits` perform both stages and return a
+fully materialized owned stream. This API shape is implementation guidance, not
+an additional wire-format requirement.
 
 Film v1 is ready for release only after:
 
@@ -710,7 +719,7 @@ version.
 
 The [mutable candidate](../conformance/film/v1/film-cts.v1.json) supplies the
 current language-neutral evidence for item 1. It contains 68 vectors and no
-snapshot identifiers; the Rust Candidate A harness that consumes it does not
+snapshot identifiers; the selected Rust reference harness that consumes it does not
 satisfy the independent-decoder requirement in item 2.
 
 Transport media types and external registration are outside Film v1.

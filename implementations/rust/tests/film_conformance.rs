@@ -2,9 +2,9 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use aes_telex::film_candidate_a::{
-    FilmError, FilmLimits, FilmStream, decode_film_candidate_a_with_limits,
-    encode_film_candidate_a_with_limits, film_candidate_a_to_telex, telex_to_film_candidate_a,
+use aes_telex::film::{
+    FilmError, FilmLimits, FilmStream, decode_film_with_limits, encode_film_with_limits,
+    film_to_telex, telex_to_film,
 };
 use aes_telex::{
     ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument, TelexLimits, TelexRecord,
@@ -79,20 +79,18 @@ fn run_decode_vector(id: &str, vector: &Value) {
     let registered = registered_fields(&vector["input"]);
     let (film_limits, aes_limits) = vector_limits(&vector["input"]);
     let expected = &vector["expected"];
-    match decode_film_candidate_a_with_limits(&bytes, &registered, &film_limits, &aes_limits) {
+    match decode_film_with_limits(&bytes, &registered, &film_limits, &aes_limits) {
         Ok(stream) => {
             assert_eq!(expected["ok"], true, "{id}: expected decode failure");
             if !expected["stream"].is_null() {
                 assert_eq!(stream_json(&stream), expected["stream"], "{id}");
             }
             if let Some(canonical) = expected["canonical_hex"].as_str() {
-                let encoded = encode_film_candidate_a_with_limits(
-                    &stream,
-                    &registered,
-                    &film_limits,
-                    &aes_limits,
-                )
-                .unwrap_or_else(|error| panic!("{id}: canonical re-encode failed: {error}"));
+                let encoded =
+                    encode_film_with_limits(&stream, &registered, &film_limits, &aes_limits)
+                        .unwrap_or_else(|error| {
+                            panic!("{id}: canonical re-encode failed: {error}")
+                        });
                 assert_eq!(lower_hex(&encoded), canonical, "{id}");
             }
         }
@@ -105,7 +103,7 @@ fn run_encode_vector(id: &str, vector: &Value) {
     let registered = registered_fields(&vector["input"]);
     let (film_limits, aes_limits) = vector_limits(&vector["input"]);
     let expected = &vector["expected"];
-    match encode_film_candidate_a_with_limits(&stream, &registered, &film_limits, &aes_limits) {
+    match encode_film_with_limits(&stream, &registered, &film_limits, &aes_limits) {
         Ok(bytes) => {
             assert_eq!(expected["ok"], true, "{id}: expected encode failure");
             assert_eq!(lower_hex(&bytes), expected["film_hex"], "{id}");
@@ -117,10 +115,10 @@ fn run_encode_vector(id: &str, vector: &Value) {
 fn run_transcode_vector(id: &str, vector: &Value) {
     let telex = required_string(&vector["input"], "telex");
     let registered = registered_fields(&vector["input"]);
-    let film = telex_to_film_candidate_a(telex, &registered)
+    let film = telex_to_film(telex, &registered)
         .unwrap_or_else(|error| panic!("{id}: Telex-to-Film failed: {error}"));
     assert_eq!(lower_hex(&film), vector["expected"]["film_hex"], "{id}");
-    let round_trip = film_candidate_a_to_telex(&film, &registered)
+    let round_trip = film_to_telex(&film, &registered)
         .unwrap_or_else(|error| panic!("{id}: Film-to-Telex failed: {error}"));
     assert_eq!(round_trip, vector["expected"]["telex"], "{id}");
 }
