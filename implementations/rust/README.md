@@ -55,25 +55,28 @@ AES event contract, the published Telex encoding, and the shared vectors.
 
 ## Experimental Film Candidate A
 
-`film_candidate_a` exercises the table-free binary layout currently recorded in
-the Film roadmap. It implements canonical stream context, framed records, the
+`film_candidate_a` exercises the table-free binary layout defined by the Film
+v1 normative draft. It implements canonical stream context, framed records, the
 fixed kind table, structured datatypes, provenance, spans, named extensions,
 Film-local limits, and direct Telex transcoders over the existing portable AES
 record model.
 
-This module is research code in an unpublished crate. It is not a released Film
-specification or conformance target, and its bytes must not be used for durable
-interchange before the Film v1 layout and CTS are frozen.
+This module is research code in an unpublished crate. It passes the mutable
+68-vector Film CTS but is not an independent decoder or a released conformance
+target. Its bytes must not be used for durable interchange before the Film v1
+specification and CTS receive immutable snapshots.
 
-`film_candidate_b` is a deliberately stateful comparator. It replaces each
-address with the longest UTF-8 prefix shared with the previous address in the
-same address plane plus an inline suffix. It uses the distinct experimental
-`O_B FF 00` preamble and can never be represented as `film.aes=1`.
+`film_candidate_b` is an archived, deliberately stateful comparator. It
+replaces each address with the longest UTF-8 prefix shared with the previous
+address in the same address plane plus an inline suffix. It uses the distinct
+experimental `O_B FF 00` preamble and can never be represented as
+`film.aes=1`.
 
 Run its focused tests and native benchmark with:
 
 ```bash
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_a
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_conformance
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_b
 cargo run --release --locked --example bench_film_candidate_a --manifest-path implementations/rust/Cargo.toml
 cargo run --release --locked --example compare_film_layouts --manifest-path implementations/rust/Cargo.toml -- path/to/input.telex.aes

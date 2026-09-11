@@ -89,8 +89,8 @@ working/reference copies and do not override those canonical sources.
   illustrative stream, not a frozen conformance vector.
 - [`conformance/`](conformance/README.md) contains language-neutral v1
   vectors for syntax, canonicalization, AES profile validation, exact-source
-  provenance, resource-limit boundaries, and the optional AEON document
-  projection. Stable external
+  provenance, resource-limit boundaries, the optional AEON document
+  projection, and the mutable 68-vector Film candidate. Stable external
   targets are published separately as `aes-events-cts-v1-snapshot-0.1` and
   `telex-cts-v1-snapshot-0.1` in the shared `aeonite-cts` repository.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
@@ -172,8 +172,9 @@ maintained in the separate AEON family roadmap. Material is promoted into this
 repository when it becomes an AES-owned specification, policy, conformance
 asset, release procedure, or implementation reference.
 
-The next Film work is its mutable CTS and independent decoder. A later stage
-will cover Tape and the Aeonic Semantic Language.
+The next Film work is refactoring Candidate A around the specification-shaped
+API, followed by an independent decoder. A later stage will cover Tape and the
+Aeonic Semantic Language.
 
 ## Design rule
 

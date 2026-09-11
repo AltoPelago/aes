@@ -184,8 +184,8 @@ fn malformed_or_noncanonical_frames_fail_closed() {
         (&b"O__\xff"[..], "FILM_TRUNCATED"),
         (&b"BAD!!\x00"[..], "FILM_INVALID_PREAMBLE"),
         (&b"O__\xff\x01"[..], "FILM_TRUNCATED"),
-        (&b"O__\xff\x01\x80\x00"[..], "FILM_NONCANONICAL"),
-        (&b"O__\xff\x01\x04"[..], "FILM_NONCANONICAL"),
+        (&b"O__\xff\x01\x80\x00"[..], "FILM_INVALID_CONTEXT"),
+        (&b"O__\xff\x01\x04"[..], "FILM_INVALID_CONTEXT"),
         (&b"O__\xff\x01\x00\x00"[..], "FILM_NONCANONICAL"),
         (&b"O__\xff\x01\x00\x01\x00"[..], "FILM_TRUNCATED"),
     ];

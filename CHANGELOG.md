@@ -11,6 +11,9 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 - Added the `film.aes` v1 normative draft, table-free Rust Candidate A
   prototype, stateful address-compression comparator, safety vectors, and
   reproducible layout benchmarks without declaring a released Film target.
+- Added a mutable 68-vector Film v1 CTS for framing, canonical bytes, all kind
+  codes, record features, Telex equivalence, truncation, diagnostics, and
+  Film-local and shared AES resource limits, with a Rust candidate harness.
 - Established the public AES repository authority, governance, contribution,
   security, versioning, and release boundaries.
 - Added independently testable JavaScript and Rust reference implementations

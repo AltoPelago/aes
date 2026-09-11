@@ -1,0 +1,248 @@
+{
+  "meta": {
+    "suite_id": "framing-and-canonicalization",
+    "lane": "aes-film",
+    "format_version": "1",
+    "event_contract": "aes.events.v1",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/film.aes.md#3-binary-notation-and-primitive-encodings",
+      "specifications/film.aes.md#4-stream-structure",
+      "specifications/film.aes.md#10-canonical-film",
+      "specifications/film.aes.md#12-incremental-decoding-truncation-and-recovery"
+    ]
+  },
+  "id": "framing-and-canonicalization",
+  "title": "Film v1 Framing and Canonicalization",
+  "tests": [
+    {
+      "id": "film-framing-001-empty-default",
+      "description": "The six-byte empty stream selects the complete profile and body-only projection",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff0100" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff0100",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": []
+        }
+      },
+      "tags": ["framing", "empty", "defaults", "canonical"]
+    },
+    {
+      "id": "film-framing-002-explicit-partial",
+      "description": "An explicit partial profile remains byte-distinct from the default",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e7631",
+        "stream": {
+          "profile": "aes.partial.v1",
+          "profile_explicit": true,
+          "projection": null,
+          "projection_explicit": false,
+          "records": []
+        }
+      },
+      "tags": ["context", "profile", "canonical"]
+    },
+    {
+      "id": "film-framing-003-explicit-projection",
+      "description": "Projection may be explicit while profile remains omitted",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01021061656f6e2e646f63756d656e742e7631" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01021061656f6e2e646f63756d656e742e7631",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": "aeon.document.v1",
+          "projection_explicit": true,
+          "records": []
+        }
+      },
+      "tags": ["context", "projection", "canonical"]
+    },
+    {
+      "id": "film-framing-004-explicit-profile-and-projection",
+      "description": "Profile precedes projection when both declarations are present",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01030e6165732e7061727469616c2e76311061656f6e2e646f63756d656e742e7631" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01030e6165732e7061727469616c2e76311061656f6e2e646f63756d656e742e7631",
+        "stream": {
+          "profile": "aes.partial.v1",
+          "profile_explicit": true,
+          "projection": "aeon.document.v1",
+          "projection_explicit": true,
+          "records": []
+        }
+      },
+      "tags": ["context", "profile", "projection", "canonical"]
+    },
+    {
+      "id": "film-framing-005-canonical-scalar",
+      "description": "The specification scalar example has exact canonical Film bytes",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            { "path": "$.message", "kind": "StringLiteral", "value": "hello" }
+          ]
+        }
+      },
+      "tags": ["record", "scalar", "canonical", "spec-example"]
+    },
+    {
+      "id": "film-framing-006-utf8-byte-lengths",
+      "description": "String lengths count UTF-8 bytes without normalization",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01001400010a242e5b22f09f8c8a225d06c3a9f09f8c8a" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01001400010a242e5b22f09f8c8a225d06c3a9f09f8c8a",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            { "path": "$.[\"🌊\"]", "kind": "StringLiteral", "value": "é🌊" }
+          ]
+        }
+      },
+      "tags": ["record", "unicode", "utf8", "canonical"]
+    },
+    {
+      "id": "film-framing-007-supplied-order",
+      "description": "Canonical Film preserves supplied event order rather than sorting paths",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01010e6165732e7061727469616c2e763108000203242e6201320a000103242e61036f6e65" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e763108000203242e6201320a000103242e61036f6e65",
+        "stream": {
+          "profile": "aes.partial.v1",
+          "profile_explicit": true,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            { "path": "$.b", "kind": "NumberLiteral", "value": "2" },
+            { "path": "$.a", "kind": "StringLiteral", "value": "one" }
+          ]
+        }
+      },
+      "tags": ["record-order", "partial", "canonical"]
+    },
+    {
+      "id": "film-framing-008-truncated-preamble",
+      "description": "Final EOF inside the preamble is detectable truncation",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff" },
+      "expected": { "ok": false, "error": { "code": "FILM_TRUNCATED" } },
+      "tags": ["preamble", "truncation", "failure"]
+    },
+    {
+      "id": "film-framing-009-invalid-preamble",
+      "description": "A stream with unrelated leading bytes is not Film v1",
+      "operation": "decode",
+      "input": { "film_hex": "424144212100" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_PREAMBLE" } },
+      "tags": ["preamble", "failure"]
+    },
+    {
+      "id": "film-framing-010-unsupported-version",
+      "description": "A different version byte is an unsupported preamble rather than a feature bitmap",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff0200" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_PREAMBLE" } },
+      "tags": ["preamble", "version", "failure"]
+    },
+    {
+      "id": "film-framing-011-missing-context",
+      "description": "The stream-context control byte is mandatory",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01" },
+      "expected": { "ok": false, "error": { "code": "FILM_TRUNCATED" } },
+      "tags": ["context", "truncation", "failure"]
+    },
+    {
+      "id": "film-framing-012-reserved-context-bit",
+      "description": "Reserved stream-context bits must be zero",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff0104" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_CONTEXT" } },
+      "tags": ["context", "reserved-bit", "failure"]
+    },
+    {
+      "id": "film-framing-013-empty-profile",
+      "description": "A present profile string must be non-empty",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010100" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_CONTEXT" } },
+      "tags": ["context", "profile", "failure"]
+    },
+    {
+      "id": "film-framing-014-empty-projection",
+      "description": "A present projection string must be non-empty",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010200" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_CONTEXT" } },
+      "tags": ["context", "projection", "failure"]
+    },
+    {
+      "id": "film-framing-015-overlong-record-length",
+      "description": "Unsigned LEB128 uses only its shortest representation",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01008000" },
+      "expected": { "ok": false, "error": { "code": "FILM_NONCANONICAL" } },
+      "tags": ["uleb128", "canonical", "failure"]
+    },
+    {
+      "id": "film-framing-016-zero-record-length",
+      "description": "A framed record payload length must be positive",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010000" },
+      "expected": { "ok": false, "error": { "code": "FILM_NONCANONICAL" } },
+      "tags": ["record-length", "canonical", "failure"]
+    },
+    {
+      "id": "film-framing-017-truncated-record-length",
+      "description": "Final EOF inside a length integer is truncation",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010080" },
+      "expected": { "ok": false, "error": { "code": "FILM_TRUNCATED" } },
+      "tags": ["record-length", "truncation", "failure"]
+    },
+    {
+      "id": "film-framing-018-truncated-record-payload",
+      "description": "A complete outer payload that ends before required fields is still truncation",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01000100" },
+      "expected": { "ok": false, "error": { "code": "FILM_TRUNCATED" } },
+      "tags": ["record", "truncation", "failure"]
+    },
+    {
+      "id": "film-framing-019-trailing-zero-byte",
+      "description": "Film has no padding; a trailing zero begins an invalid zero-length record",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f00" },
+      "expected": { "ok": false, "error": { "code": "FILM_NONCANONICAL" } },
+      "tags": ["eof", "padding", "canonical", "failure"]
+    }
+  ]
+}

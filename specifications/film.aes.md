@@ -708,6 +708,11 @@ manifest identifies an immutable shared snapshot. Compatible added coverage
 advances the CTS snapshot; an incompatible wire change advances the Film format
 version.
 
+The [mutable candidate](../conformance/film/v1/film-cts.v1.json) supplies the
+current language-neutral evidence for item 1. It contains 68 vectors and no
+snapshot identifiers; the Rust Candidate A harness that consumes it does not
+satisfy the independent-decoder requirement in item 2.
+
 Transport media types and external registration are outside Film v1.
 
 ## 20. Complete scalar example

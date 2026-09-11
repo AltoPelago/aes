@@ -1,9 +1,15 @@
-# Telex conformance vectors
+# AES conformance vectors
 
 The repository-local v1 vectors are rooted at:
 
 ```text
 telex/v1/telex-cts.v1.json
+```
+
+The repository-local Film v1 candidate is rooted separately at:
+
+```text
+film/v1/film-cts.v1.json
 ```
 
 The transport-neutral AES event candidate is rooted separately at:
@@ -64,11 +70,15 @@ the source-backed preparation contract. It is not a published immutable CTS
 snapshot.
 
 The [`film.aes` v1 specification](../specifications/film.aes.md) is a normative
-draft. No repository-local Film CTS manifest or immutable Film snapshot exists
-yet. Rust Candidate A tests and benchmarks are implementation evidence only and
-must not be cited as a Film conformance claim. The future mutable Film lane will
-map to `aes.events.v1` while keeping Film syntax and canonicality vectors
-separate from the transport-neutral event vectors.
+draft. Its mutable `0.1.0-dev` CTS contains 68 language-neutral vectors across
+framing and canonicalization, records and Telex transcoding, and resource
+limits. Exact Film bytes use contiguous lowercase hexadecimal inside the JSON
+test envelope. The lane fixes all 23 kind-code mappings and keeps Film syntax
+and canonicality failures separate from transport-neutral AES diagnostics.
+
+The Film candidate carries no `snapshot_id` or `spec_snapshot_id`. Passing it
+does not establish an immutable external conformance claim, and the current
+Rust Candidate A runner is not a second independent decoder.
 
 The manifest separates:
 
@@ -104,7 +114,23 @@ each test:
 - `canonicalize`: return canonical Telex text without reordering events; or
 - `validate`: return the effective profile and semantic diagnostic codes.
 
-These 100 integrated vectors remain the mutable development candidate. The
+Film suites additionally use:
+
+- `decode`: accept exact `film_hex`, return logical stream context and records,
+  or a stable Film error; failures after Film decoding identify the AES stage
+  and retain its diagnostic codes without prescribing a host-language wrapper;
+- `encode`: produce exact canonical `film_hex` from one logical stream under
+  the supplied effective limits; and
+- `transcode`: convert canonical Telex directly to exact Film bytes and back
+  without reconstructing AEON source.
+
+Run the mutable Film manifest checks and Rust candidate harness together with:
+
+```bash
+npm run test:film
+```
+
+The 100 integrated Telex vectors remain their mutable development candidate. The
 candidate uses a `-dev` version and carries no `snapshot_id` or
 `spec_snapshot_id`. A repository commit identifies an exact development state,
 but external conformance claims must not treat this working path as stable.

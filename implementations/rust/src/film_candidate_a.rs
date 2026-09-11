@@ -10,7 +10,7 @@ use std::fmt;
 use crate::{
     COMPLETE_AES_PROFILE, ClarifierKind, DatatypeClarifier, DatatypeDescriptor, Diagnostic,
     GenericArgument, ParsedTelex, TelexLimits, TelexRecord, encode_telex_with_projection,
-    parse_telex, validate_telex_records_with_projection_and_limits,
+    limit_diagnostic, parse_telex, validate_telex_records_with_projection_and_limits,
 };
 
 pub const FILM_V1_PREAMBLE: [u8; 5] = [0x4f, 0x5f, 0x5f, 0xff, 0x01];
@@ -233,7 +233,7 @@ pub fn decode_film_candidate_a_with_limits(
     let context = reader.read_byte("stream-context")?;
     if context & !0x03 != 0 {
         return Err(film_error(
-            "FILM_NONCANONICAL",
+            "FILM_INVALID_CONTEXT",
             reader.absolute_position().saturating_sub(1),
             None,
             "stream-context",
@@ -243,12 +243,12 @@ pub fn decode_film_candidate_a_with_limits(
     let profile_explicit = context & CONTEXT_PROFILE != 0;
     let projection_explicit = context & CONTEXT_PROJECTION != 0;
     let profile = if profile_explicit {
-        reader.read_nonempty_string(film_limits, "profile")?
+        reader.read_nonempty_context_string(film_limits, "profile")?
     } else {
         COMPLETE_AES_PROFILE.to_owned()
     };
     let projection = if projection_explicit {
-        Some(reader.read_nonempty_string(film_limits, "projection")?)
+        Some(reader.read_nonempty_context_string(film_limits, "projection")?)
     } else {
         None
     };
@@ -257,7 +257,7 @@ pub fn decode_film_candidate_a_with_limits(
     while !reader.is_empty() {
         let record_index = records.len();
         if record_index >= aes_limits.max_events {
-            return Err(limit_error(
+            return Err(aes_limit_error(
                 "max_events",
                 record_index.saturating_add(1),
                 aes_limits.max_events,
@@ -561,7 +561,7 @@ fn decode_record(
     let control = reader.read_byte("record-control")?;
     if control & !0x1f != 0 {
         return Err(film_error(
-            "FILM_NONCANONICAL",
+            "FILM_INVALID_RECORD",
             payload_offset,
             Some(record_index),
             "record-control",
@@ -641,7 +641,7 @@ fn decode_record(
         let name = reader.read_nonempty_string(film_limits, "extension-name")?;
         if !valid_extension_name(&name) {
             return Err(film_error(
-                "FILM_INVALID_RECORD",
+                "FILM_INVALID_EXTENSION",
                 name_offset,
                 Some(record_index),
                 "extension-name",
@@ -1004,6 +1004,24 @@ fn limit_error(
     )
 }
 
+fn aes_limit_error(
+    counter: &'static str,
+    observed: usize,
+    limit: usize,
+    offset: usize,
+    record: Option<usize>,
+    component: &'static str,
+) -> FilmError {
+    FilmError {
+        code: "FILM_AES_INVALID",
+        offset,
+        record,
+        component,
+        detail: format!("{counter} observed {observed}, limit {limit}"),
+        diagnostics: vec![limit_diagnostic(counter, observed, limit)],
+    }
+}
+
 fn enforce_limit(
     counter: &'static str,
     observed: usize,
@@ -1194,6 +1212,25 @@ impl<'a> Reader<'a> {
         Ok(value)
     }
 
+    fn read_nonempty_context_string(
+        &mut self,
+        limits: &FilmLimits,
+        component: &'static str,
+    ) -> Result<String, FilmError> {
+        let offset = self.absolute_position();
+        let value = self.read_string(limits, component)?;
+        if value.is_empty() {
+            return Err(film_error(
+                "FILM_INVALID_CONTEXT",
+                offset,
+                self.record,
+                component,
+                "Film stream-context strings must not be empty",
+            ));
+        }
+        Ok(value)
+    }
+
     fn read_descriptor(
         &mut self,
         film_limits: &FilmLimits,
@@ -1201,22 +1238,33 @@ impl<'a> Reader<'a> {
         depth: usize,
     ) -> Result<DatatypeDescriptor, FilmError> {
         if depth > aes_limits.max_generic_depth {
-            return Err(film_error(
-                "FILM_LIMIT_EXCEEDED",
+            return Err(aes_limit_error(
+                "max_generic_depth",
+                depth,
+                aes_limits.max_generic_depth,
                 self.absolute_position(),
                 self.record,
                 "datatype",
-                "Datatype generic depth exceeds the active AES limit",
             ));
         }
         let length = self.read_length(film_limits, "datatype")?;
         let offset = self.absolute_position();
         let bytes = self.read_exact(length, "datatype")?;
         let mut descriptor = Reader::new(bytes, offset, self.record);
-        let datatype = descriptor.read_nonempty_string(film_limits, "datatype-name")?;
+        let datatype_offset = descriptor.absolute_position();
+        let datatype = descriptor.read_string(film_limits, "datatype-name")?;
+        if datatype.is_empty() {
+            return Err(film_error(
+                "FILM_INVALID_DATATYPE",
+                datatype_offset,
+                self.record,
+                "datatype-name",
+                "Film datatype names must not be empty",
+            ));
+        }
         let generic_count = descriptor.read_length(film_limits, "generic-count")?;
         if generic_count > aes_limits.max_generic_arguments {
-            return Err(limit_error(
+            return Err(aes_limit_error(
                 "max_generic_arguments",
                 generic_count,
                 aes_limits.max_generic_arguments,
@@ -1239,7 +1287,7 @@ impl<'a> Reader<'a> {
                 )),
                 _ => {
                     return Err(film_error(
-                        "FILM_INVALID_TAG",
+                        "FILM_INVALID_DATATYPE",
                         tag_offset,
                         self.record,
                         "generic-tag",
@@ -1250,7 +1298,7 @@ impl<'a> Reader<'a> {
         }
         let clarifier_count = descriptor.read_length(film_limits, "clarifier-count")?;
         if clarifier_count > aes_limits.max_clarifier_values {
-            return Err(limit_error(
+            return Err(aes_limit_error(
                 "max_clarifier_values",
                 clarifier_count,
                 aes_limits.max_clarifier_values,
@@ -1267,7 +1315,7 @@ impl<'a> Reader<'a> {
                 0x02 => ClarifierKind::NumberLiteral,
                 _ => {
                     return Err(film_error(
-                        "FILM_INVALID_TAG",
+                        "FILM_INVALID_DATATYPE",
                         tag_offset,
                         self.record,
                         "clarifier-tag",
