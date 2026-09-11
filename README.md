@@ -56,15 +56,6 @@ working/reference copies and do not override those canonical sources.
   changing Telex framing.
 - [Telex v1](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
-- [Film v1 binary encoding proposal](proposals/film.aes.md) records the
-  transport boundary, initial streaming direction, performance contract, and
-  deferred wire-format decision gates for the binary AES encoding.
-- [Current event-model inventory](notes/current-event-model.md) records the
-  differences that exist across the current TypeScript, Rust, and Python AEON
-  implementations.
-- [AES ecosystem impact checklist](notes/ecosystem-impact-todo.md) tracks
-  specification, implementation, conformance, and migration work caused by the
-  portable event-model decisions.
 - [AltoPelago Aeonic Limits v1](notes/altopelago-aeonic-limits-v1.md) defines
   the informative, consumer-owned configuration shape used to align structural
   and processing limits across AltoPelago implementations. Format byte limits
@@ -174,12 +165,13 @@ ambiguity.
 
 ## Roadmap
 
-1. Maintain compatibility readers, adapters, and cross-implementation
-   conformance parity across existing producers and consumers.
-2. Prototype and resolve the decision gates in the
-   [Film v1 binary encoding proposal](proposals/film.aes.md).
-3. Consolidate the later Film and Tape specifications here.
-4. Advance shared value behavior through the Aeonic Semantic Language proposal.
+Planning, completed implementation records, proposals, and research are
+maintained in the separate AEON family roadmap. Material is promoted into this
+repository when it becomes an AES-owned specification, policy, conformance
+asset, release procedure, or implementation reference.
+
+The next planned encoding work is Film; a later stage will cover Tape and the
+Aeonic Semantic Language.
 
 ## Design rule
 
