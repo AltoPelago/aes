@@ -52,3 +52,22 @@ cargo run --release --example bench_telex --manifest-path implementations/rust/C
 The Rust and JavaScript implementations intentionally do not call each other or
 share codec source. Their common authorities are the transport-neutral portable
 AES event contract, the published Telex encoding, and the shared vectors.
+
+## Experimental Film Candidate A
+
+`film_candidate_a` exercises the table-free binary layout currently recorded in
+the Film roadmap. It implements canonical stream context, framed records, the
+fixed kind table, structured datatypes, provenance, spans, named extensions,
+Film-local limits, and direct Telex transcoders over the existing portable AES
+record model.
+
+This module is research code in an unpublished crate. It is not a released Film
+specification or conformance target, and its bytes must not be used for durable
+interchange before the Film v1 layout and CTS are frozen.
+
+Run its focused tests and native benchmark with:
+
+```bash
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_a
+cargo run --release --locked --example bench_film_candidate_a --manifest-path implementations/rust/Cargo.toml
+```
