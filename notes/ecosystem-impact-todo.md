@@ -1397,13 +1397,17 @@ above.
 
 ### Deferred release cleanup
 
-- [ ] Correct the AEON TypeScript release instructions from `pnpm ci` to
+- [x] Correct the AEON TypeScript release instructions from `pnpm ci` to
   `pnpm run ci`; `ci` is a workspace script and pnpm has no implemented built-in
-  `ci` command.
-- [ ] Pin the Rust/WASM generation toolchain, or explicitly document that the
-  reviewed committed WASM artifact must be retained during a patch release.
-  Regenerating `0.12.1` locally with `wasm-pack 0.14.0` and Rust `1.93.1`
-  produced different binary bytes despite no source/version change.
+  `ci` command. This was completed in
+  [AEON PR #117](https://github.com/AltoPelago/aeon/pull/117).
+- [x] Pin and document reproducible Rust/WASM generation. AEON pins Rust
+  `1.93.1` and exactly `wasm-pack 0.14.0`, forwards `--locked` to Cargo,
+  synchronizes the generated manifest to the independently versioned npm
+  wrapper, and requires changed artifacts to be generated before CI. An
+  already generated and reviewed artifact is retained when its build inputs
+  and wrapper version are unchanged. This was completed in
+  [AEON PR #118](https://github.com/AltoPelago/aeon/pull/118).
 - [ ] Add crates.io or PyPI packaging only if an independently installable Rust
   or Python release becomes a product requirement. Until then, public source
   plus conformance evidence is the intended implementation surface.
