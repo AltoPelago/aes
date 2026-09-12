@@ -2769,37 +2769,37 @@ pub fn validate_telex_records_with_projection_and_limits(
             );
         }
 
-        if let Some(path) = address {
-            validate_path_limits(path, index, address_field, limits, &mut diagnostics);
-        }
-        let mut path_details = match address {
-            Some("$") => {
-                diagnostics.push(
-                    Diagnostic::new("AES_INVALID_PATH", "The root is not an event path")
-                        .at_record(index, address)
-                        .with_field(address_field.map_or("path", AddressField::name)),
-                );
-                None
-            }
+        let (mut path_details, path_error) = match address {
+            Some("$") => (None, Some("The root is not an event path".to_owned())),
             Some(path) => match parse_canonical_data_path(path) {
-                Ok(details) => Some(details),
-                Err(message) => {
-                    let field = address_field.map_or("path", AddressField::name);
-                    let code = if address_field == Some(AddressField::Header) {
-                        "AES_INVALID_HEADER_PATH"
-                    } else {
-                        "AES_INVALID_PATH"
-                    };
-                    diagnostics.push(
-                        Diagnostic::new(code, message)
-                            .at_record(index, Some(path))
-                            .with_field(field),
-                    );
-                    None
-                }
+                Ok(details) => (Some(details), None),
+                Err(message) => (None, Some(message)),
             },
-            None => None,
+            None => (None, None),
         };
+        if let Some(path) = address {
+            validate_path_limits(
+                path,
+                path_details.as_ref(),
+                index,
+                address_field,
+                limits,
+                &mut diagnostics,
+            );
+        }
+        if let Some(message) = path_error {
+            let field = address_field.map_or("path", AddressField::name);
+            let code = if address_field == Some(AddressField::Header) {
+                "AES_INVALID_HEADER_PATH"
+            } else {
+                "AES_INVALID_PATH"
+            };
+            diagnostics.push(
+                Diagnostic::new(code, message)
+                    .at_record(index, address)
+                    .with_field(field),
+            );
+        }
         match address_field {
             Some(AddressField::Header) => {
                 if projection != Some(AEON_DOCUMENT_PROJECTION) {
@@ -2854,9 +2854,9 @@ pub fn validate_telex_records_with_projection_and_limits(
                 .with_field("kind"),
             );
         }
-        if known_kind {
-            validate_event_value(event, index, limits, &mut diagnostics);
-        }
+        let reference_target = known_kind
+            .then(|| validate_event_value(event, index, limits, &mut diagnostics))
+            .flatten();
         validate_optional_fields(event, index, &mut diagnostics);
         events.push(EventCandidate {
             event,
@@ -2864,6 +2864,7 @@ pub fn validate_telex_records_with_projection_and_limits(
             address_field,
             address,
             path_details,
+            reference_target,
         });
     }
 
@@ -2879,35 +2880,24 @@ pub fn validate_telex_records_with_projection_and_limits(
     validate_represented_structural_limits(&header_events, limits, &mut diagnostics);
     if profile == COMPLETE_AES_PROFILE {
         validate_complete_stream(&body_events, &mut diagnostics);
-        let reference_events = body_events
-            .iter()
-            .chain(
-                (projection == Some(AEON_DOCUMENT_PROJECTION))
-                    .then_some(header_events.iter())
-                    .into_iter()
-                    .flatten(),
-            )
-            .copied()
-            .collect::<Vec<_>>();
-        validate_reference_targets(&reference_events, &body_events, &mut diagnostics);
+        validate_reference_targets(
+            &body_events,
+            (projection == Some(AEON_DOCUMENT_PROJECTION)).then_some(&header_events),
+            &body_events,
+            &mut diagnostics,
+        );
     }
     if projection == Some(AEON_DOCUMENT_PROJECTION) {
         validate_complete_stream(&header_events, &mut diagnostics);
     }
     if profile == COMPLETE_AES_PROFILE {
-        let identity_events = body_events
-            .iter()
-            .chain(
-                (projection == Some(AEON_DOCUMENT_PROJECTION))
-                    .then_some(header_events.iter())
-                    .into_iter()
-                    .flatten(),
-            )
-            .copied()
-            .collect::<Vec<_>>();
-        validate_identity_uniqueness(&identity_events, &mut diagnostics);
+        validate_identity_uniqueness(
+            &body_events,
+            (projection == Some(AEON_DOCUMENT_PROJECTION)).then_some(&header_events),
+            &mut diagnostics,
+        );
     } else if projection == Some(AEON_DOCUMENT_PROJECTION) {
-        validate_identity_uniqueness(&header_events, &mut diagnostics);
+        validate_identity_uniqueness(&header_events, None, &mut diagnostics);
     }
 
     ValidationResult {
@@ -2917,15 +2907,13 @@ pub fn validate_telex_records_with_projection_and_limits(
     }
 }
 
-fn validate_event_value(
-    event: &TelexRecord,
+fn validate_event_value<'a>(
+    event: &'a TelexRecord,
     index: usize,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
-) {
-    let Some(kind) = event.get("kind") else {
-        return;
-    };
+) -> Option<&'a str> {
+    let kind = event.get("kind")?;
     let path = record_address(event);
     let value = event.get("value");
     if ["ObjectNode", "ListNode", "TupleLiteral", "NodeLiteral"].contains(&kind) {
@@ -2939,7 +2927,7 @@ fn validate_event_value(
                 .with_field("value"),
             );
         }
-        return;
+        return None;
     }
     let Some(value) = value else {
         diagnostics.push(
@@ -2950,7 +2938,7 @@ fn validate_event_value(
             .at_record(index, path)
             .with_field("value"),
         );
-        return;
+        return None;
     };
 
     if kind == "StringLiteral" && value.chars().count() > limits.max_string_codepoints {
@@ -3029,22 +3017,32 @@ fn validate_event_value(
             .with_field("value"),
         );
     }
+    let mut reference_target = None;
     if ["CloneReference", "PointerReference"].contains(&kind) {
-        let invalid = if value == "$" {
-            Some(String::from("The root is not an event path"))
+        let parsed = if value == "$" {
+            Err(String::from("The root is not an event path"))
         } else {
-            parse_canonical_data_path(value).err()
+            parse_canonical_data_path(value)
         };
-        if let Some(message) = invalid {
+        if let Err(message) = &parsed {
             diagnostics.push(
-                Diagnostic::new("AES_INVALID_REFERENCE", message)
+                Diagnostic::new("AES_INVALID_REFERENCE", message.clone())
                     .at_record(index, path)
                     .with_field("value"),
             );
         } else {
-            validate_path_limits(value, index, Some(AddressField::Path), limits, diagnostics);
+            validate_path_limits(
+                value,
+                parsed.as_ref().ok(),
+                index,
+                Some(AddressField::Path),
+                limits,
+                diagnostics,
+            );
+            reference_target = Some(value);
         }
     }
+    reference_target
 }
 
 fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut Vec<Diagnostic>) {
@@ -3128,6 +3126,7 @@ fn validate_datatype_string_limits(
 
 fn validate_path_limits(
     path: &str,
+    details: Option<&PathDetails>,
     index: usize,
     address_field: Option<AddressField>,
     limits: &TelexLimits,
@@ -3146,7 +3145,7 @@ fn validate_path_limits(
             .with_field(field),
         );
     }
-    if let Ok(details) = parse_canonical_data_path(path) {
+    if let Some(details) = details {
         if details.segments.len() > limits.max_path_depth {
             diagnostics.push(
                 limit_diagnostic(
@@ -3277,6 +3276,7 @@ struct EventCandidate<'a> {
     address_field: Option<AddressField>,
     address: Option<&'a str>,
     path_details: Option<PathDetails>,
+    reference_target: Option<&'a str>,
 }
 
 fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Vec<Diagnostic>) {
@@ -3380,6 +3380,7 @@ fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Ve
 
 fn validate_reference_targets(
     reference_events: &[&EventCandidate<'_>],
+    additional_reference_events: Option<&[&EventCandidate<'_>]>,
     body_events: &[&EventCandidate<'_>],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
@@ -3388,17 +3389,14 @@ fn validate_reference_targets(
         .filter(|candidate| candidate.path_details.is_some())
         .filter_map(|candidate| candidate.address)
         .collect::<HashSet<_>>();
-    for candidate in reference_events {
-        let kind = candidate.event.get("kind");
-        if ![Some("CloneReference"), Some("PointerReference")].contains(&kind) {
-            continue;
-        }
-        let Some(target) = candidate.event.get("value") else {
+    for candidate in reference_events.iter().chain(
+        additional_reference_events
+            .into_iter()
+            .flat_map(|events| events.iter()),
+    ) {
+        let Some(target) = candidate.reference_target else {
             continue;
         };
-        if target == "$" || parse_canonical_data_path(target).is_err() {
-            continue;
-        }
         if !body_paths.contains(target) {
             diagnostics.push(
                 Diagnostic::new(
@@ -3413,9 +3411,17 @@ fn validate_reference_targets(
     }
 }
 
-fn validate_identity_uniqueness(events: &[&EventCandidate<'_>], diagnostics: &mut Vec<Diagnostic>) {
+fn validate_identity_uniqueness(
+    events: &[&EventCandidate<'_>],
+    additional_events: Option<&[&EventCandidate<'_>]>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     let mut identities: HashMap<&str, usize> = HashMap::new();
-    for candidate in events {
+    for candidate in events.iter().chain(
+        additional_events
+            .into_iter()
+            .flat_map(|events| events.iter()),
+    ) {
         let Some(identity) = candidate
             .event
             .get("identity")
