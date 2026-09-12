@@ -393,6 +393,7 @@ pub fn encode_film_with_limits(
             Some(record_index),
             "stream",
         )?;
+        reserve_encode_buffer(&mut output, framed_size, Some(record_index), "stream")?;
 
         let payload = encode_record(record, record_index, film_limits, aes_limits, payload_size)?;
         debug_assert_eq!(payload.len(), payload_size);
@@ -719,6 +720,23 @@ fn encode_buffer_with_capacity(
         )
     })?;
     Ok(output)
+}
+
+fn reserve_encode_buffer(
+    output: &mut Vec<u8>,
+    additional: usize,
+    record: Option<usize>,
+    component: &'static str,
+) -> Result<(), FilmError> {
+    output.try_reserve_exact(additional).map_err(|_| {
+        film_error(
+            "FILM_ENCODE_ERROR",
+            output.len(),
+            record,
+            component,
+            "Encoded Film output cannot grow in the platform size domain",
+        )
+    })
 }
 
 fn encoded_string_size(
@@ -1646,6 +1664,25 @@ fn enforce_limit(
     }
 }
 
+fn decode_vec_with_capacity<T>(
+    capacity: usize,
+    offset: usize,
+    record: Option<usize>,
+    component: &'static str,
+) -> Result<Vec<T>, FilmError> {
+    let mut output = Vec::new();
+    output.try_reserve_exact(capacity).map_err(|_| {
+        film_error(
+            "FILM_INTEGER_OVERFLOW",
+            offset,
+            record,
+            component,
+            "Film collection cannot be allocated in the host size domain",
+        )
+    })?;
+    Ok(output)
+}
+
 struct Reader<'a> {
     bytes: &'a [u8],
     position: usize,
@@ -1760,7 +1797,8 @@ impl<'a> Reader<'a> {
     ) -> Result<usize, FilmError> {
         let offset = self.absolute_position();
         let value = self.read_uleb(component)?;
-        if value > limit as u64 {
+        let selected = u64::try_from(limit).unwrap_or(u64::MAX);
+        if value > selected {
             return Err(film_error(
                 "FILM_LIMIT_EXCEEDED",
                 offset,
@@ -1789,7 +1827,8 @@ impl<'a> Reader<'a> {
     ) -> Result<usize, FilmError> {
         let offset = self.absolute_position();
         let value = self.read_uleb(component)?;
-        if value > limit as u64 {
+        let selected = u64::try_from(limit).unwrap_or(u64::MAX);
+        if value > selected {
             return Err(aes_limit_error(
                 counter,
                 limit.saturating_add(1),
@@ -1911,7 +1950,12 @@ impl<'a> Reader<'a> {
             self.record,
             "generic-count",
         )?;
-        let mut generics = Vec::with_capacity(generic_count);
+        let mut generics = decode_vec_with_capacity(
+            generic_count,
+            descriptor.absolute_position(),
+            self.record,
+            "generic-count",
+        )?;
         for _ in 0..generic_count {
             let tag_offset = descriptor.absolute_position();
             match descriptor.read_byte("generic-tag")? {
@@ -1957,7 +2001,12 @@ impl<'a> Reader<'a> {
             self.record,
             "clarifier-count",
         )?;
-        let mut clarifiers = Vec::with_capacity(clarifier_count);
+        let mut clarifiers = decode_vec_with_capacity(
+            clarifier_count,
+            descriptor.absolute_position(),
+            self.record,
+            "clarifier-count",
+        )?;
         for _ in 0..clarifier_count {
             claim_datatype_component(
                 components,

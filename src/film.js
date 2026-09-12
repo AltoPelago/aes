@@ -216,7 +216,7 @@ export class IncrementalFilmDecoder {
         const width = Math.min(available, input.byteLength - offset);
         const end = offset + width;
         result = this.pushBounded(input.subarray(offset, end), final && end === input.byteLength);
-        records.push(...result.records);
+        for (const record of result.records) records.push(record);
         offset = end;
       }
       return { ...result, records };

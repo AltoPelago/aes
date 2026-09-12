@@ -2,7 +2,7 @@ use aes_telex::TelexLimits;
 use aes_telex::film::{FILM_V1_PREAMBLE, FilmLimits, FilmStream, decode_film, encode_film};
 use aes_telex::film_candidate_b::{
     FILM_CANDIDATE_B_PREAMBLE, decode_film_candidate_b, decode_film_candidate_b_with_limits,
-    encode_film_candidate_b,
+    encode_film_candidate_b, encode_film_candidate_b_with_limits,
 };
 use aes_telex::{PARTIAL_AES_PROFILE, TelexRecord};
 
@@ -122,6 +122,88 @@ fn oversized_context_is_rejected_before_candidate_a_reconstruction() {
     assert_eq!(error.component, "profile");
 }
 
+#[test]
+fn expanded_record_limits_are_checked_before_reconstruction() {
+    let stream = FilmStream {
+        profile: PARTIAL_AES_PROFILE.to_owned(),
+        profile_explicit: true,
+        projection: None,
+        projection_explicit: false,
+        records: ["$.abcdefghijklmnop", "$.abcdefghijklmnop.xy"]
+            .into_iter()
+            .map(|path| {
+                TelexRecord::new(vec![
+                    ("path".to_owned(), path.to_owned()),
+                    ("kind".to_owned(), "StringLiteral".to_owned()),
+                    ("value".to_owned(), "x".to_owned()),
+                ])
+            })
+            .collect(),
+    };
+    let candidate_a = encode_film(&stream, &[]).expect("Candidate A must encode");
+    let candidate_b = encode_film_candidate_b(&stream, &[]).expect("Candidate B must encode");
+    let candidate_a_lengths = record_lengths(&candidate_a);
+    let candidate_b_lengths = record_lengths(&candidate_b);
+    let limit = candidate_a_lengths[0]
+        .max(candidate_b_lengths[0])
+        .max(candidate_b_lengths[1]);
+    assert!(limit < candidate_a_lengths[1]);
+
+    let limits = FilmLimits {
+        max_record_bytes: limit,
+        ..FilmLimits::default()
+    };
+    let error =
+        decode_film_candidate_b_with_limits(&candidate_b, &[], &limits, &TelexLimits::default())
+            .expect_err("expanded record must be rejected before allocation");
+    assert_eq!(error.code, "FILM_LIMIT_EXCEEDED");
+    assert_eq!(error.component, "expanded-record");
+    assert_eq!(error.record, Some(1));
+}
+
+#[test]
+fn declared_lengths_are_limited_before_host_conversion() {
+    let input = [
+        FILM_CANDIDATE_B_PREAMBLE.as_slice(),
+        &[0x00],
+        &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01],
+    ]
+    .concat();
+    let limits = FilmLimits {
+        max_record_bytes: 1,
+        ..FilmLimits::default()
+    };
+    let error = decode_film_candidate_b_with_limits(&input, &[], &limits, &TelexLimits::default())
+        .expect_err("active limit must be checked before host conversion");
+    assert_eq!(error.code, "FILM_LIMIT_EXCEEDED");
+    assert_eq!(error.component, "record");
+}
+
+#[test]
+fn compressed_record_limits_are_checked_before_allocation() {
+    let stream = FilmStream {
+        profile: PARTIAL_AES_PROFILE.to_owned(),
+        profile_explicit: true,
+        projection: None,
+        projection_explicit: false,
+        records: vec![TelexRecord::new(vec![
+            ("path".to_owned(), "$.a".to_owned()),
+            ("kind".to_owned(), "StringLiteral".to_owned()),
+            ("value".to_owned(), "x".to_owned()),
+        ])],
+    };
+    let candidate_a = encode_film(&stream, &[]).expect("Candidate A must encode");
+    let candidate_a_payload = record_lengths(&candidate_a)[0];
+    let limits = FilmLimits {
+        max_buffered_bytes: candidate_a_payload,
+        ..FilmLimits::default()
+    };
+    let error = encode_film_candidate_b_with_limits(&stream, &[], &limits, &TelexLimits::default())
+        .expect_err("larger compressed framing must be rejected before allocation");
+    assert_eq!(error.code, "FILM_LIMIT_EXCEEDED");
+    assert_eq!(error.component, "record");
+}
+
 fn hierarchical_stream() -> FilmStream {
     FilmStream {
         profile: PARTIAL_AES_PROFILE.to_owned(),
@@ -153,6 +235,17 @@ fn context_end(bytes: &[u8]) -> usize {
         position = payload.saturating_add(length);
     }
     position
+}
+
+fn record_lengths(bytes: &[u8]) -> Vec<usize> {
+    let mut position = context_end(bytes);
+    let mut lengths = Vec::new();
+    while position < bytes.len() {
+        let (length, payload) = read_uleb(bytes, position);
+        lengths.push(length);
+        position = payload.saturating_add(length);
+    }
+    lengths
 }
 
 fn read_uleb(bytes: &[u8], mut position: usize) -> (usize, usize) {

@@ -60,10 +60,18 @@ pub fn decode_film_candidate_b_with_limits(
 }
 
 fn candidate_a_to_b(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmError> {
+    check_limit(
+        "max_input_bytes",
+        input.len(),
+        limits.max_input_bytes,
+        0,
+        None,
+        "stream",
+    )?;
     let mut reader = Cursor::new(input);
     reader.expect_preamble(&FILM_V1_PREAMBLE, "candidate-a-preamble")?;
     let context_end = reader.read_context_end(limits)?;
-    let mut output = Vec::with_capacity(input.len());
+    let mut output = buffer_with_capacity(input.len(), None, "stream")?;
     output.extend_from_slice(&FILM_CANDIDATE_B_PREAMBLE);
     output.extend_from_slice(&input[FILM_V1_PREAMBLE.len()..context_end]);
 
@@ -72,7 +80,12 @@ fn candidate_a_to_b(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
     let mut record_index = 0_usize;
     while !reader.is_empty() {
         reader.record = Some(record_index);
-        let payload_length = reader.read_length("record-length")?;
+        let payload_length = reader.read_limited_length(
+            "max_record_bytes",
+            limits.max_record_bytes,
+            "record-length",
+            "record",
+        )?;
         if payload_length == 0 {
             return Err(error(
                 "FILM_COMPARATOR_INVALID_SOURCE",
@@ -82,14 +95,6 @@ fn candidate_a_to_b(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
                 "Candidate A record length must be positive",
             ));
         }
-        check_limit(
-            "max_record_bytes",
-            payload_length,
-            limits.max_record_bytes,
-            reader.position,
-            Some(record_index),
-            "record",
-        )?;
         let payload_offset = reader.position;
         let payload = reader.read_exact(payload_length, "record")?;
         let mut record = Cursor::with_base(payload, payload_offset, Some(record_index));
@@ -112,7 +117,51 @@ fn candidate_a_to_b(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
             )
         })?;
 
-        let mut compressed = Vec::with_capacity(payload.len());
+        let compressed_size = checked_size(
+            checked_size(
+                checked_size(
+                    2,
+                    uleb_width(usize_to_u64(prefix_length, payload_offset, record_index)?),
+                    payload_offset,
+                    Some(record_index),
+                    "record",
+                )?,
+                encoded_string_size(suffix.len(), payload_offset, Some(record_index))?,
+                payload_offset,
+                Some(record_index),
+                "record",
+            )?,
+            record.remaining().len(),
+            payload_offset,
+            Some(record_index),
+            "record",
+        )?;
+        check_limit(
+            "max_record_bytes",
+            compressed_size,
+            limits.max_record_bytes,
+            payload_offset,
+            Some(record_index),
+            "record",
+        )?;
+        check_limit(
+            "max_buffered_bytes",
+            compressed_size,
+            limits.max_buffered_bytes,
+            payload_offset,
+            Some(record_index),
+            "record",
+        )?;
+        check_limit(
+            "max_buffered_bytes",
+            address.len(),
+            limits.max_buffered_bytes,
+            payload_offset,
+            Some(record_index),
+            "previous-address",
+        )?;
+
+        let mut compressed = buffer_with_capacity(compressed_size, Some(record_index), "record")?;
         compressed.push(control);
         compressed.push(kind);
         push_uleb(
@@ -127,28 +176,37 @@ fn candidate_a_to_b(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
             "address-suffix",
         )?;
         compressed.extend_from_slice(record.remaining());
-        check_limit(
-            "max_buffered_bytes",
-            compressed.len(),
-            limits.max_buffered_bytes,
+        debug_assert_eq!(compressed.len(), compressed_size);
+        let frame_size = framed_size(compressed_size, payload_offset, record_index)?;
+        let projected_size = checked_size(
+            output.len(),
+            frame_size,
             payload_offset,
             Some(record_index),
-            "record",
+            "stream",
         )?;
-        push_uleb(
-            &mut output,
-            usize_to_u64(compressed.len(), payload_offset, record_index)?,
-        );
-        output.extend_from_slice(&compressed);
         check_limit(
             "max_input_bytes",
-            output.len(),
+            projected_size,
             limits.max_input_bytes,
             output.len(),
             Some(record_index),
             "stream",
         )?;
+        reserve_for_append(&mut output, frame_size, Some(record_index), "stream")?;
+        push_uleb(
+            &mut output,
+            usize_to_u64(compressed.len(), payload_offset, record_index)?,
+        );
+        output.extend_from_slice(&compressed);
+        drop(compressed);
         previous.clear();
+        reserve_for_append(
+            previous,
+            address.len(),
+            Some(record_index),
+            "previous-address",
+        )?;
         previous.extend_from_slice(address);
         record_index = record_index.saturating_add(1);
     }
@@ -167,7 +225,7 @@ fn candidate_b_to_a(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
     let mut reader = Cursor::new(input);
     reader.expect_preamble(&FILM_CANDIDATE_B_PREAMBLE, "candidate-b-preamble")?;
     let context_end = reader.read_context_end(limits)?;
-    let mut output = Vec::with_capacity(input.len());
+    let mut output = buffer_with_capacity(input.len(), None, "expanded-stream")?;
     output.extend_from_slice(&FILM_V1_PREAMBLE);
     output.extend_from_slice(&input[FILM_CANDIDATE_B_PREAMBLE.len()..context_end]);
 
@@ -176,7 +234,12 @@ fn candidate_b_to_a(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
     let mut record_index = 0_usize;
     while !reader.is_empty() {
         reader.record = Some(record_index);
-        let payload_length = reader.read_length("record-length")?;
+        let payload_length = reader.read_limited_length(
+            "max_record_bytes",
+            limits.max_record_bytes,
+            "record-length",
+            "record",
+        )?;
         if payload_length == 0 {
             return Err(error(
                 "FILM_COMPARATOR_NONCANONICAL",
@@ -186,28 +249,38 @@ fn candidate_b_to_a(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
                 "Candidate B record length must be positive",
             ));
         }
-        check_limit(
-            "max_record_bytes",
-            payload_length,
-            limits.max_record_bytes,
-            reader.position,
-            Some(record_index),
-            "record",
-        )?;
         let payload_offset = reader.position;
         let payload = reader.read_exact(payload_length, "record")?;
         let mut record = Cursor::with_base(payload, payload_offset, Some(record_index));
         let control = record.read_byte("record-control")?;
         let kind = record.read_byte("kind")?;
         let prefix_offset = record.absolute_position();
-        let prefix_length = record.read_length("address-prefix")?;
-        let suffix = record.read_string_bytes(limits, "address-suffix")?;
         let previous = if control & HEADER_PLANE == 0 {
             &mut previous_body
         } else {
             &mut previous_header
         };
-        if prefix_length > previous.len() || !is_char_boundary(previous, prefix_length) {
+        let prefix_value = record.read_uleb("address-prefix")?;
+        let suffix = record.read_string_bytes(limits, "address-suffix")?;
+        if prefix_value > u64::try_from(previous.len()).unwrap_or(u64::MAX) {
+            return Err(error(
+                "FILM_COMPARATOR_INVALID_PREFIX",
+                prefix_offset,
+                Some(record_index),
+                "address-prefix",
+                "Address prefix exceeds the previous address or splits UTF-8",
+            ));
+        }
+        let prefix_length = usize::try_from(prefix_value).map_err(|_| {
+            error(
+                "FILM_INTEGER_OVERFLOW",
+                prefix_offset,
+                Some(record_index),
+                "address-prefix",
+                "Address prefix length exceeds the host address space",
+            )
+        })?;
+        if !is_char_boundary(previous, prefix_length) {
             return Err(error(
                 "FILM_COMPARATOR_INVALID_PREFIX",
                 prefix_offset,
@@ -233,7 +306,37 @@ fn candidate_b_to_a(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
             Some(record_index),
             "address",
         )?;
-        let mut address = Vec::with_capacity(address_length);
+        let expanded_size = checked_size(
+            checked_size(
+                2,
+                encoded_string_size(address_length, payload_offset, Some(record_index))?,
+                payload_offset,
+                Some(record_index),
+                "expanded-record",
+            )?,
+            record.remaining().len(),
+            payload_offset,
+            Some(record_index),
+            "expanded-record",
+        )?;
+        check_limit(
+            "max_record_bytes",
+            expanded_size,
+            limits.max_record_bytes,
+            payload_offset,
+            Some(record_index),
+            "expanded-record",
+        )?;
+        check_limit(
+            "max_buffered_bytes",
+            expanded_size,
+            limits.max_buffered_bytes,
+            payload_offset,
+            Some(record_index),
+            "expanded-record",
+        )?;
+
+        let mut address = buffer_with_capacity(address_length, Some(record_index), "address")?;
         address.extend_from_slice(&previous[..prefix_length]);
         address.extend_from_slice(suffix);
         std::str::from_utf8(&address).map_err(|invalid| {
@@ -256,7 +359,8 @@ fn candidate_b_to_a(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
             ));
         }
 
-        let mut expanded = Vec::with_capacity(payload.len().saturating_add(prefix_length));
+        let mut expanded =
+            buffer_with_capacity(expanded_size, Some(record_index), "expanded-record")?;
         expanded.push(control);
         expanded.push(kind);
         push_string_bytes(
@@ -267,37 +371,36 @@ fn candidate_b_to_a(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
             "address",
         )?;
         expanded.extend_from_slice(record.remaining());
-        check_limit(
-            "max_record_bytes",
-            expanded.len(),
-            limits.max_record_bytes,
+        debug_assert_eq!(expanded.len(), expanded_size);
+        let frame_size = framed_size(expanded_size, payload_offset, record_index)?;
+        let projected_size = checked_size(
+            output.len(),
+            frame_size,
             payload_offset,
             Some(record_index),
-            "expanded-record",
+            "expanded-stream",
         )?;
         check_limit(
-            "max_buffered_bytes",
-            expanded.len(),
-            limits.max_buffered_bytes,
-            payload_offset,
+            "max_input_bytes",
+            projected_size,
+            limits.max_input_bytes,
+            output.len(),
             Some(record_index),
-            "expanded-record",
+            "expanded-stream",
+        )?;
+        reserve_for_append(
+            &mut output,
+            frame_size,
+            Some(record_index),
+            "expanded-stream",
         )?;
         push_uleb(
             &mut output,
             usize_to_u64(expanded.len(), payload_offset, record_index)?,
         );
         output.extend_from_slice(&expanded);
-        check_limit(
-            "max_input_bytes",
-            output.len(),
-            limits.max_input_bytes,
-            output.len(),
-            Some(record_index),
-            "expanded-stream",
-        )?;
-        previous.clear();
-        previous.extend_from_slice(&address);
+        drop(expanded);
+        *previous = address;
         record_index = record_index.saturating_add(1);
     }
     Ok(output)
@@ -387,6 +490,87 @@ fn uleb_width(mut value: u64) -> usize {
         width = width.saturating_add(1);
     }
     width
+}
+
+fn encoded_string_size(
+    length: usize,
+    offset: usize,
+    record: Option<usize>,
+) -> Result<usize, FilmError> {
+    let value = u64::try_from(length).map_err(|_| {
+        error(
+            "FILM_INTEGER_OVERFLOW",
+            offset,
+            record,
+            "length",
+            "String length exceeds u64",
+        )
+    })?;
+    checked_size(uleb_width(value), length, offset, record, "string")
+}
+
+fn framed_size(payload_size: usize, offset: usize, record: usize) -> Result<usize, FilmError> {
+    let length = usize_to_u64(payload_size, offset, record)?;
+    checked_size(
+        uleb_width(length),
+        payload_size,
+        offset,
+        Some(record),
+        "record",
+    )
+}
+
+fn checked_size(
+    current: usize,
+    added: usize,
+    offset: usize,
+    record: Option<usize>,
+    component: &'static str,
+) -> Result<usize, FilmError> {
+    current.checked_add(added).ok_or_else(|| {
+        error(
+            "FILM_INTEGER_OVERFLOW",
+            offset,
+            record,
+            component,
+            "Film comparator size exceeds the host address space",
+        )
+    })
+}
+
+fn buffer_with_capacity(
+    capacity: usize,
+    record: Option<usize>,
+    component: &'static str,
+) -> Result<Vec<u8>, FilmError> {
+    let mut output = Vec::new();
+    output.try_reserve_exact(capacity).map_err(|_| {
+        error(
+            "FILM_INTEGER_OVERFLOW",
+            0,
+            record,
+            component,
+            "Film comparator buffer cannot be allocated in the host size domain",
+        )
+    })?;
+    Ok(output)
+}
+
+fn reserve_for_append(
+    output: &mut Vec<u8>,
+    additional: usize,
+    record: Option<usize>,
+    component: &'static str,
+) -> Result<(), FilmError> {
+    output.try_reserve_exact(additional).map_err(|_| {
+        error(
+            "FILM_INTEGER_OVERFLOW",
+            output.len(),
+            record,
+            component,
+            "Film comparator output cannot grow in the host size domain",
+        )
+    })
 }
 
 fn usize_to_u64(value: usize, offset: usize, record: usize) -> Result<u64, FilmError> {
@@ -599,9 +783,26 @@ impl<'a> Cursor<'a> {
         ))
     }
 
-    fn read_length(&mut self, component: &'static str) -> Result<usize, FilmError> {
+    fn read_limited_length(
+        &mut self,
+        counter: &'static str,
+        limit: usize,
+        component: &'static str,
+        limit_component: &'static str,
+    ) -> Result<usize, FilmError> {
         let offset = self.absolute_position();
-        usize::try_from(self.read_uleb(component)?).map_err(|_| {
+        let value = self.read_uleb(component)?;
+        let selected = u64::try_from(limit).unwrap_or(u64::MAX);
+        if value > selected {
+            return Err(error(
+                "FILM_LIMIT_EXCEEDED",
+                offset,
+                self.record,
+                limit_component,
+                format!("{counter} observed {value}, limit {limit}"),
+            ));
+        }
+        usize::try_from(value).map_err(|_| {
             error(
                 "FILM_INTEGER_OVERFLOW",
                 offset,
@@ -618,13 +819,10 @@ impl<'a> Cursor<'a> {
         component: &'static str,
     ) -> Result<&'a [u8], FilmError> {
         let offset = self.absolute_position();
-        let length = self.read_length(component)?;
-        check_limit(
+        let length = self.read_limited_length(
             "max_field_bytes",
-            length,
             limits.max_field_bytes,
-            offset,
-            self.record,
+            component,
             component,
         )?;
         let bytes = self.read_exact(length, component)?;
@@ -645,14 +843,10 @@ impl<'a> Cursor<'a> {
         limits: &FilmLimits,
         component: &'static str,
     ) -> Result<(), FilmError> {
-        let offset = self.absolute_position();
-        let length = self.read_length(component)?;
-        check_limit(
+        let length = self.read_limited_length(
             "max_field_bytes",
-            length,
             limits.max_field_bytes,
-            offset,
-            self.record,
+            component,
             component,
         )?;
         self.read_exact(length, component)?;
