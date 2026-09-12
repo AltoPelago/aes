@@ -686,9 +686,9 @@ host authorization.
 ## 19. Conformance and lifecycle
 
 This document is a normative draft. It defines the intended Film v1 bytes but
-is not yet a released conformance target. The selected Rust reference
-implementation is prototype evidence and cannot establish conformance by
-itself.
+is not yet a released conformance target. The selected Rust reference and
+independent JavaScript decoder are implementation evidence but do not by
+themselves establish a released conformance claim.
 
 The repository's informative Rust API exposes borrowed physical views through
 `decode_film_view` and `decode_film_view_with_limits`. Those views retain field
@@ -719,8 +719,12 @@ version.
 
 The [mutable candidate](../conformance/film/v1/film-cts.v1.json) supplies the
 current language-neutral evidence for item 1. It contains 68 vectors and no
-snapshot identifiers; the selected Rust reference harness that consumes it does not
-satisfy the independent-decoder requirement in item 2.
+snapshot identifiers. The selected Rust reference and independent JavaScript
+decoder both pass all 64 decoder operations; the JavaScript decoder also reads
+the three canonical Film fixtures emitted by positive producer operations. The
+only candidate operation it does not exercise is an encoder-only buffered-byte
+rejection. This closes the independent-decoder evidence requirement without
+claiming a JavaScript writer or an immutable CTS target.
 
 Transport media types and external registration are outside Film v1.
 

@@ -77,8 +77,11 @@ test envelope. The lane fixes all 23 kind-code mappings and keeps Film syntax
 and canonicality failures separate from transport-neutral AES diagnostics.
 
 The Film candidate carries no `snapshot_id` or `spec_snapshot_id`. Passing it
-does not establish an immutable external conformance claim, and the current
-selected Rust reference runner is not a second independent decoder.
+does not establish an immutable external conformance claim. The selected Rust
+reference and the independent JavaScript decoder both pass the 64 direct decode
+operations. The JavaScript reader also decodes the three canonical Film byte
+fixtures supplied by positive encode/transcode vectors; the remaining
+buffered-encoder rejection is deliberately outside a decoder-only surface.
 
 The manifest separates:
 
@@ -124,7 +127,8 @@ Film suites additionally use:
 - `transcode`: convert canonical Telex directly to exact Film bytes and back
   without reconstructing AEON source.
 
-Run the mutable Film manifest checks and Rust candidate harness together with:
+Run the mutable Film manifest checks, independent JavaScript decoder, and
+selected Rust reference together with:
 
 ```bash
 npm run test:film

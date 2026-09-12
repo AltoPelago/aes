@@ -80,6 +80,12 @@ working/reference copies and do not override those canonical sources.
   codec exports `DEFAULT_TELEX_LIMITS` and accepts normalized limits through
   its public parse, encode, canonicalize, and validation options; resolving an
   AEON limits file remains the trusted caller's responsibility.
+- [`src/film.js`](src/film.js) is an independent JavaScript Film v1 decoder.
+  It reads canonical `Uint8Array` input without invoking Rust or reconstructing
+  Telex, returns owned JavaScript records, separates provisional physical
+  decoding from complete AES validation, and applies consumer-selected Film
+  and shared structural limits. It deliberately provides no Film writer while
+  durable output remains behind the reader-before-writer gate.
 - [`src/provenance.js`](src/provenance.js) audits record-local origin digests
   and UTF-8 byte spans against exact caller-retained bytes. It reports artifact
   availability separately from evidence validity and gates
@@ -95,9 +101,9 @@ working/reference copies and do not override those canonical sources.
   `telex-cts-v1-snapshot-0.1` in the shared `aeonite-cts` repository.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
   Rust implementation of the same v1 event, Telex, integrity, provenance, and
-  transaction contracts, plus explicitly non-released Film layout prototypes.
-  Its Telex codec has no runtime dependencies; portable SHA-256 integrity uses
-  the audited `sha2` crate.
+  transaction contracts, plus the selected non-released Film draft reference
+  and an archived layout comparator. Its Telex codec has no runtime
+  dependencies; portable SHA-256 integrity uses the audited `sha2` crate.
 
 Run the syntax tests with:
 
@@ -172,9 +178,10 @@ maintained in the separate AEON family roadmap. Material is promoted into this
 repository when it becomes an AES-owned specification, policy, conformance
 asset, release procedure, or implementation reference.
 
-The selected Rust Film draft reference now exposes specification-shaped
-borrowed and owned decoding surfaces. The next Film work is an independent
-decoder. A later stage will cover Tape and the Aeonic Semantic Language.
+The selected Rust Film draft reference and an independent JavaScript reader now
+pass the shared decoder-facing candidate vectors. The next Film work is
+incremental chunk-state coverage and fuzzing. A later stage will cover Tape and
+the Aeonic Semantic Language.
 
 ## Design rule
 

@@ -14,6 +14,10 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 - Added a mutable 68-vector Film v1 CTS for framing, canonical bytes, all kind
   codes, record features, Telex equivalence, truncation, diagnostics, and
   Film-local and shared AES resource limits, with a Rust candidate harness.
+- Added an independent JavaScript Film v1 decoder with provisional physical and
+  validated owned-result surfaces. It passes all 64 direct decode vectors and
+  the three canonical Film producer fixtures without invoking Rust or parsing
+  Telex in the decoder.
 - Established the public AES repository authority, governance, contribution,
   security, versioning, and release boundaries.
 - Added independently testable JavaScript and Rust reference implementations
