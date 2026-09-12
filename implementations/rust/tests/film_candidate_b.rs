@@ -1,6 +1,8 @@
-use aes_telex::film::{FILM_V1_PREAMBLE, FilmStream, decode_film, encode_film};
+use aes_telex::TelexLimits;
+use aes_telex::film::{FILM_V1_PREAMBLE, FilmLimits, FilmStream, decode_film, encode_film};
 use aes_telex::film_candidate_b::{
-    FILM_CANDIDATE_B_PREAMBLE, decode_film_candidate_b, encode_film_candidate_b,
+    FILM_CANDIDATE_B_PREAMBLE, decode_film_candidate_b, decode_film_candidate_b_with_limits,
+    encode_film_candidate_b,
 };
 use aes_telex::{PARTIAL_AES_PROFILE, TelexRecord};
 
@@ -104,6 +106,20 @@ fn comparator_bytes_are_canonical_for_the_same_logical_stream() {
         encode_film_candidate_b(&decoded, &[]).expect("Candidate B must re-encode"),
         encoded
     );
+}
+
+#[test]
+fn oversized_context_is_rejected_before_candidate_a_reconstruction() {
+    let input = [FILM_CANDIDATE_B_PREAMBLE.as_slice(), &[0x01, 0x03], b"abc"].concat();
+    let limits = FilmLimits {
+        max_field_bytes: 2,
+        ..FilmLimits::default()
+    };
+    let error = decode_film_candidate_b_with_limits(&input, &[], &limits, &TelexLimits::default())
+        .expect_err("oversized context must fail before reconstruction");
+
+    assert_eq!(error.code, "FILM_LIMIT_EXCEEDED");
+    assert_eq!(error.component, "profile");
 }
 
 fn hierarchical_stream() -> FilmStream {

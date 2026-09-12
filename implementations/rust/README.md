@@ -63,10 +63,12 @@ extensions, Film-local limits, and direct Telex transcoders over the existing
 portable AES record model. The historical `film_candidate_a` module re-exports
 this surface temporarily for local prototype compatibility.
 
-This module is research code in an unpublished crate. It passes the mutable
-68-vector Film CTS but is not an independent decoder or a released conformance
-target. Its bytes must not be used for durable interchange before the Film v1
-specification and CTS receive immutable snapshots.
+This module is reference code in an unpublished crate. Its reader claims the
+immutable `film-cts-v1-snapshot-0.1` target and passes the repository-local
+mutable 72-vector Film candidate; later local additions do not alter that
+snapshot claim. The writer remains available for conformance tooling and
+experimentation, but must not be enabled for durable interchange until reader
+deployment and ecosystem compatibility review close the separate writer gate.
 
 `film_candidate_b` is an archived, deliberately stateful comparator. It
 replaces each address with the longest UTF-8 prefix shared with the previous

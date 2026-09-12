@@ -62,7 +62,7 @@ pub fn decode_film_candidate_b_with_limits(
 fn candidate_a_to_b(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmError> {
     let mut reader = Cursor::new(input);
     reader.expect_preamble(&FILM_V1_PREAMBLE, "candidate-a-preamble")?;
-    let context_end = reader.read_context_end()?;
+    let context_end = reader.read_context_end(limits)?;
     let mut output = Vec::with_capacity(input.len());
     output.extend_from_slice(&FILM_CANDIDATE_B_PREAMBLE);
     output.extend_from_slice(&input[FILM_V1_PREAMBLE.len()..context_end]);
@@ -166,7 +166,7 @@ fn candidate_b_to_a(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
     )?;
     let mut reader = Cursor::new(input);
     reader.expect_preamble(&FILM_CANDIDATE_B_PREAMBLE, "candidate-b-preamble")?;
-    let context_end = reader.read_context_end()?;
+    let context_end = reader.read_context_end(limits)?;
     let mut output = Vec::with_capacity(input.len());
     output.extend_from_slice(&FILM_V1_PREAMBLE);
     output.extend_from_slice(&input[FILM_CANDIDATE_B_PREAMBLE.len()..context_end]);
@@ -499,7 +499,7 @@ impl<'a> Cursor<'a> {
         Ok(())
     }
 
-    fn read_context_end(&mut self) -> Result<usize, FilmError> {
+    fn read_context_end(&mut self, limits: &FilmLimits) -> Result<usize, FilmError> {
         let control = self.read_byte("stream-context")?;
         if control & !0x03 != 0 {
             return Err(error(
@@ -511,10 +511,10 @@ impl<'a> Cursor<'a> {
             ));
         }
         if control & 0x01 != 0 {
-            self.skip_string("profile")?;
+            self.skip_string(limits, "profile")?;
         }
         if control & 0x02 != 0 {
-            self.skip_string("projection")?;
+            self.skip_string(limits, "projection")?;
         }
         Ok(self.position)
     }
@@ -640,8 +640,21 @@ impl<'a> Cursor<'a> {
         Ok(bytes)
     }
 
-    fn skip_string(&mut self, component: &'static str) -> Result<(), FilmError> {
+    fn skip_string(
+        &mut self,
+        limits: &FilmLimits,
+        component: &'static str,
+    ) -> Result<(), FilmError> {
+        let offset = self.absolute_position();
         let length = self.read_length(component)?;
+        check_limit(
+            "max_field_bytes",
+            length,
+            limits.max_field_bytes,
+            offset,
+            self.record,
+            component,
+        )?;
         self.read_exact(length, component)?;
         Ok(())
     }

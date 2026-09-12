@@ -191,12 +191,56 @@ export class IncrementalFilmDecoder {
     if (typeof final !== 'boolean') throw new TypeError('Film final flag must be boolean');
 
     try {
+      const projectedInputBytes = checkedAdd(this.totalInputBytes, input.byteLength);
+      enforceFilmLimit(
+        'max_input_bytes',
+        projectedInputBytes,
+        this.filmLimits.maxInputBytes,
+        { offset: projectedInputBytes, component: 'stream' },
+      );
+      if (input.byteLength === 0) return this.pushBounded(input, final);
+
+      const records = [];
+      let offset = 0;
+      let result;
+      while (offset < input.byteLength) {
+        const available = this.filmLimits.maxBufferedBytes - this.buffer.byteLength;
+        if (available === 0) {
+          enforceFilmLimit(
+            'max_buffered_bytes',
+            this.buffer.byteLength + 1,
+            this.filmLimits.maxBufferedBytes,
+            this.bufferLimitDetails(),
+          );
+        }
+        const width = Math.min(available, input.byteLength - offset);
+        const end = offset + width;
+        result = this.pushBounded(input.subarray(offset, end), final && end === input.byteLength);
+        records.push(...result.records);
+        offset = end;
+      }
+      return { ...result, records };
+    } catch (error) {
+      this.closed = true;
+      throw error;
+    }
+  }
+
+  pushBounded(input, final) {
+    try {
       this.totalInputBytes = checkedAdd(this.totalInputBytes, input.byteLength);
       enforceFilmLimit(
         'max_input_bytes',
         this.totalInputBytes,
         this.filmLimits.maxInputBytes,
         { offset: this.totalInputBytes, component: 'stream' },
+      );
+      const bufferedBytes = checkedAdd(this.buffer.byteLength, input.byteLength);
+      enforceFilmLimit(
+        'max_buffered_bytes',
+        bufferedBytes,
+        this.filmLimits.maxBufferedBytes,
+        this.bufferLimitDetails(),
       );
       this.buffer = appendBytes(this.buffer, input);
       const newRecords = [];
@@ -329,13 +373,17 @@ export class IncrementalFilmDecoder {
       'max_buffered_bytes',
       this.buffer.byteLength,
       this.filmLimits.maxBufferedBytes,
-      {
-        offset: this.absoluteOffset,
-        record: this.context === null ? null : this.records.length,
-        component: this.context === null ? 'stream-context' : 'record',
-      },
+      this.bufferLimitDetails(),
     );
     if (this.buffer.byteLength !== 0) this.buffer = this.buffer.slice();
+  }
+
+  bufferLimitDetails() {
+    return {
+      offset: this.absoluteOffset,
+      record: this.context === null ? null : this.records.length,
+      component: this.context === null ? 'stream-context' : 'record',
+    };
   }
 
   currentStream() {

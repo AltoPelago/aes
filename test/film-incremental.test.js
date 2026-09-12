@@ -130,6 +130,15 @@ test('bounds bytes retained between incremental calls', () => {
   );
 });
 
+test('processes large caller chunks without an over-limit concatenation', () => {
+  const bytes = fromHex('4f5f5fff010012000109242e6d6573736167650568656c6c6f');
+  const decoder = new IncrementalFilmDecoder({ limits: { maxBufferedBytes: 18 } });
+  assert.equal(decoder.push(bytes.subarray(0, 1)).status, 'need-more-input');
+  const completed = decoder.push(bytes.subarray(1), { final: true });
+  assert.equal(completed.status, 'complete');
+  assert.equal(completed.stream.records[0].value, 'hello');
+});
+
 test('deterministic arbitrary-byte fuzzing produces only accepted streams or Film errors', () => {
   const random = xorshift32(0x46_49_4c_4d);
   for (let iteration = 0; iteration < 4_000; iteration += 1) {
@@ -139,17 +148,21 @@ test('deterministic arbitrary-byte fuzzing produces only accepted streams or Fil
     const decoder = new IncrementalFilmDecoder();
     let offset = 0;
     let failed = false;
+    let completed;
     while (offset < bytes.byteLength) {
       const width = Math.min(1 + (random() % 23), bytes.byteLength - offset);
       const final = offset + width === bytes.byteLength;
       try {
-        decoder.push(bytes.subarray(offset, offset + width), { final });
+        completed = decoder.push(bytes.subarray(offset, offset + width), { final });
       } catch (error) {
         assert.ok(error instanceof FilmDecodeError, `incremental iteration ${iteration}: ${error}`);
         failed = true;
         break;
       }
       offset += width;
+    }
+    if (!failed && bytes.byteLength !== 0) {
+      assert.equal(completed.status, 'complete', `incremental iteration ${iteration}`);
     }
     if (!failed && bytes.byteLength === 0) {
       assertFilmOutcome(() => decoder.finish(), `incremental empty iteration ${iteration}`);
