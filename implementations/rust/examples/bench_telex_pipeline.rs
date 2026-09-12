@@ -12,10 +12,10 @@ const DOCUMENTS: usize = 32;
 const ITERATIONS: usize = 7;
 const WARMUPS: usize = 1;
 
-#[derive(Clone, Copy)]
 struct Timing {
     median: Duration,
     p95: Duration,
+    samples: Vec<Duration>,
 }
 
 fn main() {
@@ -39,18 +39,32 @@ fn main() {
     );
 
     let sequential = measure(DOCUMENTS, || run_sequential(&telex, DOCUMENTS, &limits));
-    emit("T0", 1, 0, DOCUMENTS, sequential, sequential);
+    emit("T0", 1, 0, DOCUMENTS, &sequential, &sequential);
     for capacity in [1, 2, 4, 8] {
         let pipelined = measure(DOCUMENTS, || {
             run_document_pipeline(&telex, DOCUMENTS, capacity, &limits)
         });
-        emit("T1-document", 1, capacity, DOCUMENTS, pipelined, sequential);
+        emit(
+            "T1-document",
+            1,
+            capacity,
+            DOCUMENTS,
+            &pipelined,
+            &sequential,
+        );
     }
     for capacity in [1, 2] {
         let tiled = measure(DOCUMENTS * 2, || {
             run_two_lane_tile(&telex, DOCUMENTS, capacity, &limits)
         });
-        emit("T2-document", 2, capacity, DOCUMENTS * 2, tiled, sequential);
+        emit(
+            "T2-document",
+            2,
+            capacity,
+            DOCUMENTS * 2,
+            &tiled,
+            &sequential,
+        );
     }
 }
 
@@ -178,10 +192,12 @@ fn measure(documents: usize, mut operation: impl FnMut() -> usize) -> Timing {
         );
         samples.push(start.elapsed());
     }
-    samples.sort_unstable();
+    let mut ordered = samples.clone();
+    ordered.sort_unstable();
     Timing {
-        median: samples[samples.len() / 2],
-        p95: samples[(samples.len() * 95).div_ceil(100).saturating_sub(1)],
+        median: ordered[ordered.len() / 2],
+        p95: ordered[(ordered.len() * 95).div_ceil(100).saturating_sub(1)],
+        samples,
     }
 }
 
@@ -190,12 +206,18 @@ fn emit(
     lanes: usize,
     capacity: usize,
     documents: usize,
-    timing: Timing,
-    sequential: Timing,
+    timing: &Timing,
+    sequential: &Timing,
 ) {
     let seconds = timing.median.as_secs_f64();
     let documents_per_second = documents as f64 / seconds;
     let sequential_documents_per_second = DOCUMENTS as f64 / sequential.median.as_secs_f64();
+    if raw_samples_enabled() {
+        println!(
+            "# samples topology={topology};lanes={lanes};capacity={capacity};unit=ms;values={}",
+            format_samples(&timing.samples),
+        );
+    }
     println!(
         "{topology},{lanes},{capacity},{documents},{:.3},{:.3},{:.2},{:.0},{:.3}",
         milliseconds(timing.median),
@@ -208,6 +230,18 @@ fn emit(
 
 fn milliseconds(duration: Duration) -> f64 {
     duration.as_secs_f64() * 1_000.0
+}
+
+fn raw_samples_enabled() -> bool {
+    env::var("AES_BENCHMARK_RAW_SAMPLES").as_deref() == Ok("1")
+}
+
+fn format_samples(samples: &[Duration]) -> String {
+    samples
+        .iter()
+        .map(|sample| format!("{:.3}", milliseconds(*sample)))
+        .collect::<Vec<_>>()
+        .join("|")
 }
 
 fn build_telex(event_count: usize) -> String {

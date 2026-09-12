@@ -8,6 +8,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $bundleDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 Set-Location $bundleDirectory
 
 if (-not [Environment]::Is64BitProcess) {
@@ -54,10 +55,16 @@ function Invoke-Benchmark {
 
     $output = Join-Path $OutputDirectory "$Name.txt"
     Write-Host "Running $Name..."
-    & (Join-Path $bundleDirectory $Executable) @Arguments 2>&1 |
-        Tee-Object -FilePath $output
-    if ($LASTEXITCODE -ne 0) {
-        throw "$Name failed with exit code $LASTEXITCODE"
+    $captured = [System.Collections.Generic.List[string]]::new()
+    & (Join-Path $bundleDirectory $Executable) @Arguments 2>&1 | ForEach-Object {
+        $line = [string]$_
+        Write-Host $line
+        $captured.Add($line)
+    }
+    $exitCode = $LASTEXITCODE
+    [IO.File]::WriteAllLines($output, $captured, $utf8NoBom)
+    if ($exitCode -ne 0) {
+        throw "$Name failed with exit code $exitCode"
     }
 }
 
@@ -65,6 +72,19 @@ Assert-BundleHashes
 
 $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
 $operatingSystem = Get-CimInstance Win32_OperatingSystem
+$build = [ordered]@{}
+foreach ($line in [IO.File]::ReadAllLines((Join-Path $bundleDirectory 'BUILD.txt'))) {
+    $line = $line.TrimStart([char]0xfeff)
+    $separator = $line.IndexOf('=')
+    if ($separator -le 0) {
+        throw "Invalid BUILD.txt entry: $line"
+    }
+    $key = $line.Substring(0, $separator)
+    if ($build.Contains($key)) {
+        throw "Duplicate BUILD.txt key: $key"
+    }
+    $build[$key] = $line.Substring($separator + 1)
+}
 $system = [ordered]@{
     collected_at = (Get-Date).ToUniversalTime().ToString('o')
     machine = $env:COMPUTERNAME
@@ -80,16 +100,22 @@ $system = [ordered]@{
     } else {
         'unknown-or-battery'
     }
-    build = @(Get-Content (Join-Path $bundleDirectory 'BUILD.txt'))
+    build = $build
 }
-$system | ConvertTo-Json -Depth 4 | Set-Content -Encoding utf8 (Join-Path $OutputDirectory 'system.json')
+$systemJson = $system | ConvertTo-Json -Depth 4
+[IO.File]::WriteAllText(
+    (Join-Path $OutputDirectory 'system.json'),
+    $systemJson,
+    $utf8NoBom
+)
 
-Invoke-Benchmark -Name 'scalar-codec-phases' -Executable 'bench_codec_phases.exe'
-Invoke-Benchmark -Name 'document-pipeline' -Executable 'bench_telex_pipeline.exe'
-
+$previousRawSamples = $env:AES_BENCHMARK_RAW_SAMPLES
 $previousIterations = $env:AES_PIPELINE_BENCH_ITERATIONS
+$env:AES_BENCHMARK_RAW_SAMPLES = '1'
 $env:AES_PIPELINE_BENCH_ITERATIONS = [string]$IncrementalIterations
 try {
+    Invoke-Benchmark -Name 'scalar-codec-phases' -Executable 'bench_codec_phases.exe'
+    Invoke-Benchmark -Name 'document-pipeline' -Executable 'bench_telex_pipeline.exe'
     Invoke-Benchmark `
         -Name 'within-document-pipeline' `
         -Executable 'aes_telex_incremental_bench.exe' `
@@ -101,6 +127,7 @@ try {
             '--test-threads=1'
         )
 } finally {
+    $env:AES_BENCHMARK_RAW_SAMPLES = $previousRawSamples
     $env:AES_PIPELINE_BENCH_ITERATIONS = $previousIterations
 }
 

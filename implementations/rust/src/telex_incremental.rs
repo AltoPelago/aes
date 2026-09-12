@@ -1080,8 +1080,8 @@ mod tests {
         emit_benchmark(
             "T0-one-shot",
             0,
-            one_shot,
-            one_shot,
+            &one_shot,
+            &one_shot,
             EVENT_COUNT,
             PipelineStats::default(),
         );
@@ -1102,16 +1102,16 @@ mod tests {
             emit_benchmark(
                 "T0-incremental",
                 chunk_bytes,
-                sequential,
-                one_shot,
+                &sequential,
+                &one_shot,
                 EVENT_COUNT,
                 PipelineStats::default(),
             );
             emit_benchmark(
                 "T1-capacity-1",
                 chunk_bytes,
-                threaded,
-                one_shot,
+                &threaded,
+                &one_shot,
                 EVENT_COUNT,
                 pipeline_stats,
             );
@@ -1125,8 +1125,8 @@ mod tests {
         emit_benchmark(
             "T2-2x2-capacity-1",
             64 * 1024,
-            tile,
-            one_shot,
+            &tile,
+            &one_shot,
             EVENT_COUNT * 2,
             tile_stats,
         );
@@ -1187,10 +1187,10 @@ mod tests {
         );
     }
 
-    #[derive(Clone, Copy)]
     struct BenchmarkTiming {
         median: Duration,
         p95: Duration,
+        samples: Vec<Duration>,
     }
 
     #[derive(Clone, Copy, Default)]
@@ -1390,23 +1390,36 @@ mod tests {
             operation();
             samples.push(start.elapsed());
         }
-        samples.sort_unstable();
+        let mut ordered = samples.clone();
+        ordered.sort_unstable();
         BenchmarkTiming {
-            median: samples[samples.len() / 2],
-            p95: samples[(samples.len() * 95).div_ceil(100).saturating_sub(1)],
+            median: ordered[ordered.len() / 2],
+            p95: ordered[(ordered.len() * 95).div_ceil(100).saturating_sub(1)],
+            samples,
         }
     }
 
     fn emit_benchmark(
         topology: &str,
         chunk_bytes: usize,
-        timing: BenchmarkTiming,
-        baseline: BenchmarkTiming,
+        timing: &BenchmarkTiming,
+        baseline: &BenchmarkTiming,
         event_count: usize,
         stats: PipelineStats,
     ) {
         let seconds = timing.median.as_secs_f64();
         let baseline_events_per_second = 100_000.0 / baseline.median.as_secs_f64();
+        if std::env::var("AES_BENCHMARK_RAW_SAMPLES").as_deref() == Ok("1") {
+            let samples = timing
+                .samples
+                .iter()
+                .map(|sample| format!("{:.3}", sample.as_secs_f64() * 1_000.0))
+                .collect::<Vec<_>>()
+                .join("|");
+            println!(
+                "# samples topology={topology};chunk_bytes={chunk_bytes};unit=ms;values={samples}"
+            );
+        }
         println!(
             "{topology},{chunk_bytes},{:.3},{:.3},{:.0},{:.3},{},{},{},{}",
             timing.median.as_secs_f64() * 1_000.0,

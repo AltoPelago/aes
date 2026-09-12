@@ -30,8 +30,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run-benchmarks.ps1 -Increm
 ```
 
 The script verifies the executable SHA-256 hashes before running, rejects
-non-x64 execution, records the processor and Windows version, and creates both
-a results directory and a shareable `results-*.zip` archive.
+non-x64 execution, records the processor, Windows version, and exact build
+identity, and creates both a results directory and a shareable `results-*.zip`
+archive. Result files are UTF-8. Each benchmark also emits chronological raw
+iteration samples as `# samples` comment records without changing the existing
+CSV summary columns.
 
 Run the full benchmark twice. If corresponding medians differ by more than
 about 10%, wait for the machine to become idle and run it once more. Return the

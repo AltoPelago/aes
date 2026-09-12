@@ -31,10 +31,10 @@ enum Payload {
     LargeUtf8,
 }
 
-#[derive(Clone, Copy)]
 struct Timing {
     median: Duration,
     p95: Duration,
+    samples: Vec<Duration>,
 }
 
 struct Row<'a> {
@@ -437,12 +437,14 @@ fn measure(case: &Case, mut operation: impl FnMut()) -> Timing {
         operation();
         samples.push(start.elapsed());
     }
-    samples.sort_unstable();
-    let median = samples[samples.len() / 2];
-    let p95_index = (samples.len() * 95).div_ceil(100).saturating_sub(1);
+    let mut ordered = samples.clone();
+    ordered.sort_unstable();
+    let median = ordered[ordered.len() / 2];
+    let p95_index = (ordered.len() * 95).div_ceil(100).saturating_sub(1);
     Timing {
         median,
-        p95: samples[p95_index],
+        p95: ordered[p95_index],
+        samples,
     }
 }
 
@@ -450,6 +452,15 @@ fn emit(row: Row<'_>) {
     let seconds = row.timing.median.as_secs_f64();
     let mb_per_second = row.bytes as f64 / 1_000_000.0 / seconds;
     let events_per_second = row.events as f64 / seconds;
+    if raw_samples_enabled() {
+        println!(
+            "# samples case={};encoding={};operation={};unit=ms;values={}",
+            row.case,
+            row.encoding,
+            row.operation,
+            format_samples(&row.timing.samples),
+        );
+    }
     println!(
         "{},{},{},{},{},{},{},{},{:.3},{:.3},{:.2},{:.0},{}",
         row.case,
@@ -470,6 +481,18 @@ fn emit(row: Row<'_>) {
 
 fn milliseconds(duration: Duration) -> f64 {
     duration.as_secs_f64() * 1_000.0
+}
+
+fn raw_samples_enabled() -> bool {
+    env::var("AES_BENCHMARK_RAW_SAMPLES").as_deref() == Ok("1")
+}
+
+fn format_samples(samples: &[Duration]) -> String {
+    samples
+        .iter()
+        .map(|sample| format!("{:.3}", milliseconds(*sample)))
+        .collect::<Vec<_>>()
+        .join("|")
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
