@@ -1,0 +1,418 @@
+{
+  "meta": {
+    "suite_id": "records-and-transcoding",
+    "lane": "aes-film",
+    "format_version": "1",
+    "event_contract": "aes.events.v1",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/film.aes.md#5-record-payload",
+      "specifications/film.aes.md#6-kind-codes",
+      "specifications/film.aes.md#7-datatype-descriptors",
+      "specifications/film.aes.md#8-extensions",
+      "specifications/film.aes.md#9-provenance-and-spans",
+      "specifications/film.aes.md#15-transcoding-with-telex"
+    ]
+  },
+  "id": "records-and-transcoding",
+  "title": "Film v1 Records and Telex Transcoding",
+  "tests": [
+    {
+      "id": "film-record-001-identity",
+      "description": "Identity is an optional ordinary Film string independent of path",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010012040103242e610962696e64696e672d300178" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010012040103242e610962696e64696e672d300178",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            { "path": "$.a", "kind": "StringLiteral", "identity": "binding-0", "value": "x" }
+          ]
+        }
+      },
+      "tags": ["record", "identity"]
+    },
+    {
+      "id": "film-record-002-node-without-value",
+      "description": "NodeLiteral omits the value field while retaining its distinct kind code",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01010e6165732e7061727469616c2e763109001406242e6e6f6465" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e763109001406242e6e6f6465",
+        "stream": {
+          "profile": "aes.partial.v1",
+          "profile_explicit": true,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            { "path": "$.node", "kind": "NodeLiteral" }
+          ]
+        }
+      },
+      "tags": ["record", "kind", "node", "value-presence"]
+    },
+    {
+      "id": "film-record-003-header-plane",
+      "description": "Record control selects the header plane without changing address syntax",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01021061656f6e2e646f63756d656e742e76311901010f242e5b2261656f6e3a6d6f6465225d06737472696374" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01021061656f6e2e646f63756d656e742e76311901010f242e5b2261656f6e3a6d6f6465225d06737472696374",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": "aeon.document.v1",
+          "projection_explicit": true,
+          "records": [
+            { "header": "$.[\"aeon:mode\"]", "kind": "StringLiteral", "value": "strict" }
+          ]
+        }
+      },
+      "tags": ["record", "header", "projection"]
+    },
+    {
+      "id": "film-record-004-simple-datatype",
+      "description": "A present datatype descriptor exposes explicit empty generic and clarifier arrays",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010010020203242e610603696e740000023432" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010010020203242e610603696e740000023432",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "int",
+              "generics": [],
+              "clarifiers": [],
+              "value": "42"
+            }
+          ]
+        }
+      },
+      "tags": ["record", "datatype"]
+    },
+    {
+      "id": "film-record-005-complete-optional-fields",
+      "description": "Nested datatype structure, identity, provenance, span and extension round-trip together",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": ["x.example.note"],
+        "limits": { "max_generic_arguments": 2, "max_clarifier_values": 2 }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "stream": {
+          "profile": "aes.partial.v1",
+          "profile_explicit": true,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.items[0]",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                { "datatype": "int", "generics": [], "clarifiers": [] },
+                { "kind": "NumberLiteral", "value": "3" }
+              ],
+              "clarifiers": [
+                { "kind": "StringLiteral", "value": "." },
+                { "kind": "NumberLiteral", "value": "10" }
+              ],
+              "identity": "binding-0",
+              "value": "42",
+              "origin": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+              "span": "10:20",
+              "x.example.note": "café"
+            }
+          ]
+        }
+      },
+      "tags": ["record", "datatype", "identity", "origin", "span", "extension"]
+    },
+    {
+      "id": "film-record-006-origin-and-span",
+      "description": "Origin uses 32 raw digest bytes and span uses canonical unsigned integers",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01002a180103242e6101780123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a14" },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01002a180103242e6101780123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a14",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "StringLiteral",
+              "value": "x",
+              "origin": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+              "span": "10:20"
+            }
+          ]
+        }
+      },
+      "tags": ["record", "origin", "span"]
+    },
+    {
+      "id": "film-record-007-ordered-extensions",
+      "description": "Named extensions are encoded in ascending complete-name order",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01002f000103242e6101780f782e6578616d706c652e616c70686101310e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": ["x.example.alpha", "x.example.note"]
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01002f000103242e6101780f782e6578616d706c652e616c70686101310e782e6578616d706c652e6e6f746505636166c3a9",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "StringLiteral",
+              "value": "x",
+              "x.example.alpha": "1",
+              "x.example.note": "café"
+            }
+          ]
+        }
+      },
+      "tags": ["record", "extension", "canonical"]
+    },
+    {
+      "id": "film-record-008-telex-scalar-equivalence",
+      "description": "Canonical Telex transcodes directly to the specification Film example and back",
+      "operation": "transcode",
+      "input": { "telex": "telex.aes=1\n\npath=$.message\nkind=StringLiteral\nvalue=hello\n" },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "telex": "telex.aes=1\n\npath=$.message\nkind=StringLiteral\nvalue=hello\n"
+      },
+      "tags": ["transcode", "telex", "scalar"]
+    },
+    {
+      "id": "film-record-009-telex-context-and-order-equivalence",
+      "description": "Transcoding preserves explicit context and supplied record order",
+      "operation": "transcode",
+      "input": { "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.b\nkind=NumberLiteral\nvalue=2\n\npath=$.a\nkind=StringLiteral\nvalue=one\n" },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e763108000203242e6201320a000103242e61036f6e65",
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.b\nkind=NumberLiteral\nvalue=2\n\npath=$.a\nkind=StringLiteral\nvalue=one\n"
+      },
+      "tags": ["transcode", "telex", "context", "record-order"]
+    },
+    {
+      "id": "film-record-010-reserved-control-bit",
+      "description": "Reserved record-control bits are invalid",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010008200103242e610178" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_RECORD" } },
+      "tags": ["record-control", "reserved-bit", "failure"]
+    },
+    {
+      "id": "film-record-011-kind-zero",
+      "description": "Kind code zero is unassigned",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010008000003242e610178" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_KIND" } },
+      "tags": ["kind", "unassigned", "failure"]
+    },
+    {
+      "id": "film-record-012-kind-above-v1-range",
+      "description": "Codes above the 23 assigned v1 kinds are invalid",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010008001803242e610178" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_KIND" } },
+      "tags": ["kind", "unassigned", "failure"]
+    },
+    {
+      "id": "film-record-013-invalid-utf8",
+      "description": "A declared Film string must contain valid UTF-8",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010008000103242eff0178" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_UTF8" } },
+      "tags": ["string", "utf8", "failure"]
+    },
+    {
+      "id": "film-record-014-span-without-origin",
+      "description": "Span presence requires origin presence in record control",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01000a100103242e6101780001" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_RECORD" } },
+      "tags": ["record-control", "origin", "span", "failure"]
+    },
+    {
+      "id": "film-record-015-zero-width-span",
+      "description": "Film span endpoints require start to be less than end",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01002a180103242e610178000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f0a0a" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_RECORD" } },
+      "tags": ["origin", "span", "failure"]
+    },
+    {
+      "id": "film-record-016-invalid-generic-tag",
+      "description": "Datatype generic tags are closed in Film v1",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010011020203242e610703696e74010100023432" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_DATATYPE" } },
+      "tags": ["datatype", "generic", "tag", "failure"]
+    },
+    {
+      "id": "film-record-017-invalid-clarifier-tag",
+      "description": "Datatype clarifier tags are closed in Film v1",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010011020203242e610703696e74000100023432" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_DATATYPE" } },
+      "tags": ["datatype", "clarifier", "tag", "failure"]
+    },
+    {
+      "id": "film-record-018-empty-datatype-name",
+      "description": "A present datatype descriptor requires a non-empty base name",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01000d020203242e6103000000023432" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_DATATYPE" } },
+      "tags": ["datatype", "failure"]
+    },
+    {
+      "id": "film-record-019-datatype-trailing-byte",
+      "description": "The framed datatype body must be consumed exactly",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010011020203242e610703696e74000000023432" },
+      "expected": { "ok": false, "error": { "code": "FILM_NONCANONICAL" } },
+      "tags": ["datatype", "boundary", "canonical", "failure"]
+    },
+    {
+      "id": "film-record-020-invalid-extension-name",
+      "description": "Extension names use the closed x.owner.name grammar",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010016000103242e6101780b6578616d706c652e6261640179" },
+      "expected": { "ok": false, "error": { "code": "FILM_INVALID_EXTENSION" } },
+      "tags": ["extension", "name", "failure"]
+    },
+    {
+      "id": "film-record-021-out-of-order-extensions",
+      "description": "Extension pairs must occur in ascending complete-name order",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01002b000103242e6101780e782e6578616d706c652e6e6f746501320f782e6578616d706c652e616c7068610131",
+        "registered_fields": ["x.example.alpha", "x.example.note"]
+      },
+      "expected": { "ok": false, "error": { "code": "FILM_NONCANONICAL" } },
+      "tags": ["extension", "order", "canonical", "failure"]
+    },
+    {
+      "id": "film-record-022-duplicate-extensions",
+      "description": "Duplicate extension names are not canonical Film",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01002c000103242e6101780f782e6578616d706c652e616c70686101310f782e6578616d706c652e616c7068610132",
+        "registered_fields": ["x.example.alpha"]
+      },
+      "expected": { "ok": false, "error": { "code": "FILM_NONCANONICAL" } },
+      "tags": ["extension", "duplicate", "canonical", "failure"]
+    },
+    {
+      "id": "film-record-023-extension-without-value",
+      "description": "A final extension name without its paired value is truncation",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010018000103242e6101780f782e6578616d706c652e616c706861" },
+      "expected": { "ok": false, "error": { "code": "FILM_TRUNCATED" } },
+      "tags": ["extension", "pair", "truncation", "failure"]
+    },
+    {
+      "id": "film-record-024-unregistered-extension",
+      "description": "A valid Film extension still requires exact AES registration",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01001a000103242e6101780f782e6578616d706c652e616c7068610131" },
+      "expected": {
+        "ok": false,
+        "error": {
+          "stage": "aes",
+          "diagnostic_codes": ["AES_UNKNOWN_FIELD"]
+        }
+      },
+      "tags": ["extension", "semantic-validation", "failure"]
+    },
+    {
+      "id": "film-record-025-invalid-aes-path",
+      "description": "Film syntax may decode while portable AES path validation fails",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01000f00010a6e6f742d612d706174680178" },
+      "expected": {
+        "ok": false,
+        "error": {
+          "stage": "aes",
+          "diagnostic_codes": ["AES_INVALID_PATH"]
+        }
+      },
+      "tags": ["path", "semantic-validation", "failure"]
+    },
+    {
+      "id": "film-record-026-all-assigned-kind-codes",
+      "description": "Every Film v1 kind code maps to its exact portable AES kind and value-presence rule",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76310f000107242e6974656d3004746578740c000207242e6974656d31013113000307242e6974656d3208496e66696e6974790e000407242e6974656d33034e614e11000507242e6974656d34066e6f745365740f000607242e6974656d3504747275650e000707242e6974656d36037965730f000807242e6974656d3704636166650d000907242e6974656d3802666612000a07242e6974656d39077061796c6f61640d000b08242e6974656d3130012e14000c08242e6974656d313108242e736f7572636516000d08242e6974656d31320a323032352d30312d303111000e08242e6974656d31330530393a33301c000f08242e6974656d313410323032352d30312d30315430393a333022001008242e6974656d313516323032352d30312d30315430393a3330266c6f63616c0b001108242e6974656d31360b001208242e6974656d31370b001308242e6974656d31380b001408242e6974656d31390f001508242e6974656d32300374616714001608242e6974656d323108242e736f7572636514001708242e6974656d323208242e736f75726365"
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e76310f000107242e6974656d3004746578740c000207242e6974656d31013113000307242e6974656d3208496e66696e6974790e000407242e6974656d33034e614e11000507242e6974656d34066e6f745365740f000607242e6974656d3504747275650e000707242e6974656d36037965730f000807242e6974656d3704636166650d000907242e6974656d3802666612000a07242e6974656d39077061796c6f61640d000b08242e6974656d3130012e14000c08242e6974656d313108242e736f7572636516000d08242e6974656d31320a323032352d30312d303111000e08242e6974656d31330530393a33301c000f08242e6974656d313410323032352d30312d30315430393a333022001008242e6974656d313516323032352d30312d30315430393a3330266c6f63616c0b001108242e6974656d31360b001208242e6974656d31370b001308242e6974656d31380b001408242e6974656d31390f001508242e6974656d32300374616714001608242e6974656d323108242e736f7572636514001708242e6974656d323208242e736f75726365",
+        "stream": {
+          "profile": "aes.partial.v1",
+          "profile_explicit": true,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            { "path": "$.item0", "kind": "StringLiteral", "value": "text" },
+            { "path": "$.item1", "kind": "NumberLiteral", "value": "1" },
+            { "path": "$.item2", "kind": "InfinityLiteral", "value": "Infinity" },
+            { "path": "$.item3", "kind": "NaNLiteral", "value": "NaN" },
+            { "path": "$.item4", "kind": "NullLiteral", "value": "notSet" },
+            { "path": "$.item5", "kind": "BooleanLiteral", "value": "true" },
+            { "path": "$.item6", "kind": "ToggleLiteral", "value": "yes" },
+            { "path": "$.item7", "kind": "HexLiteral", "value": "cafe" },
+            { "path": "$.item8", "kind": "RadixLiteral", "value": "ff" },
+            { "path": "$.item9", "kind": "EncodingLiteral", "value": "payload" },
+            { "path": "$.item10", "kind": "SeparatorLiteral", "value": "." },
+            { "path": "$.item11", "kind": "SansaAddressLiteral", "value": "$.source" },
+            { "path": "$.item12", "kind": "DateLiteral", "value": "2025-01-01" },
+            { "path": "$.item13", "kind": "TimeLiteral", "value": "09:30" },
+            { "path": "$.item14", "kind": "DateTimeLiteral", "value": "2025-01-01T09:30" },
+            { "path": "$.item15", "kind": "WTCDateTimeLiteral", "value": "2025-01-01T09:30&local" },
+            { "path": "$.item16", "kind": "ObjectNode" },
+            { "path": "$.item17", "kind": "ListNode" },
+            { "path": "$.item18", "kind": "TupleLiteral" },
+            { "path": "$.item19", "kind": "NodeLiteral" },
+            { "path": "$.item20", "kind": "NodeHead", "value": "tag" },
+            { "path": "$.item21", "kind": "CloneReference", "value": "$.source" },
+            { "path": "$.item22", "kind": "PointerReference", "value": "$.source" }
+          ]
+        }
+      },
+      "tags": ["kind", "kind-table", "value-presence", "canonical"]
+    }
+  ]
+}

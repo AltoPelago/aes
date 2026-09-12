@@ -25,8 +25,12 @@ const aesEventsManifest = resolve(
   ctsRoot,
   'aes/v1/aes-events-cts.v1.snapshot-0.1.json',
 );
+const filmManifest = resolve(
+  ctsRoot,
+  'film/v1/film-cts.v1.snapshot-0.1.json',
+);
 
-for (const manifest of [telexManifest, aesEventsManifest]) {
+for (const manifest of [telexManifest, aesEventsManifest, filmManifest]) {
   if (!existsSync(manifest)) {
     fail(
       `shared CTS manifest not found: ${manifest}\n`
@@ -39,10 +43,17 @@ const environment = {
   ...process.env,
   TELEX_CTS_MANIFEST: telexManifest,
   AES_EVENTS_CTS_MANIFEST: aesEventsManifest,
+  FILM_CTS_MANIFEST: filmManifest,
 };
 const command = mode === 'javascript' ? process.execPath : 'cargo';
 const args = mode === 'javascript'
-  ? ['--test', 'test/conformance.test.js', 'test/aes-events-conformance.test.js']
+  ? [
+    '--test',
+    'test/conformance.test.js',
+    'test/aes-events-conformance.test.js',
+    'test/film-conformance.test.js',
+    'test/film-decoder-conformance.test.js',
+  ]
   : ['test', '--locked', '--manifest-path', 'implementations/rust/Cargo.toml'];
 const result = spawnSync(command, args, {
   cwd: root,

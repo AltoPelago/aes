@@ -178,7 +178,7 @@ loading configuration rather than silently substituting another value.
 
 Byte, line, frame, and buffering limits remain scoped to their physical format
 or transport. The size of an AEON source is not the size of its Telex encoding,
-and neither determines the size of a future Film representation.
+and neither determines the size of a Film representation.
 
 AEON format limits include `max_input_bytes`, raw numeric-literal character
 length, and structured-comment payload character length. The latter two are
@@ -193,9 +193,10 @@ Telex format limits include:
 - `max_decoded_payload_bytes`.
 
 Telex event count, path depth, generic depth, clarifier count, value nesting,
-and datatype-component limits come from the shared sections. Film will add its
-own byte-, frame-, table-, and buffering-specific fields without redefining
-those shared counters.
+and datatype-component limits come from the shared sections. The Film v1 draft
+defines its own input-byte, record-byte, field-byte, and buffering counters
+without redefining those shared counters. A future limits-file revision may
+claim those fields; this published `1.0.0` set remains unchanged.
 
 Transport framing that is independent of an encoding uses its own sibling
 section. The published values are `16 MiB` for a frame payload, `32 MiB` for
@@ -313,16 +314,17 @@ diagnostics and configuration use `max_clarifier_values` and
 `max_value_nesting_depth`; removing the aliases is a future breaking API change,
 not a second limit migration.
 
-The PHP compiler rollout is recorded in
-[`php-aeonic-limits-audit.md`](php-aeonic-limits-audit.md). The completed
-cross-language ingress inventory and exact remaining interchange gaps are in
-[`non-aeon-ingress-limits-audit.md`](non-aeon-ingress-limits-audit.md).
+The PHP compiler rollout is recorded in the roadmap's completed
+[`php-aeonic-limits-audit.md`](https://github.com/AltoPelago/roadmap/blob/main/aeon/complete/php-aeonic-limits-audit.md).
+The completed cross-language ingress inventory and exact remaining interchange
+gaps are in
+[`non-aeon-ingress-limits-audit.md`](https://github.com/AltoPelago/roadmap/blob/main/aes/complete/non-aeon-ingress-limits-audit.md).
 
-Remaining work includes source-backed provenance operational limits, Film, and
-future non-TypeScript framing implementations. Every audited
-hard-coded allocation, recursion, collection, and input guard is now either
-mapped here or classified as a runtime safety ceiling or another limits
-contract.
+Remaining work includes source-backed provenance operational limits, a
+versioned limits-file revision for Film, and future non-TypeScript framing
+implementations. Every audited hard-coded allocation, recursion, collection,
+and input guard is now either mapped here or classified as a runtime safety
+ceiling or another limits contract.
 
 ### 8.1 Effective Telex configuration views
 

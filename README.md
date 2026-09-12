@@ -7,10 +7,9 @@ event model, interchange formats, conformance material, and the Aeonic Semantic
 Language used by AES-family technologies.
 
 The [portable AES event contract](specifications/aes.events.md) defines the
-shared model. [`telex.aes`](specifications/telex.aes.md) is its first encoding:
-a small text format for exchanging records between implementations. `film.aes`
-will later provide a binary encoding of the same model. Neither format defines
-different event semantics.
+shared model. [`telex.aes`](specifications/telex.aes.md) is its textual encoding.
+The [`film.aes` v1 draft](specifications/film.aes.md) defines a compact binary
+encoding of the same model. Neither format defines different event semantics.
 
 AES is semantically lossless relative to a selected event profile and
 projection, not relative to original source bytes. Telex preserves portable
@@ -33,12 +32,13 @@ telex.aes    film.aes
 This repository remains the implementation-adjacent AES workspace. Canonical
 publication sources live under `sources/aes/v1/` in
 [`aeonite-specs`](https://github.com/aeonite-org/aeonite-specs/tree/main/sources/aes/v1).
-The AES v1 index, portable
-event contract, compatibility contract, and Telex encoding are published;
-their declared lifecycle and normativity govern v1. The Aeonic Semantic
-Language remains a proposal. The integrity and Assignment Event Transaction
-contracts are normative drafts. The Markdown documents here are
-working/reference copies and do not override those canonical sources.
+The AES v1 index, portable event contract, compatibility contract, and Telex
+encoding are published conformance targets. Film, integrity, and Assignment
+Event Transactions are normative drafts; Film now also has immutable
+specification and CTS snapshot `0.1` authorities. Their declared lifecycle and
+normativity govern v1. The Aeonic Semantic Language remains a proposal. The
+Markdown documents here are working/reference copies and do not override those
+canonical sources.
 
 - [Portable AES Event Contract v1](specifications/aes.events.md) owns the
   transport-neutral record, profile, projection, and fidelity rules.
@@ -56,6 +56,11 @@ working/reference copies and do not override those canonical sources.
   changing Telex framing.
 - [Telex v1](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
+- [Film v1](specifications/film.aes.md) is the normative binary-encoding draft.
+  Its table-free wire layout is resolved and fixed by
+  `film-specs-v1-snapshot-0.1` and the 72-vector
+  `film-cts-v1-snapshot-0.1`. Reader conformance is available; durable writers
+  remain behind the reader-before-writer deployment gate.
 - [AltoPelago Aeonic Limits v1](notes/altopelago-aeonic-limits-v1.md) defines
   the informative, consumer-owned configuration shape used to align structural
   and processing limits across AltoPelago implementations. Format byte limits
@@ -78,6 +83,15 @@ working/reference copies and do not override those canonical sources.
   codec exports `DEFAULT_TELEX_LIMITS` and accepts normalized limits through
   its public parse, encode, canonicalize, and validation options; resolving an
   AEON limits file remains the trusted caller's responsibility.
+- [`src/film.js`](src/film.js) is an independent JavaScript Film v1 decoder.
+  It reads canonical `Uint8Array` input without invoking Rust or reconstructing
+  Telex, returns owned JavaScript records, separates provisional physical
+  decoding from complete AES validation, and applies consumer-selected Film
+  and shared structural limits. `IncrementalFilmDecoder` distinguishes
+  need-more-input, provisional records, declared final input, and the single
+  completed-stream result while bounding retained input bytes. It deliberately
+  provides no Film writer while durable output remains behind the
+  reader-before-writer gate.
 - [`src/provenance.js`](src/provenance.js) audits record-local origin digests
   and UTF-8 byte spans against exact caller-retained bytes. It reports artifact
   availability separately from evidence validity and gates
@@ -87,15 +101,16 @@ working/reference copies and do not override those canonical sources.
   illustrative stream, not a frozen conformance vector.
 - [`conformance/`](conformance/README.md) contains language-neutral v1
   vectors for syntax, canonicalization, AES profile validation, exact-source
-  provenance, resource-limit boundaries, and the optional AEON document
-  projection. Stable external
-  targets are published separately as `aes-events-cts-v1-snapshot-0.1` and
-  `telex-cts-v1-snapshot-0.1` in the shared `aeonite-cts` repository.
+  provenance, resource-limit boundaries, the optional AEON document
+  projection, and the mutable 72-vector Film candidate. Stable external
+  targets are published separately as `aes-events-cts-v1-snapshot-0.1`,
+  `telex-cts-v1-snapshot-0.1`, and `film-cts-v1-snapshot-0.1` in the shared
+  `aeonite-cts` repository.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
   Rust implementation of the same v1 event, Telex, integrity, provenance, and
-  transaction contracts.
-  Its Telex codec has no runtime dependencies; portable SHA-256 integrity uses
-  the audited `sha2` crate.
+  transaction contracts, plus the selected Film draft reference and an
+  archived layout comparator. Its Telex codec has no runtime
+  dependencies; portable SHA-256 integrity uses the audited `sha2` crate.
 
 Run the syntax tests with:
 
@@ -115,7 +130,7 @@ Run the vectors through the Rust implementation with:
 npm run test:conformance:rust
 ```
 
-Run both published shared snapshots in JavaScript and Rust with:
+Run the three published shared snapshots in JavaScript and Rust with:
 
 ```bash
 npm run test:conformance:shared
@@ -170,8 +185,13 @@ maintained in the separate AEON family roadmap. Material is promoted into this
 repository when it becomes an AES-owned specification, policy, conformance
 asset, release procedure, or implementation reference.
 
-The next planned encoding work is Film; a later stage will cover Tape and the
-Aeonic Semantic Language.
+The selected Rust Film reference passes the complete immutable 72-operation
+snapshot; the independent JavaScript reader claims its 68 decode operations.
+Incremental chunk-state coverage, deterministic mutation testing, a
+coverage-guided Rust target, and a scheduled fuzz workflow are also in place.
+The next Film stage is reader deployment and ecosystem compatibility review;
+durable writer enablement remains deferred. A later stage will cover Tape and
+the Aeonic Semantic Language.
 
 ## Design rule
 

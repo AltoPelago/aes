@@ -1,0 +1,366 @@
+{
+  "meta": {
+    "suite_id": "resource-limits",
+    "lane": "aes-film",
+    "format_version": "1",
+    "event_contract": "aes.events.v1",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/film.aes.md#3-binary-notation-and-primitive-encodings",
+      "specifications/film.aes.md#13-resource-limits",
+      "specifications/film.aes.md#14-encoder-and-api-contract"
+    ]
+  },
+  "id": "resource-limits",
+  "title": "Film v1 Resource Limits",
+  "tests": [
+    {
+      "id": "film-limit-001-input-bytes-at-limit",
+      "description": "A complete Film stream may equal max_input_bytes",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff0100", "limits": { "max_input_bytes": 6 } },
+      "expected": { "ok": true, "canonical_hex": "4f5f5fff0100" },
+      "tags": ["limits", "max-input-bytes", "boundary"]
+    },
+    {
+      "id": "film-limit-002-input-bytes-one-over",
+      "description": "Input bytes are rejected before Film decoding when one over the limit",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff0100", "limits": { "max_input_bytes": 5 } },
+      "expected": { "ok": false, "error": { "code": "FILM_LIMIT_EXCEEDED" } },
+      "tags": ["limits", "max-input-bytes", "failure"]
+    },
+    {
+      "id": "film-limit-003-record-bytes-at-limit",
+      "description": "A record payload may equal max_record_bytes",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "limits": { "max_record_bytes": 18 }
+      },
+      "expected": { "ok": true, "canonical_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f" },
+      "tags": ["limits", "max-record-bytes", "boundary"]
+    },
+    {
+      "id": "film-limit-004-record-bytes-one-over",
+      "description": "A declared record payload one over max_record_bytes fails before payload decoding",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "limits": { "max_record_bytes": 17 }
+      },
+      "expected": { "ok": false, "error": { "code": "FILM_LIMIT_EXCEEDED" } },
+      "tags": ["limits", "max-record-bytes", "failure"]
+    },
+    {
+      "id": "film-limit-005-field-bytes-at-limit",
+      "description": "The nine-byte scalar address may equal max_field_bytes",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "limits": { "max_field_bytes": 9 }
+      },
+      "expected": { "ok": true, "canonical_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f" },
+      "tags": ["limits", "max-field-bytes", "boundary"]
+    },
+    {
+      "id": "film-limit-006-field-bytes-one-over",
+      "description": "The address is rejected before reading its declared bytes when one over the field limit",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "limits": { "max_field_bytes": 8 }
+      },
+      "expected": { "ok": false, "error": { "code": "FILM_LIMIT_EXCEEDED" } },
+      "tags": ["limits", "max-field-bytes", "failure"]
+    },
+    {
+      "id": "film-limit-007-descriptor-bytes-at-limit",
+      "description": "The complete 25-byte complex datatype body may equal max_field_bytes",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": ["x.example.note"],
+        "limits": {
+          "max_field_bytes": 25,
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9"
+      },
+      "tags": ["limits", "max-field-bytes", "datatype", "boundary"]
+    },
+    {
+      "id": "film-limit-008-descriptor-bytes-one-over",
+      "description": "The datatype body is rejected before descent when one over max_field_bytes",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": ["x.example.note"],
+        "limits": {
+          "max_field_bytes": 24,
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": { "ok": false, "error": { "code": "FILM_LIMIT_EXCEEDED" } },
+      "tags": ["limits", "max-field-bytes", "datatype", "failure"]
+    },
+    {
+      "id": "film-limit-009-buffered-bytes-at-limit",
+      "description": "A buffered encoder record may equal max_buffered_bytes",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [{ "path": "$.message", "kind": "StringLiteral", "value": "hello" }]
+        },
+        "limits": { "max_buffered_bytes": 18 }
+      },
+      "expected": { "ok": true, "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f" },
+      "tags": ["limits", "max-buffered-bytes", "encoder", "boundary"]
+    },
+    {
+      "id": "film-limit-010-buffered-bytes-one-over",
+      "description": "A buffered encoder record one over max_buffered_bytes is rejected",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [{ "path": "$.message", "kind": "StringLiteral", "value": "hello" }]
+        },
+        "limits": { "max_buffered_bytes": 17 }
+      },
+      "expected": { "ok": false, "error": { "code": "FILM_LIMIT_EXCEEDED" } },
+      "tags": ["limits", "max-buffered-bytes", "encoder", "failure"]
+    },
+    {
+      "id": "film-limit-011-events-at-limit",
+      "description": "One decoded record may equal max_events",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "limits": { "max_events": 1 }
+      },
+      "expected": { "ok": true, "canonical_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f" },
+      "tags": ["limits", "max-events", "shared-aes", "boundary"]
+    },
+    {
+      "id": "film-limit-012-events-one-over",
+      "description": "Shared AES event exhaustion retains the AES limit diagnostic",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e763108000203242e6201320a000103242e61036f6e65",
+        "limits": { "max_events": 1 }
+      },
+      "expected": {
+        "ok": false,
+        "error": { "stage": "aes", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] }
+      },
+      "tags": ["limits", "max-events", "shared-aes", "failure"]
+    },
+    {
+      "id": "film-limit-013-generic-depth-at-limit",
+      "description": "One nested datatype generic may equal max_generic_depth one",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": ["x.example.note"],
+        "limits": {
+          "max_generic_depth": 1,
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9"
+      },
+      "tags": ["limits", "max-generic-depth", "shared-aes", "boundary"]
+    },
+    {
+      "id": "film-limit-014-generic-depth-one-over",
+      "description": "Shared AES generic-depth exhaustion is not a Film format limit",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": ["x.example.note"],
+        "limits": {
+          "max_generic_depth": 0,
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": { "stage": "aes", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] }
+      },
+      "tags": ["limits", "max-generic-depth", "shared-aes", "failure"]
+    },
+    {
+      "id": "film-limit-015-generic-arguments-at-limit",
+      "description": "Two datatype generics may equal max_generic_arguments",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": ["x.example.note"],
+        "limits": { "max_generic_arguments": 2, "max_clarifier_values": 2 }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9"
+      },
+      "tags": ["limits", "max-generic-arguments", "shared-aes", "boundary"]
+    },
+    {
+      "id": "film-limit-016-generic-arguments-one-over",
+      "description": "Shared AES generic-argument exhaustion retains the AES diagnostic",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": ["x.example.note"],
+        "limits": { "max_generic_arguments": 1, "max_clarifier_values": 2 }
+      },
+      "expected": {
+        "ok": false,
+        "error": { "stage": "aes", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] }
+      },
+      "tags": ["limits", "max-generic-arguments", "shared-aes", "failure"]
+    },
+    {
+      "id": "film-limit-017-clarifiers-at-limit",
+      "description": "Two datatype clarifiers may equal max_clarifier_values",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": ["x.example.note"],
+        "limits": { "max_generic_arguments": 2, "max_clarifier_values": 2 }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9"
+      },
+      "tags": ["limits", "max-clarifier-values", "shared-aes", "boundary"]
+    },
+    {
+      "id": "film-limit-018-clarifiers-one-over",
+      "description": "Shared AES clarifier exhaustion retains the AES diagnostic",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": ["x.example.note"],
+        "limits": { "max_generic_arguments": 2, "max_clarifier_values": 1 }
+      },
+      "expected": {
+        "ok": false,
+        "error": { "stage": "aes", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] }
+      },
+      "tags": ["limits", "max-clarifier-values", "shared-aes", "failure"]
+    },
+    {
+      "id": "film-limit-019-string-codepoints-at-limit",
+      "description": "The five-code-point StringLiteral may equal max_string_codepoints",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "limits": { "max_string_codepoints": 5 }
+      },
+      "expected": { "ok": true, "canonical_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f" },
+      "tags": ["limits", "max-string-codepoints", "shared-aes", "boundary"]
+    },
+    {
+      "id": "film-limit-020-string-codepoints-one-over",
+      "description": "Shared AES string exhaustion remains a semantic limit failure",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "limits": { "max_string_codepoints": 4 }
+      },
+      "expected": {
+        "ok": false,
+        "error": { "stage": "aes", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] }
+      },
+      "tags": ["limits", "max-string-codepoints", "shared-aes", "failure"]
+    },
+    {
+      "id": "film-limit-021-path-characters-at-limit",
+      "description": "The nine-character path may equal max_path_characters",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "limits": { "max_path_characters": 9 }
+      },
+      "expected": { "ok": true, "canonical_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f" },
+      "tags": ["limits", "max-path-characters", "shared-aes", "boundary"]
+    },
+    {
+      "id": "film-limit-022-path-characters-one-over",
+      "description": "Shared AES path-character exhaustion remains a semantic limit failure",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
+        "limits": { "max_path_characters": 8 }
+      },
+      "expected": {
+        "ok": false,
+        "error": { "stage": "aes", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] }
+      },
+      "tags": ["limits", "max-path-characters", "shared-aes", "failure"]
+    },
+    {
+      "id": "film-limit-023-uleb128-u64-overflow",
+      "description": "A tenth unsigned-LEB128 byte with payload greater than one exceeds the Film integer domain",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010080808080808080808002" },
+      "expected": { "ok": false, "error": { "code": "FILM_INTEGER_OVERFLOW" } },
+      "tags": ["uleb128", "u64", "overflow", "failure"]
+    },
+    {
+      "id": "film-limit-024-record-u64-over-active-limit",
+      "description": "A valid u64 record length is checked against max_record_bytes before host address-space conversion",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff0100ffffffffffffffffff01" },
+      "expected": { "ok": false, "error": { "code": "FILM_LIMIT_EXCEEDED" } },
+      "tags": ["limits", "max-record-bytes", "u64", "precedence", "failure"]
+    },
+    {
+      "id": "film-limit-025-field-u64-over-active-limit",
+      "description": "A valid u64 field length is checked against max_field_bytes before host address-space conversion",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01000c0001ffffffffffffffffff01" },
+      "expected": { "ok": false, "error": { "code": "FILM_LIMIT_EXCEEDED" } },
+      "tags": ["limits", "max-field-bytes", "u64", "precedence", "failure"]
+    },
+    {
+      "id": "film-limit-026-generic-count-is-a-shared-aes-limit",
+      "description": "A large generic count is governed by max_generic_arguments rather than max_field_bytes",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01000f020203242e610803696e7481808002" },
+      "expected": {
+        "ok": false,
+        "error": { "stage": "aes", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] }
+      },
+      "tags": ["limits", "max-generic-arguments", "shared-aes", "precedence", "failure"]
+    },
+    {
+      "id": "film-limit-027-clarifier-count-is-a-shared-aes-limit",
+      "description": "A large clarifier count is governed by max_clarifier_values rather than max_field_bytes",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010010020203242e610903696e740081808002" },
+      "expected": {
+        "ok": false,
+        "error": { "stage": "aes", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] }
+      },
+      "tags": ["limits", "max-clarifier-values", "shared-aes", "precedence", "failure"]
+    }
+  ]
+}

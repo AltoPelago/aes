@@ -20,8 +20,18 @@ telex.aes=1
 ```
 
 An incompatible framing or decoding change requires a new Telex format
-version. Film and future encodings will have independent wire versions while
-carrying a declared AES event contract.
+version.
+
+Film has an independent draft wire-format version. Its proposed preamble is:
+
+```text
+4F 5F 5F FF 01
+```
+
+Film v1 maps statically to `aes.events.v1`. It is not a released encoding line
+until its specification and CTS snapshots are published. An incompatible Film
+framing or decoding change advances the Film format version rather than the
+Telex version or AES event contract by implication.
 
 ## Conformance snapshots
 

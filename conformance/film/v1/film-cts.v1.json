@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "version": "0.1.0-dev",
+    "status": "draft",
+    "lane": "aes-film",
+    "format": "film.aes",
+    "format_version": "1",
+    "event_contract": "aes.events.v1",
+    "sut_protocol": "cts.protocol.v1",
+    "byte_encoding": "lowercase-hex",
+    "description": "Mutable Film v1 binary encoding and portable AES event candidate"
+  },
+  "suites": [
+    {
+      "id": "framing-and-canonicalization",
+      "file": "suites/01-framing-and-canonicalization.json"
+    },
+    {
+      "id": "records-and-transcoding",
+      "file": "suites/02-records-and-transcoding.json"
+    },
+    {
+      "id": "resource-limits",
+      "file": "suites/03-resource-limits.json"
+    }
+  ]
+}

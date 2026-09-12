@@ -36,4 +36,6 @@ jobs:
 
       - name: Run RustSec advisory scan
         working-directory: implementations/rust
-        run: cargo audit
+        run: |
+          cargo audit
+          cargo audit --file fuzz/Cargo.lock

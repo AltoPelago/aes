@@ -52,3 +52,46 @@ cargo run --release --example bench_telex --manifest-path implementations/rust/C
 The Rust and JavaScript implementations intentionally do not call each other or
 share codec source. Their common authorities are the transport-neutral portable
 AES event contract, the published Telex encoding, and the shared vectors.
+
+## Film v1 draft reference
+
+`film` implements the selected table-free binary layout defined by the Film v1
+normative draft. It provides borrowed Film views, explicit owned
+materialization and complete validation, canonical stream context, framed
+records, the fixed kind table, structured datatypes, provenance, spans, named
+extensions, Film-local limits, and direct Telex transcoders over the existing
+portable AES record model. The historical `film_candidate_a` module re-exports
+this surface temporarily for local prototype compatibility.
+
+This module is reference code in an unpublished crate. Its reader claims the
+immutable `film-cts-v1-snapshot-0.1` target and passes the repository-local
+mutable 72-vector Film candidate; later local additions do not alter that
+snapshot claim. The writer remains available for conformance tooling and
+experimentation, but must not be enabled for durable interchange until reader
+deployment and ecosystem compatibility review close the separate writer gate.
+
+`film_candidate_b` is an archived, deliberately stateful comparator. It
+replaces each address with the longest UTF-8 prefix shared with the previous
+address in the same address plane plus an inline suffix. It uses the distinct
+experimental `O_B FF 00` preamble and can never be represented as
+`film.aes=1`.
+
+Run its focused tests and native benchmark with:
+
+```bash
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_api
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_conformance
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_b
+cargo run --release --locked --example bench_film_candidate_a --manifest-path implementations/rust/Cargo.toml
+cargo run --release --locked --example compare_film_layouts --manifest-path implementations/rust/Cargo.toml -- path/to/input.telex.aes
+```
+
+Set `FILM_BENCH_OUTPUT_DIR` or `FILM_COMPARE_OUTPUT_DIR` to retain generated
+Telex and candidate bytes for equal external-compression comparisons.
+
+The fuzz-only crate under `fuzz/` sends arbitrary CTS-seeded bytes through the
+borrowed and validated Film decoders under libFuzzer and AddressSanitizer. It is
+kept outside the reference crate's runtime and test dependency graph. Run the
+bounded local gate with `npm run fuzz:film`; continuing and corpus-management
+commands are documented in [`fuzz/README.md`](./fuzz/README.md).

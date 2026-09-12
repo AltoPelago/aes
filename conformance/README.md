@@ -1,9 +1,15 @@
-# Telex conformance vectors
+# AES conformance vectors
 
 The repository-local v1 vectors are rooted at:
 
 ```text
 telex/v1/telex-cts.v1.json
+```
+
+The repository-local Film v1 candidate is rooted separately at:
+
+```text
+film/v1/film-cts.v1.json
 ```
 
 The transport-neutral AES event candidate is rooted separately at:
@@ -63,6 +69,22 @@ artifacts, distinguishes unavailable evidence from invalid evidence, and gates
 the source-backed preparation contract. It is not a published immutable CTS
 snapshot.
 
+The [`film.aes` v1 specification](../specifications/film.aes.md) is a normative
+draft. Its mutable `0.1.0-dev` CTS contains 72 language-neutral vectors across
+framing and canonicalization, records and Telex transcoding, and resource
+limits. Exact Film bytes use contiguous lowercase hexadecimal inside the JSON
+test envelope. The lane fixes all 23 kind-code mappings and keeps Film syntax
+and canonicality failures separate from transport-neutral AES diagnostics.
+
+The local Film candidate carries no `snapshot_id` or `spec_snapshot_id` and
+remains the mutable development target. The immutable shared
+`film-cts-v1-snapshot-0.1` publishes the exact audited 72-vector state. The
+selected Rust reference passes all operations in that snapshot. The independent
+JavaScript implementation claims only its 68 `decode` operations; it also reads
+the three canonical Film byte fixtures supplied by positive encode/transcode
+vectors, while the remaining buffered-encoder rejection stays outside the
+decoder-only claim.
+
 The manifest separates:
 
 - syntax and canonicalization;
@@ -97,7 +119,38 @@ each test:
 - `canonicalize`: return canonical Telex text without reordering events; or
 - `validate`: return the effective profile and semantic diagnostic codes.
 
-These 100 integrated vectors remain the mutable development candidate. The
+Film suites additionally use:
+
+- `decode`: accept exact `film_hex`, return logical stream context and records,
+  or a stable Film error; failures after Film decoding identify the AES stage
+  and retain its diagnostic codes without prescribing a host-language wrapper;
+- `encode`: produce exact canonical `film_hex` from one logical stream under
+  the supplied effective limits; and
+- `transcode`: convert canonical Telex directly to exact Film bytes and back
+  without reconstructing AEON source.
+
+Run the mutable Film manifest checks, independent JavaScript decoder, and
+selected Rust reference together with:
+
+```bash
+npm run test:film
+```
+
+The JavaScript incremental suite exercises every split point for each positive
+Film fixture, byte-at-a-time delivery, incomplete-versus-final transitions,
+and deterministic arbitrary-byte and nested-datatype mutations. The Rust
+coverage-guided target seeds itself from all Film byte fixtures in this mutable
+CTS and exercises both borrowed physical and validated owned decoding:
+
+```bash
+npm run fuzz:film
+```
+
+Generated corpora and artifacts remain implementation-local. Any minimized
+input that establishes a protocol defect should be promoted into this
+language-neutral candidate before a snapshot is frozen.
+
+The 100 integrated Telex vectors remain their mutable development candidate. The
 candidate uses a `-dev` version and carries no `snapshot_id` or
 `spec_snapshot_id`. A repository commit identifies an exact development state,
 but external conformance claims must not treat this working path as stable.
@@ -113,6 +166,12 @@ Both manifests live in `aeonite-cts`, pin a SHA-256 digest for every suite, and
 pass independently in the JavaScript and Rust implementations. Later candidate
 changes stay here or enter a newer shared snapshot; the published identifiers
 and their suite bytes are not changed.
+
+Film adds the parallel immutable `film-cts-v1-snapshot-0.1` target. A claim may
+carry an `operations` list to narrow its scope; omitting that field claims the
+entire snapshot. This repository therefore records JavaScript as a Film reader
+for `decode`, while Rust claims `decode`, `encode`, and `transcode`. The shared
+commands select all three released AES manifests from the authority repository.
 
 The repository declares its released-snapshot coverage in
 [`cts-claims.json`](cts-claims.json). Validate those claims against an

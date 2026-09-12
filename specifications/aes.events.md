@@ -8,7 +8,7 @@ Contract identifier: `aes.events.v1`
 Profiles: `aes.complete.v1`, `aes.partial.v1`
 
 This document is transport-neutral. It defines the portable Assignment Event
-Stream model encoded by `telex.aes`, the future `film.aes`, and other AES
+Stream model encoded by `telex.aes`, the `film.aes` draft, and other AES
 transports. It does not define a byte encoding.
 
 ## 1. Purpose and authority

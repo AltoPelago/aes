@@ -24,7 +24,7 @@ if (!existsSync(ctsRoot)) {
 }
 
 const document = readJson(claimsPath, 'claims file');
-const snapshotIds = readCtsSnapshotIds(ctsRoot);
+const snapshots = readCtsSnapshots(ctsRoot);
 const claims = collectClaims(document);
 
 if (document.claim_format !== 'aeonite.cts-claims.v1') {
@@ -40,7 +40,7 @@ if (document.cts_protocol !== 'cts.protocol.v1') {
   errors.push('cts_protocol must be "cts.protocol.v1"');
 }
 
-claims.forEach((claim) => validateClaim(claim, snapshotIds));
+claims.forEach((claim) => validateClaim(claim, snapshots));
 
 if (errors.length > 0) {
   console.error(`CTS claim validation failed: ${errors.length} issue(s)`);
@@ -49,7 +49,7 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `CTS claim validation passed: claims=${claims.length} cts_snapshots=${snapshotIds.size}`,
+  `CTS claim validation passed: claims=${claims.length} cts_snapshots=${snapshots.size}`,
 );
 
 function readArg(name) {
@@ -93,7 +93,7 @@ function collectClaims(value) {
   });
 }
 
-function validateClaim({ claim, path }, knownSnapshotIds) {
+function validateClaim({ claim, path }, knownSnapshots) {
   if (!claim || typeof claim !== 'object') {
     errors.push(`${path} must be an object`);
     return;
@@ -103,26 +103,56 @@ function validateClaim({ claim, path }, knownSnapshotIds) {
   }
   if (typeof claim.snapshot_id !== 'string' || claim.snapshot_id.length === 0) {
     errors.push(`${path}.snapshot_id must be a non-empty string`);
-  } else if (!knownSnapshotIds.has(claim.snapshot_id)) {
+  } else if (!knownSnapshots.has(claim.snapshot_id)) {
     errors.push(`${path}.snapshot_id is not present in CTS manifests: ${claim.snapshot_id}`);
   }
   if (claim.status !== 'claimed') {
     errors.push(`${path}.status must be "claimed" for a released public baseline`);
+  }
+  if (claim.operations !== undefined) {
+    if (!Array.isArray(claim.operations)
+        || claim.operations.length === 0
+        || !claim.operations.every((operation) => (
+          typeof operation === 'string' && operation.length > 0
+        ))) {
+      errors.push(`${path}.operations must be a non-empty list of non-empty strings when present`);
+    } else if (new Set(claim.operations).size !== claim.operations.length) {
+      errors.push(`${path}.operations must not contain duplicates`);
+    } else {
+      const available = knownSnapshots.get(claim.snapshot_id)?.operations ?? new Set();
+      for (const operation of claim.operations) {
+        if (!available.has(operation)) {
+          errors.push(`${path}.operations contains an operation absent from the snapshot: ${operation}`);
+        }
+      }
+    }
   }
   if (typeof claim.command !== 'string' || claim.command.length === 0) {
     errors.push(`${path}.command must be a non-empty string`);
   }
 }
 
-function readCtsSnapshotIds(directory) {
-  const ids = new Set();
+function readCtsSnapshots(directory) {
+  const snapshots = new Map();
   for (const file of walkJsonFiles(directory)) {
     const manifest = readJson(file, 'CTS manifest');
     if (Array.isArray(manifest.suites) && typeof manifest.meta?.snapshot_id === 'string') {
-      ids.add(manifest.meta.snapshot_id);
+      const operations = new Set();
+      for (const suiteRef of manifest.suites) {
+        const suite = typeof suiteRef?.file === 'string'
+          ? readJson(resolve(dirname(file), suiteRef.file), 'CTS suite')
+          : suiteRef;
+        const excluded = new Set(Array.isArray(suiteRef?.exclude_tests) ? suiteRef.exclude_tests : []);
+        for (const vector of Array.isArray(suite?.tests) ? suite.tests : []) {
+          if (!excluded.has(vector?.id) && typeof vector?.operation === 'string') {
+            operations.add(vector.operation);
+          }
+        }
+      }
+      snapshots.set(manifest.meta.snapshot_id, { operations });
     }
   }
-  return ids;
+  return snapshots;
 }
 
 function walkJsonFiles(directory) {

@@ -14,6 +14,11 @@ The Markdown documents under [`specifications/`](./specifications/) are
 readable working/reference copies. They do not override the canonical AEON
 sources.
 
+[`specifications/film.aes.md`](./specifications/film.aes.md) is a normative
+draft working copy. Until it is promoted through the canonical specs process
+and receives an immutable CTS baseline, neither that file nor the Rust Film
+prototypes establish a released Film conformance claim.
+
 ## Conformance
 
 Immutable shared conformance snapshots are published by
