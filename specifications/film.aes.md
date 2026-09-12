@@ -726,6 +726,16 @@ only candidate operation it does not exercise is an encoder-only buffered-byte
 rejection. This closes the independent-decoder evidence requirement without
 claiming a JavaScript writer or an immutable CTS target.
 
+The JavaScript reader additionally exercises every two-chunk split and
+byte-at-a-time delivery across the positive candidate fixtures, retains
+provisional records without producing a completed result, and turns unfinished
+framing into `FILM_TRUNCATED` only after final input is declared. Deterministic
+arbitrary-byte and nested-descriptor mutations run in the ordinary test suite.
+A CTS-seeded Rust libFuzzer target exercises borrowed physical and validated
+owned decoding under AddressSanitizer, with bounded local and scheduled runs.
+These checks provide the current evidence for item 3; discovered protocol cases
+must still be minimized into the language-neutral candidate.
+
 Transport media types and external registration are outside Film v1.
 
 ## 20. Complete scalar example

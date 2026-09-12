@@ -29,6 +29,11 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ### Changed
 
+- Added explicit incremental JavaScript Film states for incomplete input,
+  provisional records, and final validated completion; added exhaustive
+  positive-fixture chunk divisions, deterministic malformed-input regression
+  fuzzing, and a CTS-seeded Rust libFuzzer/AddressSanitizer target with a
+  scheduled workflow.
 - Refactored the selected Rust Film draft implementation behind
   specification-shaped encode, borrowed-decode, validated owned-decode, and
   Telex-transcoding APIs; retained Candidate A names as temporary local

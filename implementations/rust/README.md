@@ -87,3 +87,9 @@ cargo run --release --locked --example compare_film_layouts --manifest-path impl
 
 Set `FILM_BENCH_OUTPUT_DIR` or `FILM_COMPARE_OUTPUT_DIR` to retain generated
 Telex and candidate bytes for equal external-compression comparisons.
+
+The fuzz-only crate under `fuzz/` sends arbitrary CTS-seeded bytes through the
+borrowed and validated Film decoders under libFuzzer and AddressSanitizer. It is
+kept outside the reference crate's runtime and test dependency graph. Run the
+bounded local gate with `npm run fuzz:film`; continuing and corpus-management
+commands are documented in [`fuzz/README.md`](./fuzz/README.md).

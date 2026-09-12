@@ -84,8 +84,11 @@ working/reference copies and do not override those canonical sources.
   It reads canonical `Uint8Array` input without invoking Rust or reconstructing
   Telex, returns owned JavaScript records, separates provisional physical
   decoding from complete AES validation, and applies consumer-selected Film
-  and shared structural limits. It deliberately provides no Film writer while
-  durable output remains behind the reader-before-writer gate.
+  and shared structural limits. `IncrementalFilmDecoder` distinguishes
+  need-more-input, provisional records, declared final input, and the single
+  completed-stream result while bounding retained input bytes. It deliberately
+  provides no Film writer while durable output remains behind the
+  reader-before-writer gate.
 - [`src/provenance.js`](src/provenance.js) audits record-local origin digests
   and UTF-8 byte spans against exact caller-retained bytes. It reports artifact
   availability separately from evidence validity and gates
@@ -178,10 +181,11 @@ maintained in the separate AEON family roadmap. Material is promoted into this
 repository when it becomes an AES-owned specification, policy, conformance
 asset, release procedure, or implementation reference.
 
-The selected Rust Film draft reference and an independent JavaScript reader now
-pass the shared decoder-facing candidate vectors. The next Film work is
-incremental chunk-state coverage and fuzzing. A later stage will cover Tape and
-the Aeonic Semantic Language.
+The selected Rust Film draft reference and independent JavaScript reader pass
+the shared decoder-facing candidate vectors. Incremental chunk-state coverage,
+deterministic mutation testing, a coverage-guided Rust target, and a scheduled
+fuzz workflow are also in place. The next Film work is snapshot-readiness
+review. A later stage will cover Tape and the Aeonic Semantic Language.
 
 ## Design rule
 

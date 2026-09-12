@@ -164,6 +164,201 @@ export function decodeFilmSyntax(input, options = {}) {
 /** Decode Film and return an owned stream only after complete AES validation. */
 export function decodeFilm(input, options = {}) {
   const stream = decodeFilmSyntax(input, options);
+  validateDecodedStream(stream, input.byteLength, options);
+  return stream;
+}
+
+/**
+ * Incremental Film decoder. Complete records may be inspected provisionally,
+ * but only a successful push with `{ final: true }` returns `status=complete`.
+ */
+export class IncrementalFilmDecoder {
+  constructor(options = {}) {
+    this.filmLimits = normalizeFilmLimits(options);
+    this.aesLimits = normalizeAesLimits(options);
+    this.registeredFields = [...(options.registeredFields ?? [])];
+    this.buffer = new Uint8Array(0);
+    this.totalInputBytes = 0;
+    this.absoluteOffset = 0;
+    this.context = null;
+    this.records = [];
+    this.pendingRecordLength = null;
+    this.pendingRecordOffset = null;
+    this.closed = false;
+  }
+
+  push(input, options = {}) {
+    if (this.closed) throw new TypeError('Film decoder is already closed');
+    assertByteInput(input);
+    const final = options.final ?? false;
+    if (typeof final !== 'boolean') throw new TypeError('Film final flag must be boolean');
+
+    try {
+      this.totalInputBytes = checkedAdd(this.totalInputBytes, input.byteLength);
+      enforceFilmLimit(
+        'max_input_bytes',
+        this.totalInputBytes,
+        this.filmLimits.maxInputBytes,
+        { offset: this.totalInputBytes, component: 'stream' },
+      );
+      this.buffer = appendBytes(this.buffer, input);
+      const newRecords = [];
+
+      if (this.context === null) {
+        const context = readIncrementalContext(this.buffer, this.filmLimits, final);
+        if (context === null) {
+          this.retainIncompleteBuffer();
+          return this.result('need-more-input', newRecords);
+        }
+        this.context = context.stream;
+        this.consume(context.consumedBytes);
+      }
+
+      while (true) {
+        if (this.pendingRecordLength === null) {
+          if (this.buffer.byteLength === 0) break;
+          if (this.records.length >= this.aesLimits.maxEvents) {
+            throw aesLimitError(
+              'max_events',
+              this.records.length + 1,
+              this.aesLimits.maxEvents,
+              this.absoluteOffset,
+              this.records.length,
+              'record',
+            );
+          }
+          const reader = new Reader(this.buffer, this.absoluteOffset, this.records.length);
+          let payloadLength;
+          try {
+            payloadLength = reader.readLength(this.filmLimits, 'record-length', false);
+          } catch (error) {
+            if (!final && isTruncation(error)) break;
+            throw error;
+          }
+          if (payloadLength === 0) {
+            throw filmError(
+              'FILM_NONCANONICAL',
+              reader.absolutePosition(),
+              this.records.length,
+              'record-length',
+              'Film record payload length must be positive',
+            );
+          }
+          enforceFilmLimit('max_record_bytes', payloadLength, this.filmLimits.maxRecordBytes, {
+            offset: reader.absolutePosition(),
+            record: this.records.length,
+            component: 'record',
+          });
+          this.consume(reader.position);
+          this.pendingRecordLength = payloadLength;
+          this.pendingRecordOffset = this.absoluteOffset;
+        }
+
+        if (this.buffer.byteLength < this.pendingRecordLength) break;
+        const payload = this.buffer.subarray(0, this.pendingRecordLength);
+        const record = decodeRecord(
+          payload,
+          this.pendingRecordOffset,
+          this.records.length,
+          this.filmLimits,
+          this.aesLimits,
+        );
+        this.consume(this.pendingRecordLength);
+        this.pendingRecordLength = null;
+        this.pendingRecordOffset = null;
+        this.records.push(record);
+        newRecords.push(cloneRecord(record));
+      }
+
+      if (final) {
+        if (this.pendingRecordLength !== null) {
+          throw filmError(
+            'FILM_TRUNCATED',
+            this.absoluteOffset + this.buffer.byteLength,
+            this.records.length,
+            'record',
+            'Film input ended inside a declared record',
+          );
+        }
+        if (this.buffer.byteLength !== 0) {
+          const reader = new Reader(this.buffer, this.absoluteOffset, this.records.length);
+          reader.readLength(this.filmLimits, 'record-length', false);
+          throw filmError(
+            'FILM_TRUNCATED',
+            this.absoluteOffset + this.buffer.byteLength,
+            this.records.length,
+            'record',
+            'Film input ended before a complete record',
+          );
+        }
+        const stream = this.currentStream();
+        validateDecodedStream(stream, this.totalInputBytes, {
+          registeredFields: this.registeredFields,
+          aesLimits: this.aesLimits,
+        });
+        this.closed = true;
+        return {
+          status: 'complete',
+          records: newRecords,
+          stream: cloneStream(stream),
+          bufferedBytes: 0,
+          inputBytes: this.totalInputBytes,
+        };
+      }
+
+      this.retainIncompleteBuffer();
+      const status = this.pendingRecordLength === null && this.buffer.byteLength === 0
+        ? 'provisional'
+        : 'need-more-input';
+      return this.result(status, newRecords);
+    } catch (error) {
+      this.closed = true;
+      throw error;
+    }
+  }
+
+  finish() {
+    return this.push(new Uint8Array(0), { final: true });
+  }
+
+  consume(length) {
+    this.buffer = this.buffer.subarray(length);
+    this.absoluteOffset += length;
+  }
+
+  retainIncompleteBuffer() {
+    enforceFilmLimit(
+      'max_buffered_bytes',
+      this.buffer.byteLength,
+      this.filmLimits.maxBufferedBytes,
+      {
+        offset: this.absoluteOffset,
+        record: this.context === null ? null : this.records.length,
+        component: this.context === null ? 'stream-context' : 'record',
+      },
+    );
+    if (this.buffer.byteLength !== 0) this.buffer = this.buffer.slice();
+  }
+
+  currentStream() {
+    return {
+      ...this.context,
+      records: this.records,
+    };
+  }
+
+  result(status, records) {
+    return {
+      status,
+      records,
+      stream: this.context === null ? null : cloneStream(this.currentStream()),
+      bufferedBytes: this.buffer.byteLength,
+      inputBytes: this.totalInputBytes,
+    };
+  }
+}
+
+function validateDecodedStream(stream, inputBytes, options) {
   const validation = validateTelexRecords(stream.records, {
     profile: stream.profile,
     projection: stream.projection,
@@ -176,7 +371,7 @@ export function decodeFilm(input, options = {}) {
       'FILM_AES_INVALID',
       first?.message ?? 'Portable AES validation failed',
       {
-        offset: input.byteLength,
+        offset: inputBytes,
         record: first?.record ?? null,
         component: 'aes-events',
         stage: 'aes',
@@ -184,7 +379,102 @@ export function decodeFilm(input, options = {}) {
       },
     );
   }
-  return stream;
+}
+
+function readIncrementalContext(input, filmLimits, final) {
+  const comparable = Math.min(input.byteLength, FILM_V1_PREAMBLE.length);
+  for (let index = 0; index < comparable; index += 1) {
+    if (input[index] !== FILM_V1_PREAMBLE[index]) {
+      throw filmError('FILM_INVALID_PREAMBLE', 0, null, 'preamble',
+        'Expected O__ FF 01');
+    }
+  }
+  if (input.byteLength < FILM_V1_PREAMBLE.length) {
+    if (!final) return null;
+    throw filmError('FILM_TRUNCATED', input.byteLength, null, 'preamble',
+      'Film input ended inside the v1 preamble');
+  }
+
+  const reader = new Reader(input, 0, null);
+  reader.position = FILM_V1_PREAMBLE.length;
+  try {
+    const context = reader.readByte('stream-context');
+    if ((context & ~0x03) !== 0) {
+      throw filmError('FILM_INVALID_CONTEXT', reader.absolutePosition() - 1, null,
+        'stream-context', 'Reserved stream-context bits must be zero');
+    }
+    const profileExplicit = (context & CONTEXT_PROFILE) !== 0;
+    const projectionExplicit = (context & CONTEXT_PROJECTION) !== 0;
+    const profile = profileExplicit
+      ? reader.readNonEmptyContextString(filmLimits, 'profile')
+      : COMPLETE_AES_PROFILE;
+    const projection = projectionExplicit
+      ? reader.readNonEmptyContextString(filmLimits, 'projection')
+      : null;
+    return {
+      consumedBytes: reader.position,
+      stream: {
+        profile,
+        profileExplicit,
+        projection,
+        projectionExplicit,
+      },
+    };
+  } catch (error) {
+    if (!final && isTruncation(error)) return null;
+    throw error;
+  }
+}
+
+function cloneStream(stream) {
+  return {
+    profile: stream.profile,
+    profileExplicit: stream.profileExplicit,
+    projection: stream.projection,
+    projectionExplicit: stream.projectionExplicit,
+    records: stream.records.map(cloneRecord),
+  };
+}
+
+function cloneRecord(record) {
+  return Object.fromEntries(Object.entries(record).map(([name, value]) => [
+    name,
+    cloneFilmValue(value),
+  ]));
+}
+
+function cloneFilmValue(value) {
+  if (Array.isArray(value)) return value.map(cloneFilmValue);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([name, nested]) => [
+      name,
+      cloneFilmValue(nested),
+    ]));
+  }
+  return value;
+}
+
+function appendBytes(left, right) {
+  if (left.byteLength === 0) return right;
+  if (right.byteLength === 0) return left;
+  const length = checkedAdd(left.byteLength, right.byteLength);
+  const output = new Uint8Array(length);
+  output.set(left, 0);
+  output.set(right, left.byteLength);
+  return output;
+}
+
+function checkedAdd(left, right) {
+  const result = left + right;
+  if (!Number.isSafeInteger(result)) {
+    throw filmError('FILM_INTEGER_OVERFLOW', left, null, 'stream',
+      'Film byte count exceeds the JavaScript safe-integer domain');
+  }
+  return result;
+}
+
+function isTruncation(error) {
+  return error instanceof FilmDecodeError && error.code === 'FILM_TRUNCATED';
 }
 
 export function filmV1IsDraft() {

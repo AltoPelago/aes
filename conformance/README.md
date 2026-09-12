@@ -134,6 +134,20 @@ selected Rust reference together with:
 npm run test:film
 ```
 
+The JavaScript incremental suite exercises every split point for each positive
+Film fixture, byte-at-a-time delivery, incomplete-versus-final transitions,
+and deterministic arbitrary-byte and nested-datatype mutations. The Rust
+coverage-guided target seeds itself from all Film byte fixtures in this mutable
+CTS and exercises both borrowed physical and validated owned decoding:
+
+```bash
+npm run fuzz:film
+```
+
+Generated corpora and artifacts remain implementation-local. Any minimized
+input that establishes a protocol defect should be promoted into this
+language-neutral candidate before a snapshot is frozen.
+
 The 100 integrated Telex vectors remain their mutable development candidate. The
 candidate uses a `-dev` version and carries no `snapshot_id` or
 `spec_snapshot_id`. A repository commit identifies an exact development state,
