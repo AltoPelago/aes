@@ -2780,7 +2780,8 @@ fn prepare_event_candidates_into(
     diagnostics: &mut Vec<Diagnostic>,
     events: &mut Vec<EventCandidate>,
 ) {
-    for (index, event) in records.iter().enumerate().skip(start_index) {
+    for (offset, event) in records[start_index..].iter().enumerate() {
+        let index = start_index + offset;
         let address_field = record_address_field(event);
         let address = address_field.and_then(|field| event.get(field.name()));
         for (field, _) in event.fields() {
@@ -2843,7 +2844,9 @@ fn prepare_event_candidates_into(
             },
             None => (None, None),
         };
-        if let Some(path) = address {
+        if path_error.is_none()
+            && let Some(path) = address
+        {
             validate_path_limits(
                 path,
                 path_details.as_ref(),

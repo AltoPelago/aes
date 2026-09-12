@@ -96,3 +96,30 @@ fn represented_limit_diagnostics_follow_parent_record_order() {
         .collect::<Vec<_>>();
     assert_eq!(records, [Some(0), Some(3)]);
 }
+
+#[test]
+fn invalid_paths_do_not_also_emit_structural_path_limits() {
+    let records = vec![TelexRecord::new(vec![
+        ("path".to_owned(), "$.".to_owned()),
+        ("kind".to_owned(), "NumberLiteral".to_owned()),
+        ("value".to_owned(), "1".to_owned()),
+    ])];
+    let limits = TelexLimits {
+        max_path_characters: 1,
+        ..TelexLimits::default()
+    };
+
+    let result = validate_telex_records_with_limits(&records, "aes.partial.v1", &[], &limits);
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "AES_INVALID_PATH")
+    );
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.counter != Some("max_path_characters"))
+    );
+}

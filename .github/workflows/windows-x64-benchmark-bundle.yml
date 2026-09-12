@@ -37,6 +37,7 @@ jobs:
       - name: Build native Windows x64 benchmarks
         shell: pwsh
         run: |
+          $env:RUSTFLAGS = '-C target-feature=+crt-static'
           cargo build --release --locked --examples --manifest-path implementations/rust/Cargo.toml
           cargo test --release --locked --lib --no-run --manifest-path implementations/rust/Cargo.toml
 
@@ -63,6 +64,7 @@ jobs:
             "commit=${{ github.sha }}"
             "rust=1.93.1"
             "target=x86_64-pc-windows-msvc"
+            "crt=static"
           ) | Set-Content -Encoding utf8 (Join-Path $bundle 'BUILD.txt')
 
           Get-ChildItem $bundle -Filter *.exe | Sort-Object Name | ForEach-Object {

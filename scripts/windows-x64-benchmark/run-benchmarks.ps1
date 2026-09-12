@@ -15,9 +15,10 @@ if (-not [Environment]::Is64BitProcess) {
     throw 'The AES benchmark bundle requires 64-bit Windows on an x64 processor.'
 }
 
-$architecture = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString()
-if ($architecture -ne 'X64') {
-    throw "Expected native X64 execution, received $architecture."
+$processArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString()
+$osArchitecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+if ($processArchitecture -ne 'X64' -or $osArchitecture -ne 'X64') {
+    throw "Expected native X64 execution, received process=$processArchitecture os=$osArchitecture."
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
@@ -72,6 +73,20 @@ Assert-BundleHashes
 
 $processor = Get-CimInstance Win32_Processor | Select-Object -First 1
 $operatingSystem = Get-CimInstance Win32_OperatingSystem
+$batteryStatuses = @(
+    Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue |
+        ForEach-Object { [int]$_.BatteryStatus }
+)
+$acPowerStatuses = @(2, 6, 7, 8, 9)
+$powerSource = if ($batteryStatuses.Count -eq 0) {
+    'ac-power-no-battery'
+} elseif (@($batteryStatuses | Where-Object { $acPowerStatuses -contains $_ }).Count -gt 0) {
+    'ac-power'
+} elseif ($batteryStatuses -contains 1) {
+    'battery'
+} else {
+    'unknown'
+}
 $build = [ordered]@{}
 foreach ($line in [IO.File]::ReadAllLines((Join-Path $bundleDirectory 'BUILD.txt'))) {
     $line = $line.TrimStart([char]0xfeff)
@@ -90,16 +105,13 @@ $system = [ordered]@{
     machine = $env:COMPUTERNAME
     os = $operatingSystem.Caption
     os_version = $operatingSystem.Version
-    process_architecture = $architecture
+    process_architecture = $processArchitecture
+    os_architecture = $osArchitecture
     processor = $processor.Name.Trim()
     physical_cores = $processor.NumberOfCores
     logical_processors = $processor.NumberOfLogicalProcessors
     incremental_iterations = $IncrementalIterations
-    power_source = if ((Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue).BatteryStatus -eq 2) {
-        'ac-power'
-    } else {
-        'unknown-or-battery'
-    }
+    power_source = $powerSource
     build = $build
 }
 $systemJson = $system | ConvertTo-Json -Depth 4

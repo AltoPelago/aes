@@ -2,7 +2,8 @@
 
 This bundle runs the native Rust scalar, document-pipeline, and
 within-document Telex pipeline benchmarks without installing Rust, Git, Node,
-Docker, or the AES repository.
+Docker, the Visual C++ Redistributable, or the AES repository. The executables
+are built for x64 Windows with the MSVC C runtime linked statically.
 
 ## Before running
 
@@ -29,12 +30,12 @@ short functional check, use:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\run-benchmarks.ps1 -IncrementalIterations 3
 ```
 
-The script verifies the executable SHA-256 hashes before running, rejects
-non-x64 execution, records the processor, Windows version, and exact build
-identity, and creates both a results directory and a shareable `results-*.zip`
-archive. Result files are UTF-8. Each benchmark also emits chronological raw
-iteration samples as `# samples` comment records without changing the existing
-CSV summary columns.
+The script verifies the executable SHA-256 hashes before running, rejects x64
+emulation on ARM64 Windows, records the native and process architectures,
+processor, Windows version, power source, and exact build identity, and creates
+both a results directory and a shareable `results-*.zip` archive. Result files
+are UTF-8. Each benchmark also emits chronological raw iteration samples as
+`# samples` comment records without changing the existing CSV summary columns.
 
 Run the full benchmark twice. If corresponding medians differ by more than
 about 10%, wait for the machine to become idle and run it once more. Return the
