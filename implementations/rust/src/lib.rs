@@ -2240,7 +2240,11 @@ pub fn parse_telex_with_limits(
     }
 
     let canonical_line_endings = !input.contains("\r\n");
-    let normalized = input.replace("\r\n", "\n");
+    let normalized = if canonical_line_endings {
+        Cow::Borrowed(input)
+    } else {
+        Cow::Owned(input.replace("\r\n", "\n"))
+    };
     let has_final_lf = normalized.ends_with('\n');
     let mut lines: Vec<&str> = normalized.split('\n').collect();
     if has_final_lf {
@@ -2685,9 +2689,7 @@ pub fn validate_telex_records_with_projection_and_limits(
     registered_fields: &[&str],
     limits: &TelexLimits,
 ) -> ValidationResult {
-    let registered: HashSet<&str> = registered_fields.iter().copied().collect();
     let mut diagnostics = Vec::new();
-    let mut events = Vec::with_capacity(records.len());
 
     if records.len() > limits.max_events {
         diagnostics.push(limit_diagnostic(
@@ -2713,6 +2715,40 @@ pub fn validate_telex_records_with_projection_and_limits(
         ));
     }
 
+    let events = prepare_event_candidates(
+        records,
+        profile,
+        projection,
+        registered_fields,
+        limits,
+        &mut diagnostics,
+    );
+    finalize_event_candidates(
+        records,
+        &events,
+        profile,
+        projection,
+        limits,
+        &mut diagnostics,
+    );
+
+    ValidationResult {
+        valid: diagnostics.is_empty(),
+        profile: profile.to_owned(),
+        diagnostics,
+    }
+}
+
+fn prepare_event_candidates(
+    records: &[TelexRecord],
+    profile: &str,
+    projection: Option<&str>,
+    registered_fields: &[&str],
+    limits: &TelexLimits,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Vec<EventCandidate> {
+    let registered: HashSet<&str> = registered_fields.iter().copied().collect();
+    let mut events = Vec::with_capacity(records.len());
     let mut body_seen = false;
     for (index, event) in records.iter().enumerate() {
         let address_field = record_address_field(event);
@@ -2739,7 +2775,7 @@ pub fn validate_telex_records_with_projection_and_limits(
             );
         }
         if let Some(datatype) = event.datatype() {
-            validate_datatype_string_limits(datatype, event, index, limits, &mut diagnostics);
+            validate_datatype_string_limits(datatype, event, index, limits, diagnostics);
         }
 
         let has_path = event.contains("path");
@@ -2784,7 +2820,7 @@ pub fn validate_telex_records_with_projection_and_limits(
                 index,
                 address_field,
                 limits,
-                &mut diagnostics,
+                diagnostics,
             );
         }
         if let Some(message) = path_error {
@@ -2855,19 +2891,27 @@ pub fn validate_telex_records_with_projection_and_limits(
             );
         }
         let reference_target = known_kind
-            .then(|| validate_event_value(event, index, limits, &mut diagnostics))
+            .then(|| validate_event_value(event, index, limits, diagnostics))
             .flatten();
-        validate_optional_fields(event, index, &mut diagnostics);
+        validate_optional_fields(event, index, diagnostics);
         events.push(EventCandidate {
-            event,
             index,
             address_field,
-            address,
             path_details,
-            reference_target,
+            has_valid_reference_target: reference_target.is_some(),
         });
     }
+    events
+}
 
+fn finalize_event_candidates(
+    records: &[TelexRecord],
+    events: &[EventCandidate],
+    profile: &str,
+    projection: Option<&str>,
+    limits: &TelexLimits,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     let body_events = events
         .iter()
         .filter(|candidate| candidate.address_field == Some(AddressField::Path))
@@ -2876,34 +2920,30 @@ pub fn validate_telex_records_with_projection_and_limits(
         .iter()
         .filter(|candidate| candidate.address_field == Some(AddressField::Header))
         .collect::<Vec<_>>();
-    validate_represented_structural_limits(&body_events, limits, &mut diagnostics);
-    validate_represented_structural_limits(&header_events, limits, &mut diagnostics);
+    validate_represented_structural_limits(records, &body_events, limits, diagnostics);
+    validate_represented_structural_limits(records, &header_events, limits, diagnostics);
     if profile == COMPLETE_AES_PROFILE {
-        validate_complete_stream(&body_events, &mut diagnostics);
+        validate_complete_stream(records, &body_events, diagnostics);
         validate_reference_targets(
+            records,
             &body_events,
             (projection == Some(AEON_DOCUMENT_PROJECTION)).then_some(&header_events),
             &body_events,
-            &mut diagnostics,
+            diagnostics,
         );
     }
     if projection == Some(AEON_DOCUMENT_PROJECTION) {
-        validate_complete_stream(&header_events, &mut diagnostics);
+        validate_complete_stream(records, &header_events, diagnostics);
     }
     if profile == COMPLETE_AES_PROFILE {
         validate_identity_uniqueness(
+            records,
             &body_events,
             (projection == Some(AEON_DOCUMENT_PROJECTION)).then_some(&header_events),
-            &mut diagnostics,
+            diagnostics,
         );
     } else if projection == Some(AEON_DOCUMENT_PROJECTION) {
-        validate_identity_uniqueness(&header_events, None, &mut diagnostics);
-    }
-
-    ValidationResult {
-        valid: diagnostics.is_empty(),
-        profile: profile.to_owned(),
-        diagnostics,
+        validate_identity_uniqueness(records, &header_events, None, diagnostics);
     }
 }
 
@@ -3196,25 +3236,36 @@ fn validate_path_limits(
 }
 
 fn validate_represented_structural_limits(
-    events: &[&EventCandidate<'_>],
+    records: &[TelexRecord],
+    events: &[&EventCandidate],
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let mut by_path: HashMap<&str, &EventCandidate<'_>> = HashMap::new();
+    let mut by_path: HashMap<&str, &EventCandidate> = HashMap::new();
     for &candidate in events {
         if candidate.path_details.is_some()
-            && let Some(path) = candidate.address
+            && let Some(path) = candidate_address(records, candidate)
         {
             by_path.entry(path).or_insert(candidate);
         }
     }
     let mut direct_items: HashMap<&str, usize> = HashMap::new();
-    for candidate in by_path.values().copied() {
+    for &candidate in events {
+        let Some(path) = candidate_address(records, candidate) else {
+            continue;
+        };
+        if candidate.path_details.is_none()
+            || !by_path
+                .get(path)
+                .is_some_and(|first| std::ptr::eq(*first, candidate))
+        {
+            continue;
+        }
         let Some(details) = &candidate.path_details else {
             continue;
         };
         if matches!(
-            candidate.event.get("kind"),
+            records[candidate.index].get("kind"),
             Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
         ) {
             let mut depth = 1_usize;
@@ -3226,7 +3277,7 @@ fn validate_represented_structural_limits(
                 if matches!(
                     by_path
                         .get(prefix.as_str())
-                        .and_then(|parent| parent.event.get("kind")),
+                        .and_then(|parent| records[parent.index].get("kind")),
                     Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
                 ) {
                     depth = depth.saturating_add(1);
@@ -3239,7 +3290,7 @@ fn validate_represented_structural_limits(
                         depth,
                         limits.max_value_nesting_depth,
                     )
-                    .at_record(candidate.index, candidate.address)
+                    .at_record(candidate.index, candidate_address(records, candidate))
                     .with_field(candidate.address_field.map_or("path", AddressField::name)),
                 );
             }
@@ -3249,11 +3300,21 @@ fn validate_represented_structural_limits(
             *direct_items.entry(parent_path).or_default() += 1;
         }
     }
-    for (path, observed) in direct_items {
-        let Some(parent) = by_path.get(path).copied() else {
+    for &parent in events {
+        let Some(path) = candidate_address(records, parent) else {
             continue;
         };
-        let selected = match parent.event.get("kind") {
+        if parent.path_details.is_none()
+            || !by_path
+                .get(path)
+                .is_some_and(|first| std::ptr::eq(*first, parent))
+        {
+            continue;
+        }
+        let Some(&observed) = direct_items.get(path) else {
+            continue;
+        };
+        let selected = match records[parent.index].get("kind") {
             Some("ListNode") => Some(("max_list_items", limits.max_list_items)),
             Some("TupleLiteral") => Some(("max_tuple_items", limits.max_tuple_items)),
             _ => None,
@@ -3270,21 +3331,32 @@ fn validate_represented_structural_limits(
     }
 }
 
-struct EventCandidate<'a> {
-    event: &'a TelexRecord,
+struct EventCandidate {
     index: usize,
     address_field: Option<AddressField>,
-    address: Option<&'a str>,
     path_details: Option<PathDetails>,
-    reference_target: Option<&'a str>,
+    has_valid_reference_target: bool,
 }
 
-fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Vec<Diagnostic>) {
-    let mut by_path: HashMap<&str, &EventCandidate<'_>> = HashMap::new();
+fn candidate_address<'a>(
+    records: &'a [TelexRecord],
+    candidate: &EventCandidate,
+) -> Option<&'a str> {
+    candidate
+        .address_field
+        .and_then(|field| records[candidate.index].get(field.name()))
+}
+
+fn validate_complete_stream(
+    records: &[TelexRecord],
+    events: &[&EventCandidate],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let mut by_path: HashMap<&str, &EventCandidate> = HashMap::new();
 
     for candidate in events {
         if candidate.path_details.is_some()
-            && let Some(path) = candidate.address
+            && let Some(path) = candidate_address(records, candidate)
         {
             if let Some(first) = by_path.get(path) {
                 diagnostics.push(
@@ -3305,8 +3377,8 @@ fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Ve
         let Some(details) = &candidate.path_details else {
             continue;
         };
-        let path = candidate.address;
-        let kind = candidate.event.get("kind");
+        let path = candidate_address(records, candidate);
+        let kind = records[candidate.index].get("kind");
         if details.segments.len() == 1 {
             if details.segments[0] != Segment::Member {
                 diagnostics.push(
@@ -3319,7 +3391,7 @@ fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Ve
                 );
             }
             if kind == Some("NodeHead") {
-                diagnostics.push(invalid_node_head(candidate));
+                diagnostics.push(invalid_node_head(records, candidate));
             }
             continue;
         }
@@ -3339,13 +3411,14 @@ fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Ve
             );
             continue;
         };
-        let parent_kind = parent.event.get("kind");
+        let parent_kind = records[parent.index].get("kind");
         match segment {
             Segment::Member if parent_kind != Some("ObjectNode") => diagnostics.push(
-                incompatible_parent(candidate, parent_path, parent_kind, "ObjectNode"),
+                incompatible_parent(records, candidate, parent_path, parent_kind, "ObjectNode"),
             ),
             Segment::Index if parent_kind == Some("NodeLiteral") && kind != Some("NodeHead") => {
                 diagnostics.push(incompatible_parent(
+                    records,
                     candidate,
                     parent_path,
                     parent_kind,
@@ -3362,6 +3435,7 @@ fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Ve
                 .contains(&parent_kind) =>
             {
                 diagnostics.push(incompatible_parent(
+                    records,
                     candidate,
                     parent_path,
                     parent_kind,
@@ -3373,37 +3447,41 @@ fn validate_complete_stream(events: &[&EventCandidate<'_>], diagnostics: &mut Ve
         if kind == Some("NodeHead")
             && (*segment != Segment::Index || parent_kind != Some("NodeLiteral"))
         {
-            diagnostics.push(invalid_node_head(candidate));
+            diagnostics.push(invalid_node_head(records, candidate));
         }
     }
 }
 
 fn validate_reference_targets(
-    reference_events: &[&EventCandidate<'_>],
-    additional_reference_events: Option<&[&EventCandidate<'_>]>,
-    body_events: &[&EventCandidate<'_>],
+    records: &[TelexRecord],
+    reference_events: &[&EventCandidate],
+    additional_reference_events: Option<&[&EventCandidate]>,
+    body_events: &[&EventCandidate],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let body_paths = body_events
         .iter()
         .filter(|candidate| candidate.path_details.is_some())
-        .filter_map(|candidate| candidate.address)
+        .filter_map(|candidate| candidate_address(records, candidate))
         .collect::<HashSet<_>>();
     for candidate in reference_events.iter().chain(
         additional_reference_events
             .into_iter()
             .flat_map(|events| events.iter()),
     ) {
-        let Some(target) = candidate.reference_target else {
+        if !candidate.has_valid_reference_target {
             continue;
-        };
+        }
+        let target = records[candidate.index]
+            .get("value")
+            .expect("a prepared reference target retains its value");
         if !body_paths.contains(target) {
             diagnostics.push(
                 Diagnostic::new(
                     "AES_MISSING_REFERENCE_TARGET",
                     format!("Missing reference target '{target}'"),
                 )
-                .at_record(candidate.index, candidate.address)
+                .at_record(candidate.index, candidate_address(records, candidate))
                 .with_field("value")
                 .with_required_path(target),
             );
@@ -3412,8 +3490,9 @@ fn validate_reference_targets(
 }
 
 fn validate_identity_uniqueness(
-    events: &[&EventCandidate<'_>],
-    additional_events: Option<&[&EventCandidate<'_>]>,
+    records: &[TelexRecord],
+    events: &[&EventCandidate],
+    additional_events: Option<&[&EventCandidate]>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let mut identities: HashMap<&str, usize> = HashMap::new();
@@ -3422,8 +3501,7 @@ fn validate_identity_uniqueness(
             .into_iter()
             .flat_map(|events| events.iter()),
     ) {
-        let Some(identity) = candidate
-            .event
+        let Some(identity) = records[candidate.index]
             .get("identity")
             .filter(|value| !value.is_empty())
         else {
@@ -3435,7 +3513,7 @@ fn validate_identity_uniqueness(
                     "AES_DUPLICATE_IDENTITY",
                     format!("Duplicate structural identity '{identity}'"),
                 )
-                .at_record(candidate.index, candidate.address)
+                .at_record(candidate.index, candidate_address(records, candidate))
                 .with_field("identity")
                 .with_first_record(*first),
             );
@@ -3446,7 +3524,8 @@ fn validate_identity_uniqueness(
 }
 
 fn incompatible_parent(
-    candidate: &EventCandidate<'_>,
+    records: &[TelexRecord],
+    candidate: &EventCandidate,
     parent_path: &str,
     actual: Option<&str>,
     expected: &str,
@@ -3458,16 +3537,16 @@ fn incompatible_parent(
             actual.unwrap_or("")
         ),
     )
-    .at_record(candidate.index, candidate.address)
+    .at_record(candidate.index, candidate_address(records, candidate))
     .with_required_path(parent_path)
 }
 
-fn invalid_node_head(candidate: &EventCandidate<'_>) -> Diagnostic {
+fn invalid_node_head(records: &[TelexRecord], candidate: &EventCandidate) -> Diagnostic {
     Diagnostic::new(
         "AES_INVALID_NODE_HEAD",
         "A 'NodeHead' must be an indexed direct child of a 'NodeLiteral'",
     )
-    .at_record(candidate.index, candidate.address)
+    .at_record(candidate.index, candidate_address(records, candidate))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

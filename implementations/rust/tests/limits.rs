@@ -1,4 +1,7 @@
-use aes_telex::{TelexLimits, TelexRecord, encode_telex_with_limits, parse_telex_with_limits};
+use aes_telex::{
+    TelexLimits, TelexRecord, encode_telex_with_limits, parse_telex_with_limits,
+    validate_telex_records_with_limits,
+};
 
 #[test]
 fn publishes_altopelago_telex_limit_defaults() {
@@ -55,4 +58,41 @@ fn encoder_enforces_shared_structural_limits() {
         .expect_err("encode should enforce the selected structural limit");
     assert_eq!(error.code, "TELEX_LIMIT_EXCEEDED");
     assert_eq!(error.counter, Some("max_attribute_depth"));
+}
+
+#[test]
+fn represented_limit_diagnostics_follow_parent_record_order() {
+    let records = [
+        ("$.a", "ListNode", None),
+        ("$.a[0]", "NumberLiteral", Some("0")),
+        ("$.a[1]", "NumberLiteral", Some("1")),
+        ("$.b", "ListNode", None),
+        ("$.b[0]", "NumberLiteral", Some("0")),
+        ("$.b[1]", "NumberLiteral", Some("1")),
+    ]
+    .into_iter()
+    .map(|(path, kind, value)| {
+        let mut fields = vec![
+            ("path".to_owned(), path.to_owned()),
+            ("kind".to_owned(), kind.to_owned()),
+        ];
+        if let Some(value) = value {
+            fields.push(("value".to_owned(), value.to_owned()));
+        }
+        TelexRecord::new(fields)
+    })
+    .collect::<Vec<_>>();
+    let limits = TelexLimits {
+        max_list_items: 1,
+        ..TelexLimits::default()
+    };
+
+    let result = validate_telex_records_with_limits(&records, "aes.complete.v1", &[], &limits);
+    let records = result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.counter == Some("max_list_items"))
+        .map(|diagnostic| diagnostic.record)
+        .collect::<Vec<_>>();
+    assert_eq!(records, [Some(0), Some(3)]);
 }
