@@ -11,6 +11,7 @@ pub mod film_candidate_a {
     pub use crate::film::*;
 }
 pub mod film_candidate_b;
+mod telex_incremental;
 
 const VERSION_LINE: &str = "telex.aes=1";
 const CORE_FIELDS: [&str; 10] = [
@@ -2629,13 +2630,16 @@ pub fn validate_telex_with_limits(
     limits: &TelexLimits,
 ) -> Result<ValidationResult, TelexSyntaxError> {
     let parsed = parse_telex_with_limits(input, limits)?;
-    Ok(validate_telex_records_with_projection_and_limits(
-        &parsed.records,
+    let mut accumulator = telex_incremental::SemanticAccumulator::new(
         &parsed.profile,
         parsed.projection.as_deref(),
         registered_fields,
         limits,
-    ))
+    );
+    accumulator
+        .push_batch(0, parsed.records)
+        .expect("fresh accumulator accepts record zero");
+    Ok(accumulator.finish().validation)
 }
 
 pub fn validate_telex_records(
@@ -2750,7 +2754,33 @@ fn prepare_event_candidates(
     let registered: HashSet<&str> = registered_fields.iter().copied().collect();
     let mut events = Vec::with_capacity(records.len());
     let mut body_seen = false;
-    for (index, event) in records.iter().enumerate() {
+    prepare_event_candidates_into(
+        records,
+        0,
+        profile,
+        projection,
+        &registered,
+        limits,
+        &mut body_seen,
+        diagnostics,
+        &mut events,
+    );
+    events
+}
+
+#[allow(clippy::too_many_arguments)]
+fn prepare_event_candidates_into(
+    records: &[TelexRecord],
+    start_index: usize,
+    profile: &str,
+    projection: Option<&str>,
+    registered: &HashSet<&str>,
+    limits: &TelexLimits,
+    body_seen: &mut bool,
+    diagnostics: &mut Vec<Diagnostic>,
+    events: &mut Vec<EventCandidate>,
+) {
+    for (index, event) in records.iter().enumerate().skip(start_index) {
         let address_field = record_address_field(event);
         let address = address_field.and_then(|field| event.get(field.name()));
         for (field, _) in event.fields() {
@@ -2850,7 +2880,7 @@ fn prepare_event_candidates(
                         .with_field("header"),
                     );
                 }
-                if body_seen {
+                if *body_seen {
                     diagnostics.push(
                         Diagnostic::new(
                             "AES_HEADER_ORDER",
@@ -2874,7 +2904,7 @@ fn prepare_event_candidates(
                     path_details = None;
                 }
             }
-            Some(AddressField::Path) => body_seen = true,
+            Some(AddressField::Path) => *body_seen = true,
             None => {}
         }
 
@@ -2901,7 +2931,6 @@ fn prepare_event_candidates(
             has_valid_reference_target: reference_target.is_some(),
         });
     }
-    events
 }
 
 fn finalize_event_candidates(
