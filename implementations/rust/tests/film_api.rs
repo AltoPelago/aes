@@ -1,5 +1,6 @@
 use aes_telex::film::{
-    FilmAddressView, FilmGenericView, FilmStream, decode_film, decode_film_view, encode_film,
+    FilmAddressView, FilmGenericView, FilmLimits, FilmStream, decode_film, decode_film_view,
+    decode_film_view_with_limits, encode_film,
 };
 use aes_telex::{
     ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument, PARTIAL_AES_PROFILE,
@@ -102,6 +103,31 @@ fn borrowed_film_validity_remains_provisional_until_aes_validation() {
         .expect_err("invalid AES path must prevent completed materialization");
     assert_eq!(error.code, "FILM_AES_INVALID");
     assert_eq!(error.diagnostics[0].code, "AES_INVALID_PATH");
+}
+
+#[test]
+fn borrowed_decode_enforces_datatype_components_before_materialization() {
+    let bytes = decode_hex(concat!(
+        "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d",
+        "19046c69737402000603696e7400000201330201012e020231300962696e64696e672d30",
+        "0234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a14",
+        "0e782e6578616d706c652e6e6f746505636166c3a9",
+    ));
+    let limits = TelexLimits {
+        max_datatype_components: 4,
+        max_generic_arguments: 2,
+        max_clarifier_values: 2,
+        ..TelexLimits::default()
+    };
+    let error = decode_film_view_with_limits(&bytes, &FilmLimits::default(), &limits)
+        .expect_err("syntax decoding must enforce shared structural limits");
+
+    assert_eq!(error.code, "FILM_AES_INVALID");
+    assert_eq!(error.component, "clarifier-count");
+    assert_eq!(
+        error.diagnostics[0].counter,
+        Some("max_datatype_components")
+    );
 }
 
 #[test]

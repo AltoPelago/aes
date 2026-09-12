@@ -60,6 +60,29 @@ test('requires an exact Uint8Array byte view', () => {
   );
 });
 
+test('enforces datatype component limits during provisional syntax decoding', () => {
+  const bytes = fromHex(
+    '4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d'
+    + '19046c69737402000603696e7400000201330201012e020231300962696e64696e672d30'
+    + '0234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a14'
+    + '0e782e6578616d706c652e6e6f746505636166c3a9',
+  );
+  assert.throws(
+    () => decodeFilmSyntax(bytes, {
+      limits: {
+        maxDatatypeComponents: 4,
+        maxGenericArguments: 2,
+        maxClarifierValues: 2,
+      },
+    }),
+    (error) => error instanceof FilmDecodeError
+      && error.code === 'FILM_AES_INVALID'
+      && error.stage === 'aes'
+      && error.component === 'clarifier-count'
+      && error.diagnostics.some(({ counter }) => counter === 'max_datatype_components'),
+  );
+});
+
 function fromHex(input) {
   return Uint8Array.from(input.match(/../gu) ?? [], (pair) => Number.parseInt(pair, 16));
 }

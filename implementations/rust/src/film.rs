@@ -303,7 +303,38 @@ pub fn encode_film_with_limits(
     validate_context(stream)?;
     validate_stream(stream, registered_fields, aes_limits, 0)?;
 
-    let mut output = Vec::new();
+    let mut context_size = FILM_V1_PREAMBLE.len().saturating_add(1);
+    if stream.profile_explicit {
+        context_size = checked_encoded_size(
+            context_size,
+            encoded_string_size(&stream.profile, film_limits, "profile", None)?,
+            None,
+            "profile",
+        )?;
+    }
+    if stream.projection_explicit {
+        context_size = checked_encoded_size(
+            context_size,
+            encoded_string_size(
+                stream.projection.as_deref().unwrap_or_default(),
+                film_limits,
+                "projection",
+                None,
+            )?,
+            None,
+            "projection",
+        )?;
+    }
+    enforce_limit(
+        "max_input_bytes",
+        context_size,
+        film_limits.max_input_bytes,
+        0,
+        None,
+        "stream",
+    )?;
+
+    let mut output = encode_buffer_with_capacity(context_size, None, "stream")?;
     output.extend_from_slice(&FILM_V1_PREAMBLE);
     let mut context = 0_u8;
     if stream.profile_explicit {
@@ -325,20 +356,13 @@ pub fn encode_film_with_limits(
             None,
         )?;
     }
-    enforce_limit(
-        "max_input_bytes",
-        output.len(),
-        film_limits.max_input_bytes,
-        output.len(),
-        None,
-        "stream",
-    )?;
+    debug_assert_eq!(output.len(), context_size);
 
     for (record_index, record) in stream.records.iter().enumerate() {
-        let payload = encode_record(record, record_index, film_limits, aes_limits)?;
+        let payload_size = encoded_record_size(record, record_index, film_limits, aes_limits)?;
         enforce_limit(
             "max_record_bytes",
-            payload.len(),
+            payload_size,
             film_limits.max_record_bytes,
             output.len(),
             Some(record_index),
@@ -346,23 +370,34 @@ pub fn encode_film_with_limits(
         )?;
         enforce_limit(
             "max_buffered_bytes",
-            payload.len(),
+            payload_size,
             film_limits.max_buffered_bytes,
             output.len(),
             Some(record_index),
             "record",
         )?;
-        let payload_length = usize_to_u64(payload.len(), output.len(), record_index)?;
-        push_uleb(&mut output, payload_length);
-        output.extend_from_slice(&payload);
+        let payload_length = usize_to_u64(payload_size, output.len(), record_index)?;
+        let framed_size = checked_encoded_size(
+            uleb_width(payload_length),
+            payload_size,
+            Some(record_index),
+            "record",
+        )?;
+        let projected_size =
+            checked_encoded_size(output.len(), framed_size, Some(record_index), "stream")?;
         enforce_limit(
             "max_input_bytes",
-            output.len(),
+            projected_size,
             film_limits.max_input_bytes,
             output.len(),
             Some(record_index),
             "stream",
         )?;
+
+        let payload = encode_record(record, record_index, film_limits, aes_limits, payload_size)?;
+        debug_assert_eq!(payload.len(), payload_size);
+        push_uleb(&mut output, payload_length);
+        output.extend_from_slice(&payload);
     }
 
     Ok(output)
@@ -651,11 +686,288 @@ fn validate_stream(
     })
 }
 
+fn checked_encoded_size(
+    current: usize,
+    added: usize,
+    record: Option<usize>,
+    component: &'static str,
+) -> Result<usize, FilmError> {
+    current.checked_add(added).ok_or_else(|| {
+        film_error(
+            "FILM_ENCODE_ERROR",
+            current,
+            record,
+            component,
+            "Encoded Film size does not fit the platform size domain",
+        )
+    })
+}
+
+fn encode_buffer_with_capacity(
+    capacity: usize,
+    record: Option<usize>,
+    component: &'static str,
+) -> Result<Vec<u8>, FilmError> {
+    let mut output = Vec::new();
+    output.try_reserve_exact(capacity).map_err(|_| {
+        film_error(
+            "FILM_ENCODE_ERROR",
+            0,
+            record,
+            component,
+            "Encoded Film buffer cannot be allocated in the platform size domain",
+        )
+    })?;
+    Ok(output)
+}
+
+fn encoded_string_size(
+    value: &str,
+    limits: &FilmLimits,
+    component: &'static str,
+    record: Option<usize>,
+) -> Result<usize, FilmError> {
+    enforce_limit(
+        "max_field_bytes",
+        value.len(),
+        limits.max_field_bytes,
+        0,
+        record,
+        component,
+    )?;
+    let length = u64::try_from(value.len()).map_err(|_| {
+        film_error(
+            "FILM_ENCODE_ERROR",
+            0,
+            record,
+            component,
+            "String length does not fit the Film u64 domain",
+        )
+    })?;
+    checked_encoded_size(uleb_width(length), value.len(), record, component)
+}
+
+fn encoded_descriptor_body_size(
+    descriptor: &DatatypeDescriptor,
+    depth: usize,
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+    record_index: usize,
+) -> Result<usize, FilmError> {
+    if depth > aes_limits.max_generic_depth {
+        return Err(film_error(
+            "FILM_ENCODE_ERROR",
+            0,
+            Some(record_index),
+            "datatype",
+            "Datatype generic depth exceeds the active AES limit",
+        ));
+    }
+
+    let mut size = encoded_string_size(
+        &descriptor.datatype,
+        film_limits,
+        "datatype-name",
+        Some(record_index),
+    )?;
+    let generic_count = usize_to_u64(descriptor.generics.len(), 0, record_index)?;
+    size = checked_encoded_size(
+        size,
+        uleb_width(generic_count),
+        Some(record_index),
+        "datatype",
+    )?;
+    for generic in &descriptor.generics {
+        size = checked_encoded_size(size, 1, Some(record_index), "datatype")?;
+        let generic_size = match generic {
+            GenericArgument::Datatype(nested) => encoded_descriptor_size(
+                nested,
+                depth.saturating_add(1),
+                film_limits,
+                aes_limits,
+                record_index,
+            )?,
+            GenericArgument::NumberLiteral(value) => {
+                encoded_string_size(value, film_limits, "generic-number", Some(record_index))?
+            }
+        };
+        size = checked_encoded_size(size, generic_size, Some(record_index), "datatype")?;
+    }
+
+    let clarifier_count = usize_to_u64(descriptor.clarifiers.len(), 0, record_index)?;
+    size = checked_encoded_size(
+        size,
+        uleb_width(clarifier_count),
+        Some(record_index),
+        "datatype",
+    )?;
+    for clarifier in &descriptor.clarifiers {
+        size = checked_encoded_size(size, 1, Some(record_index), "datatype")?;
+        size = checked_encoded_size(
+            size,
+            encoded_string_size(
+                &clarifier.value,
+                film_limits,
+                "clarifier-value",
+                Some(record_index),
+            )?,
+            Some(record_index),
+            "datatype",
+        )?;
+    }
+    enforce_limit(
+        "max_field_bytes",
+        size,
+        film_limits.max_field_bytes,
+        0,
+        Some(record_index),
+        "datatype",
+    )?;
+    Ok(size)
+}
+
+fn encoded_descriptor_size(
+    descriptor: &DatatypeDescriptor,
+    depth: usize,
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+    record_index: usize,
+) -> Result<usize, FilmError> {
+    let body_size =
+        encoded_descriptor_body_size(descriptor, depth, film_limits, aes_limits, record_index)?;
+    let body_length = usize_to_u64(body_size, 0, record_index)?;
+    checked_encoded_size(
+        uleb_width(body_length),
+        body_size,
+        Some(record_index),
+        "datatype",
+    )
+}
+
+fn encoded_record_size(
+    record: &TelexRecord,
+    record_index: usize,
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+) -> Result<usize, FilmError> {
+    reject_duplicate_fields(record, record_index)?;
+    let address = match (record.get("path"), record.get("header")) {
+        (Some(path), None) => path,
+        (None, Some(header)) => header,
+        _ => {
+            return Err(film_error(
+                "FILM_ENCODE_ERROR",
+                0,
+                Some(record_index),
+                "address",
+                "Film records require exactly one path or header",
+            ));
+        }
+    };
+    let kind = record.get("kind").ok_or_else(|| {
+        film_error(
+            "FILM_ENCODE_ERROR",
+            0,
+            Some(record_index),
+            "kind",
+            "Film records require a kind",
+        )
+    })?;
+    if kind_code(kind).is_none() {
+        return Err(film_error(
+            "FILM_ENCODE_ERROR",
+            0,
+            Some(record_index),
+            "kind",
+            format!("Unassigned Film v1 kind: {kind}"),
+        ));
+    }
+
+    let mut size = checked_encoded_size(
+        2,
+        encoded_string_size(address, film_limits, "address", Some(record_index))?,
+        Some(record_index),
+        "record",
+    )?;
+    if let Some(descriptor) = record.datatype() {
+        size = checked_encoded_size(
+            size,
+            encoded_descriptor_size(descriptor, 0, film_limits, aes_limits, record_index)?,
+            Some(record_index),
+            "record",
+        )?;
+    }
+    if let Some(identity) = record.get("identity") {
+        size = checked_encoded_size(
+            size,
+            encoded_string_size(identity, film_limits, "identity", Some(record_index))?,
+            Some(record_index),
+            "record",
+        )?;
+    }
+    if kind_has_value(kind) {
+        let value = record.get("value").ok_or_else(|| {
+            film_error(
+                "FILM_ENCODE_ERROR",
+                0,
+                Some(record_index),
+                "value",
+                format!("Kind {kind} requires a value"),
+            )
+        })?;
+        size = checked_encoded_size(
+            size,
+            encoded_string_size(value, film_limits, "value", Some(record_index))?,
+            Some(record_index),
+            "record",
+        )?;
+    }
+    if let Some(origin) = record.get("origin") {
+        decode_origin(origin, record_index)?;
+        size = checked_encoded_size(size, 32, Some(record_index), "record")?;
+    }
+    if let Some(span) = record.get("span") {
+        let (start, end) = decode_span(span, record_index)?;
+        size = checked_encoded_size(size, uleb_width(start), Some(record_index), "record")?;
+        size = checked_encoded_size(size, uleb_width(end), Some(record_index), "record")?;
+    }
+
+    for (name, value) in record
+        .fields()
+        .iter()
+        .filter(|(name, _)| !is_core_field(name))
+    {
+        if !valid_extension_name(name) {
+            return Err(film_error(
+                "FILM_ENCODE_ERROR",
+                0,
+                Some(record_index),
+                "extension-name",
+                format!("Invalid Film extension name: {name}"),
+            ));
+        }
+        size = checked_encoded_size(
+            size,
+            encoded_string_size(name, film_limits, "extension-name", Some(record_index))?,
+            Some(record_index),
+            "record",
+        )?;
+        size = checked_encoded_size(
+            size,
+            encoded_string_size(value, film_limits, "extension-value", Some(record_index))?,
+            Some(record_index),
+            "record",
+        )?;
+    }
+    Ok(size)
+}
+
 fn encode_record(
     record: &TelexRecord,
     record_index: usize,
     film_limits: &FilmLimits,
     aes_limits: &TelexLimits,
+    payload_size: usize,
 ) -> Result<Vec<u8>, FilmError> {
     reject_duplicate_fields(record, record_index)?;
     let (address_name, address) = match (record.get("path"), record.get("header")) {
@@ -710,7 +1022,8 @@ fn encode_record(
         control |= RECORD_SPAN;
     }
 
-    let mut output = vec![control, kind_code];
+    let mut output = encode_buffer_with_capacity(payload_size, Some(record_index), "record")?;
+    output.extend_from_slice(&[control, kind_code]);
     push_string(
         &mut output,
         address,
@@ -835,8 +1148,9 @@ fn decode_record_view<'a>(
     } else {
         FilmAddressView::Path(address_value)
     };
+    let mut datatype_components = 0_usize;
     let datatype = if control & RECORD_DATATYPE != 0 {
-        Some(reader.read_descriptor_view(film_limits, aes_limits, 0)?)
+        Some(reader.read_descriptor_view(film_limits, aes_limits, 0, &mut datatype_components)?)
     } else {
         None
     };
@@ -929,33 +1243,27 @@ fn push_descriptor(
     aes_limits: &TelexLimits,
     record_index: usize,
 ) -> Result<(), FilmError> {
-    if depth > aes_limits.max_generic_depth {
-        return Err(film_error(
-            "FILM_ENCODE_ERROR",
-            output.len(),
-            Some(record_index),
-            "datatype",
-            "Datatype generic depth exceeds the active AES limit",
-        ));
-    }
-    let mut body = Vec::new();
+    let body_size =
+        encoded_descriptor_body_size(descriptor, depth, film_limits, aes_limits, record_index)?;
+    push_uleb(output, usize_to_u64(body_size, output.len(), record_index)?);
+    let body_start = output.len();
     push_string(
-        &mut body,
+        output,
         &descriptor.datatype,
         film_limits,
         "datatype-name",
         Some(record_index),
     )?;
     push_uleb(
-        &mut body,
+        output,
         usize_to_u64(descriptor.generics.len(), output.len(), record_index)?,
     );
     for generic in &descriptor.generics {
         match generic {
             GenericArgument::Datatype(nested) => {
-                body.push(0x00);
+                output.push(0x00);
                 push_descriptor(
-                    &mut body,
+                    output,
                     nested,
                     depth.saturating_add(1),
                     film_limits,
@@ -964,9 +1272,9 @@ fn push_descriptor(
                 )?;
             }
             GenericArgument::NumberLiteral(value) => {
-                body.push(0x02);
+                output.push(0x02);
                 push_string(
-                    &mut body,
+                    output,
                     value,
                     film_limits,
                     "generic-number",
@@ -976,35 +1284,23 @@ fn push_descriptor(
         }
     }
     push_uleb(
-        &mut body,
+        output,
         usize_to_u64(descriptor.clarifiers.len(), output.len(), record_index)?,
     );
     for clarifier in &descriptor.clarifiers {
-        body.push(match clarifier.kind {
+        output.push(match clarifier.kind {
             ClarifierKind::StringLiteral => 0x01,
             ClarifierKind::NumberLiteral => 0x02,
         });
         push_string(
-            &mut body,
+            output,
             &clarifier.value,
             film_limits,
             "clarifier-value",
             Some(record_index),
         )?;
     }
-    enforce_limit(
-        "max_field_bytes",
-        body.len(),
-        film_limits.max_field_bytes,
-        output.len(),
-        Some(record_index),
-        "datatype",
-    )?;
-    push_uleb(
-        output,
-        usize_to_u64(body.len(), output.len(), record_index)?,
-    );
-    output.extend_from_slice(&body);
+    debug_assert_eq!(output.len().saturating_sub(body_start), body_size);
     Ok(())
 }
 
@@ -1088,7 +1384,16 @@ fn kind_has_value(kind: &str) -> bool {
 
 fn is_core_field(name: &str) -> bool {
     [
-        "path", "header", "kind", "datatype", "identity", "value", "origin", "span",
+        "path",
+        "header",
+        "kind",
+        "datatype",
+        "generics",
+        "clarifiers",
+        "identity",
+        "value",
+        "origin",
+        "span",
     ]
     .contains(&name)
 }
@@ -1270,6 +1575,58 @@ fn aes_limit_error(
         detail: format!("{counter} observed {observed}, limit {limit}"),
         diagnostics: vec![limit_diagnostic(counter, observed, limit)],
     }
+}
+
+fn claim_datatype_component(
+    components: &mut usize,
+    limit: usize,
+    offset: usize,
+    record: Option<usize>,
+    component: &'static str,
+) -> Result<(), FilmError> {
+    let observed = components.checked_add(1).ok_or_else(|| {
+        aes_limit_error(
+            "max_datatype_components",
+            limit.saturating_add(1),
+            limit,
+            offset,
+            record,
+            component,
+        )
+    })?;
+    if observed > limit {
+        return Err(aes_limit_error(
+            "max_datatype_components",
+            observed,
+            limit,
+            offset,
+            record,
+            component,
+        ));
+    }
+    *components = observed;
+    Ok(())
+}
+
+fn ensure_datatype_component_capacity(
+    components: usize,
+    additional: usize,
+    limit: usize,
+    offset: usize,
+    record: Option<usize>,
+    component: &'static str,
+) -> Result<(), FilmError> {
+    if additional > limit.saturating_sub(components) {
+        return Err(aes_limit_error(
+            "max_datatype_components",
+            limit.saturating_add(1),
+            limit,
+            offset,
+            record,
+            component,
+        ));
+    }
+    Ok(())
 }
 
 fn enforce_limit(
@@ -1502,7 +1859,15 @@ impl<'a> Reader<'a> {
         film_limits: &FilmLimits,
         aes_limits: &TelexLimits,
         depth: usize,
+        components: &mut usize,
     ) -> Result<FilmDatatypeView<'a>, FilmError> {
+        claim_datatype_component(
+            components,
+            aes_limits.max_datatype_components,
+            self.absolute_position(),
+            self.record,
+            "datatype",
+        )?;
         if depth > aes_limits.max_generic_depth {
             return Err(aes_limit_error(
                 "max_generic_depth",
@@ -1538,6 +1903,14 @@ impl<'a> Reader<'a> {
             aes_limits.max_generic_arguments,
             "generic-count",
         )?;
+        ensure_datatype_component_capacity(
+            *components,
+            generic_count,
+            aes_limits.max_datatype_components,
+            descriptor.absolute_position(),
+            self.record,
+            "generic-count",
+        )?;
         let mut generics = Vec::with_capacity(generic_count);
         for _ in 0..generic_count {
             let tag_offset = descriptor.absolute_position();
@@ -1546,10 +1919,20 @@ impl<'a> Reader<'a> {
                     film_limits,
                     aes_limits,
                     depth.saturating_add(1),
+                    components,
                 )?)),
-                0x02 => generics.push(FilmGenericView::NumberLiteral(
-                    descriptor.read_str(film_limits, "generic-number")?,
-                )),
+                0x02 => {
+                    claim_datatype_component(
+                        components,
+                        aes_limits.max_datatype_components,
+                        descriptor.absolute_position(),
+                        self.record,
+                        "generic-number",
+                    )?;
+                    generics.push(FilmGenericView::NumberLiteral(
+                        descriptor.read_str(film_limits, "generic-number")?,
+                    ));
+                }
                 _ => {
                     return Err(film_error(
                         "FILM_INVALID_DATATYPE",
@@ -1566,8 +1949,23 @@ impl<'a> Reader<'a> {
             aes_limits.max_clarifier_values,
             "clarifier-count",
         )?;
+        ensure_datatype_component_capacity(
+            *components,
+            clarifier_count,
+            aes_limits.max_datatype_components,
+            descriptor.absolute_position(),
+            self.record,
+            "clarifier-count",
+        )?;
         let mut clarifiers = Vec::with_capacity(clarifier_count);
         for _ in 0..clarifier_count {
+            claim_datatype_component(
+                components,
+                aes_limits.max_datatype_components,
+                descriptor.absolute_position(),
+                self.record,
+                "clarifier",
+            )?;
             let tag_offset = descriptor.absolute_position();
             let kind = match descriptor.read_byte("clarifier-tag")? {
                 0x01 => ClarifierKind::StringLiteral,

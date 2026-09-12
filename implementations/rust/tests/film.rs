@@ -77,6 +77,45 @@ fn complex_record_round_trips_without_telex_reconstruction() {
 }
 
 #[test]
+fn logical_datatype_fields_are_not_encoded_as_extensions() {
+    let descriptor = DatatypeDescriptor {
+        datatype: "list".to_owned(),
+        generics: vec![GenericArgument::Datatype(DatatypeDescriptor {
+            datatype: "int".to_owned(),
+            generics: Vec::new(),
+            clarifiers: Vec::new(),
+        })],
+        clarifiers: vec![DatatypeClarifier {
+            kind: ClarifierKind::StringLiteral,
+            value: ".".to_owned(),
+        }],
+    };
+    let record = TelexRecord::with_datatype(
+        vec![
+            ("path".to_owned(), "$.items".to_owned()),
+            ("kind".to_owned(), "ListNode".to_owned()),
+            ("datatype".to_owned(), "list".to_owned()),
+            ("generics".to_owned(), "[int]".to_owned()),
+            ("clarifiers".to_owned(), "[\".\"]".to_owned()),
+        ],
+        descriptor,
+    );
+    let stream = FilmStream {
+        profile: PARTIAL_AES_PROFILE.to_owned(),
+        profile_explicit: true,
+        projection: None,
+        projection_explicit: false,
+        records: vec![record],
+    };
+
+    let encoded = encode_film(&stream, &[]).expect("logical datatype fields must be core fields");
+    let decoded = decode_film(&encoded, &[]).expect("encoded datatype must decode");
+    assert!(decoded.records[0].datatype().is_some());
+    assert_eq!(decoded.records[0].get("generics"), None);
+    assert_eq!(decoded.records[0].get("clarifiers"), None);
+}
+
+#[test]
 fn all_assigned_kind_codes_round_trip() {
     let kinds = [
         "StringLiteral",

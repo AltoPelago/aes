@@ -506,7 +506,7 @@ function decodeRecord(payload, payloadOffset, recordIndex, filmLimits, aesLimits
   };
 
   if ((control & RECORD_DATATYPE) !== 0) {
-    const datatype = reader.readDescriptor(filmLimits, aesLimits, 0);
+    const datatype = reader.readDescriptor(filmLimits, aesLimits, 0, { count: 0 });
     record.datatype = datatype.datatype;
     record.generics = datatype.generics;
     record.clarifiers = datatype.clarifiers;
@@ -663,7 +663,14 @@ class Reader {
     return value;
   }
 
-  readDescriptor(filmLimits, aesLimits, depth) {
+  readDescriptor(filmLimits, aesLimits, depth, components) {
+    claimDatatypeComponent(
+      components,
+      aesLimits.maxDatatypeComponents,
+      this.absolutePosition(),
+      this.record,
+      'datatype',
+    );
     if (depth > aesLimits.maxGenericDepth) {
       throw aesLimitError('max_generic_depth', depth, aesLimits.maxGenericDepth,
         this.absolutePosition(), this.record, 'datatype');
@@ -684,13 +691,28 @@ class Reader {
     const genericCount = descriptor.readCount(
       'generic-count', 'max_generic_arguments', aesLimits.maxGenericArguments,
     );
+    ensureDatatypeComponentCapacity(
+      components.count,
+      genericCount,
+      aesLimits.maxDatatypeComponents,
+      descriptor.absolutePosition(),
+      this.record,
+      'generic-count',
+    );
     const generics = [];
     for (let index = 0; index < genericCount; index += 1) {
       const tagOffset = descriptor.absolutePosition();
       const tag = descriptor.readByte('generic-tag');
       if (tag === 0x00) {
-        generics.push(descriptor.readDescriptor(filmLimits, aesLimits, depth + 1));
+        generics.push(descriptor.readDescriptor(filmLimits, aesLimits, depth + 1, components));
       } else if (tag === 0x02) {
+        claimDatatypeComponent(
+          components,
+          aesLimits.maxDatatypeComponents,
+          descriptor.absolutePosition(),
+          this.record,
+          'generic-number',
+        );
         generics.push({
           kind: 'NumberLiteral',
           value: descriptor.readString(filmLimits, 'generic-number'),
@@ -704,8 +726,23 @@ class Reader {
     const clarifierCount = descriptor.readCount(
       'clarifier-count', 'max_clarifier_values', aesLimits.maxClarifierValues,
     );
+    ensureDatatypeComponentCapacity(
+      components.count,
+      clarifierCount,
+      aesLimits.maxDatatypeComponents,
+      descriptor.absolutePosition(),
+      this.record,
+      'clarifier-count',
+    );
     const clarifiers = [];
     for (let index = 0; index < clarifierCount; index += 1) {
+      claimDatatypeComponent(
+        components,
+        aesLimits.maxDatatypeComponents,
+        descriptor.absolutePosition(),
+        this.record,
+        'clarifier',
+      );
       const tagOffset = descriptor.absolutePosition();
       const tag = descriptor.readByte('clarifier-tag');
       if (tag !== 0x01 && tag !== 0x02) {
@@ -761,6 +798,41 @@ function aesLimitError(counter, observed, selected, offset, record, component) {
     stage: 'aes',
     diagnostics: [diagnostic],
   });
+}
+
+function claimDatatypeComponent(components, selected, offset, record, component) {
+  const observed = components.count + 1;
+  if (!Number.isSafeInteger(observed) || observed > selected) {
+    throw aesLimitError(
+      'max_datatype_components',
+      Number.isSafeInteger(observed) ? observed : selected + 1,
+      selected,
+      offset,
+      record,
+      component,
+    );
+  }
+  components.count = observed;
+}
+
+function ensureDatatypeComponentCapacity(
+  current,
+  additional,
+  selected,
+  offset,
+  record,
+  component,
+) {
+  if (additional > selected - current) {
+    throw aesLimitError(
+      'max_datatype_components',
+      selected + 1,
+      selected,
+      offset,
+      record,
+      component,
+    );
+  }
 }
 
 function throwAesCountLimit(counter, observed, selected, offset, record, component) {
