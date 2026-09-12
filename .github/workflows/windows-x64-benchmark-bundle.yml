@@ -8,7 +8,7 @@ on:
       - implementations/rust/Cargo.toml
       - implementations/rust/examples/bench_codec_phases.rs
       - implementations/rust/examples/bench_telex_pipeline.rs
-      - implementations/rust/src/telex_incremental.rs
+      - implementations/rust/src/**
       - scripts/windows-x64-benchmark/**
   workflow_dispatch:
     inputs:
