@@ -333,8 +333,79 @@ pub fn encode_film_with_limits(
         None,
         "stream",
     )?;
+    let sizing_plan_bytes = stream
+        .records
+        .len()
+        .checked_mul(std::mem::size_of::<usize>())
+        .ok_or_else(|| {
+            film_error(
+                "FILM_ENCODE_ERROR",
+                0,
+                None,
+                "sizing-plan",
+                "Film record sizing plan does not fit the platform size domain",
+            )
+        })?;
+    enforce_limit(
+        "max_buffered_bytes",
+        sizing_plan_bytes,
+        film_limits.max_buffered_bytes,
+        0,
+        None,
+        "sizing-plan",
+    )?;
+    let mut payload_sizes = Vec::new();
+    payload_sizes
+        .try_reserve_exact(stream.records.len())
+        .map_err(|_| {
+            film_error(
+                "FILM_ENCODE_ERROR",
+                0,
+                None,
+                "sizing-plan",
+                "Film record sizing plan cannot be allocated in the platform size domain",
+            )
+        })?;
+    let mut encoded_size = context_size;
+    for (record_index, record) in stream.records.iter().enumerate() {
+        let payload_size = encoded_record_size(record, record_index, film_limits, aes_limits)?;
+        enforce_limit(
+            "max_record_bytes",
+            payload_size,
+            film_limits.max_record_bytes,
+            encoded_size,
+            Some(record_index),
+            "record",
+        )?;
+        enforce_limit(
+            "max_buffered_bytes",
+            payload_size,
+            film_limits.max_buffered_bytes,
+            encoded_size,
+            Some(record_index),
+            "record",
+        )?;
+        let payload_length = usize_to_u64(payload_size, encoded_size, record_index)?;
+        let framed_size = checked_encoded_size(
+            uleb_width(payload_length),
+            payload_size,
+            Some(record_index),
+            "record",
+        )?;
+        encoded_size =
+            checked_encoded_size(encoded_size, framed_size, Some(record_index), "stream")?;
+        enforce_limit(
+            "max_input_bytes",
+            encoded_size,
+            film_limits.max_input_bytes,
+            encoded_size.saturating_sub(framed_size),
+            Some(record_index),
+            "stream",
+        )?;
+        payload_sizes.push(payload_size);
+    }
 
-    let mut output = encode_buffer_with_capacity(context_size, None, "stream")?;
+    let mut output = encode_buffer_with_capacity(encoded_size, None, "stream")?;
     output.extend_from_slice(&FILM_V1_PREAMBLE);
     let mut context = 0_u8;
     if stream.profile_explicit {
@@ -358,48 +429,16 @@ pub fn encode_film_with_limits(
     }
     debug_assert_eq!(output.len(), context_size);
 
-    for (record_index, record) in stream.records.iter().enumerate() {
-        let payload_size = encoded_record_size(record, record_index, film_limits, aes_limits)?;
-        enforce_limit(
-            "max_record_bytes",
-            payload_size,
-            film_limits.max_record_bytes,
-            output.len(),
-            Some(record_index),
-            "record",
-        )?;
-        enforce_limit(
-            "max_buffered_bytes",
-            payload_size,
-            film_limits.max_buffered_bytes,
-            output.len(),
-            Some(record_index),
-            "record",
-        )?;
+    for (record_index, (record, payload_size)) in
+        stream.records.iter().zip(payload_sizes).enumerate()
+    {
         let payload_length = usize_to_u64(payload_size, output.len(), record_index)?;
-        let framed_size = checked_encoded_size(
-            uleb_width(payload_length),
-            payload_size,
-            Some(record_index),
-            "record",
-        )?;
-        let projected_size =
-            checked_encoded_size(output.len(), framed_size, Some(record_index), "stream")?;
-        enforce_limit(
-            "max_input_bytes",
-            projected_size,
-            film_limits.max_input_bytes,
-            output.len(),
-            Some(record_index),
-            "stream",
-        )?;
-        reserve_encode_buffer(&mut output, framed_size, Some(record_index), "stream")?;
-
-        let payload = encode_record(record, record_index, film_limits, aes_limits, payload_size)?;
-        debug_assert_eq!(payload.len(), payload_size);
         push_uleb(&mut output, payload_length);
-        output.extend_from_slice(&payload);
+        let payload_start = output.len();
+        encode_record_into(&mut output, record, record_index, film_limits, aes_limits)?;
+        debug_assert_eq!(output.len() - payload_start, payload_size);
     }
+    debug_assert_eq!(output.len(), encoded_size);
 
     Ok(output)
 }
@@ -722,23 +761,6 @@ fn encode_buffer_with_capacity(
     Ok(output)
 }
 
-fn reserve_encode_buffer(
-    output: &mut Vec<u8>,
-    additional: usize,
-    record: Option<usize>,
-    component: &'static str,
-) -> Result<(), FilmError> {
-    output.try_reserve_exact(additional).map_err(|_| {
-        film_error(
-            "FILM_ENCODE_ERROR",
-            output.len(),
-            record,
-            component,
-            "Encoded Film output cannot grow in the platform size domain",
-        )
-    })
-}
-
 fn encoded_string_size(
     value: &str,
     limits: &FilmLimits,
@@ -980,13 +1002,13 @@ fn encoded_record_size(
     Ok(size)
 }
 
-fn encode_record(
+fn encode_record_into(
+    output: &mut Vec<u8>,
     record: &TelexRecord,
     record_index: usize,
     film_limits: &FilmLimits,
     aes_limits: &TelexLimits,
-    payload_size: usize,
-) -> Result<Vec<u8>, FilmError> {
+) -> Result<(), FilmError> {
     reject_duplicate_fields(record, record_index)?;
     let (address_name, address) = match (record.get("path"), record.get("header")) {
         (Some(path), None) => ("path", path),
@@ -1040,28 +1062,14 @@ fn encode_record(
         control |= RECORD_SPAN;
     }
 
-    let mut output = encode_buffer_with_capacity(payload_size, Some(record_index), "record")?;
     output.extend_from_slice(&[control, kind_code]);
-    push_string(
-        &mut output,
-        address,
-        film_limits,
-        "address",
-        Some(record_index),
-    )?;
+    push_string(output, address, film_limits, "address", Some(record_index))?;
     if let Some(descriptor) = datatype {
-        push_descriptor(
-            &mut output,
-            descriptor,
-            0,
-            film_limits,
-            aes_limits,
-            record_index,
-        )?;
+        push_descriptor(output, descriptor, 0, film_limits, aes_limits, record_index)?;
     }
     if let Some(identity) = identity {
         push_string(
-            &mut output,
+            output,
             identity,
             film_limits,
             "identity",
@@ -1078,15 +1086,15 @@ fn encode_record(
                 format!("Kind {kind} requires a value"),
             )
         })?;
-        push_string(&mut output, value, film_limits, "value", Some(record_index))?;
+        push_string(output, value, film_limits, "value", Some(record_index))?;
     }
     if let Some(origin) = origin {
         output.extend_from_slice(&decode_origin(origin, record_index)?);
     }
     if let Some(span) = span {
         let (start, end) = decode_span(span, record_index)?;
-        push_uleb(&mut output, start);
-        push_uleb(&mut output, end);
+        push_uleb(output, start);
+        push_uleb(output, end);
     }
 
     let mut extensions = record
@@ -1106,21 +1114,21 @@ fn encode_record(
             ));
         }
         push_string(
-            &mut output,
+            output,
             name,
             film_limits,
             "extension-name",
             Some(record_index),
         )?;
         push_string(
-            &mut output,
+            output,
             value,
             film_limits,
             "extension-value",
             Some(record_index),
         )?;
     }
-    Ok(output)
+    Ok(())
 }
 
 fn decode_record_view<'a>(

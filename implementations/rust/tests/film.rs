@@ -3,7 +3,7 @@ use std::path::Path;
 
 use aes_telex::film::{
     FILM_V1_PREAMBLE, FilmLimits, FilmStream, decode_film, decode_film_with_limits, encode_film,
-    film_to_telex, telex_to_film,
+    encode_film_with_limits, film_to_telex, telex_to_film,
 };
 use aes_telex::{
     COMPLETE_AES_PROFILE, ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument,
@@ -26,6 +26,56 @@ fn film_default_empty_stream_has_exact_bytes() {
         decode_film(&encoded, &[]).expect("empty Film must decode"),
         stream
     );
+}
+
+#[test]
+fn film_encoder_checks_complete_size_before_allocating_an_empty_stream() {
+    let stream = FilmStream {
+        profile: COMPLETE_AES_PROFILE.to_owned(),
+        profile_explicit: false,
+        projection: None,
+        projection_explicit: false,
+        records: Vec::new(),
+    };
+    let limits = FilmLimits {
+        max_input_bytes: FILM_V1_PREAMBLE.len(),
+        ..FilmLimits::default()
+    };
+    let error = encode_film_with_limits(&stream, &[], &limits, &TelexLimits::default())
+        .expect_err("the context byte must exceed the complete-stream byte limit");
+    assert_eq!(error.code, "FILM_LIMIT_EXCEEDED");
+    assert_eq!(error.component, "stream");
+}
+
+#[test]
+fn film_encoder_bounds_its_payload_size_plan_before_allocation() {
+    let stream = FilmStream {
+        profile: PARTIAL_AES_PROFILE.to_owned(),
+        profile_explicit: true,
+        projection: None,
+        projection_explicit: false,
+        records: vec![
+            TelexRecord::new(vec![
+                ("path".to_owned(), "$.a".to_owned()),
+                ("kind".to_owned(), "BooleanLiteral".to_owned()),
+                ("value".to_owned(), "true".to_owned()),
+            ]),
+            TelexRecord::new(vec![
+                ("path".to_owned(), "$.b".to_owned()),
+                ("kind".to_owned(), "BooleanLiteral".to_owned()),
+                ("value".to_owned(), "false".to_owned()),
+            ]),
+        ],
+    };
+    let sizing_plan_bytes = stream.records.len() * std::mem::size_of::<usize>();
+    let limits = FilmLimits {
+        max_buffered_bytes: sizing_plan_bytes - 1,
+        ..FilmLimits::default()
+    };
+    let error = encode_film_with_limits(&stream, &[], &limits, &TelexLimits::default())
+        .expect_err("the payload-size plan must remain within the encoder scratch limit");
+    assert_eq!(error.code, "FILM_LIMIT_EXCEEDED");
+    assert_eq!(error.component, "sizing-plan");
 }
 
 #[test]

@@ -27,6 +27,7 @@
     "test:rust": "cargo test --locked --manifest-path implementations/rust/Cargo.toml",
     "check:rust": "cargo fmt --check --manifest-path implementations/rust/Cargo.toml && cargo clippy --all-targets --all-features --manifest-path implementations/rust/Cargo.toml -- -D warnings",
     "bench:scalar": "cargo run --release --locked --example bench_codec_phases --manifest-path implementations/rust/Cargo.toml",
+    "bench:pipeline": "cargo run --release --locked --example bench_telex_pipeline --manifest-path implementations/rust/Cargo.toml",
     "profile:allocations": "cargo run --release --locked --example profile_codec_allocations --manifest-path implementations/rust/Cargo.toml",
     "test:integrity": "node --test test/integrity.test.js test/integrity-conformance.test.js",
     "test:provenance": "node --test test/provenance.test.js test/provenance-conformance.test.js",

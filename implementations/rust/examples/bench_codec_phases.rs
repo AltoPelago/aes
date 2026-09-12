@@ -20,6 +20,15 @@ struct Case {
     events: usize,
     iterations: usize,
     warmups: usize,
+    payload: Payload,
+}
+
+#[derive(Clone, Copy)]
+enum Payload {
+    MixedShort,
+    LargeAscii,
+    EscapeHeavy,
+    LargeUtf8,
 }
 
 #[derive(Clone, Copy)]
@@ -48,18 +57,42 @@ fn main() {
             events: 100,
             iterations: 1_000,
             warmups: 20,
+            payload: Payload::MixedShort,
         },
         Case {
             name: "medium",
             events: 10_000,
             iterations: 30,
             warmups: 3,
+            payload: Payload::MixedShort,
         },
         Case {
             name: "limit-scale",
             events: 100_000,
             iterations: 5,
             warmups: 1,
+            payload: Payload::MixedShort,
+        },
+        Case {
+            name: "large-ascii",
+            events: 10_000,
+            iterations: 5,
+            warmups: 1,
+            payload: Payload::LargeAscii,
+        },
+        Case {
+            name: "escape-heavy",
+            events: 10_000,
+            iterations: 5,
+            warmups: 1,
+            payload: Payload::EscapeHeavy,
+        },
+        Case {
+            name: "large-utf8",
+            events: 10_000,
+            iterations: 5,
+            warmups: 1,
+            payload: Payload::LargeUtf8,
         },
     ];
 
@@ -70,6 +103,7 @@ fn main() {
     println!("# architecture={}", env::consts::ARCH);
     println!("# timing=median-and-p95-wall-clock;warmups-excluded");
     println!("# json-engine=serde_json;adapter=portable-aes-object-array");
+    println!("# scanner-corpora=large-ascii;escape-heavy;large-utf8");
     println!(
         "case,encoding,operation,boundary,size_basis,events,bytes,iterations,median_ms,p95_ms,mb_per_second,events_per_second,sha256"
     );
@@ -82,7 +116,7 @@ fn main() {
 fn run_case(case: &Case) {
     let limits = workload_limits(case.events);
     let film_limits = FilmLimits::default();
-    let telex = build_telex(case.events);
+    let telex = build_telex(case.events, case.payload);
     let parsed = parse_telex_with_limits(&telex, &limits).expect("generated Telex must parse");
     assert_eq!(parsed.records.len(), case.events);
 
@@ -646,14 +680,29 @@ fn json_string<'a>(value: &'a Value, field: &str) -> &'a str {
         .unwrap_or_else(|| panic!("portable JSON field {field} must be a string"))
 }
 
-fn build_telex(event_count: usize) -> String {
+fn build_telex(event_count: usize, payload: Payload) -> String {
     assert!((1..=100_000).contains(&event_count));
     let mut output = String::with_capacity(event_count * 60);
     output.push_str("telex.aes=1\n\npath=$.items\nkind=ListNode\ndatatype=list<string>\n");
+    let repeated_payload = match payload {
+        Payload::MixedShort => None,
+        Payload::LargeAscii => Some("abcdefghij".repeat(64)),
+        // Each ten-byte canonical Telex group decodes to five bytes. Doubling
+        // the repetition count keeps decoded payload ownership equal to the
+        // 640-byte large-ASCII control while exposing dense escape handling.
+        Payload::EscapeHeavy => Some(r"\\\t\n\r\0".repeat(128)),
+        Payload::LargeUtf8 => Some("café-日本-🙂-".repeat(32)),
+    };
     for index in 0..event_count - 1 {
         output.push_str("\npath=$.items[");
         output.push_str(&index.to_string());
         output.push_str("]\n");
+        if let Some(value) = &repeated_payload {
+            output.push_str("kind=StringLiteral\nvalue=");
+            output.push_str(value);
+            output.push('\n');
+            continue;
+        }
         match index % 4 {
             0 => {
                 output.push_str("kind=StringLiteral\nvalue=value-");

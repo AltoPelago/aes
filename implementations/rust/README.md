@@ -61,6 +61,18 @@ encoding boundaries independently. Its raw JSON engine rows intentionally omit
 AES validation; the adapter and validated-adapter rows expose the additional
 work explicitly.
 
+The document-pipeline research harness compares sequential Telex parse plus
+complete validation with a bounded two-worker handoff and a two-lane 2×2 tile
+across independent documents:
+
+```bash
+npm run bench:pipeline
+```
+
+This measures steady-state document throughput. It does not claim that one
+document is parsed and semantically validated concurrently; that requires a
+separate incremental semantic-state contract.
+
 Count heap allocations for the corresponding native Film, Telex, and resident
 AES operations with:
 
