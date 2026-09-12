@@ -29,6 +29,9 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ### Changed
 
+- Expanded the mutable Film CTS to 72 vectors and fixed cross-host precedence
+  so active byte and AES count limits are applied before host-size conversion;
+  incremental decoding now also releases fully consumed caller buffers.
 - Added explicit incremental JavaScript Film states for incomplete input,
   provisional records, and final validated completion; added exhaustive
   positive-fixture chunk divisions, deterministic malformed-input regression

@@ -70,7 +70,7 @@ the source-backed preparation contract. It is not a published immutable CTS
 snapshot.
 
 The [`film.aes` v1 specification](../specifications/film.aes.md) is a normative
-draft. Its mutable `0.1.0-dev` CTS contains 68 language-neutral vectors across
+draft. Its mutable `0.1.0-dev` CTS contains 72 language-neutral vectors across
 framing and canonicalization, records and Telex transcoding, and resource
 limits. Exact Film bytes use contiguous lowercase hexadecimal inside the JSON
 test envelope. The lane fixes all 23 kind-code mappings and keeps Film syntax
@@ -78,7 +78,7 @@ and canonicality failures separate from transport-neutral AES diagnostics.
 
 The Film candidate carries no `snapshot_id` or `spec_snapshot_id`. Passing it
 does not establish an immutable external conformance claim. The selected Rust
-reference and the independent JavaScript decoder both pass the 64 direct decode
+reference and the independent JavaScript decoder both pass the 68 direct decode
 operations. The JavaScript reader also decodes the three canonical Film byte
 fixtures supplied by positive encode/transcode vectors; the remaining
 buffered-encoder rejection is deliberately outside a decoder-only surface.

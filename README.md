@@ -99,7 +99,7 @@ working/reference copies and do not override those canonical sources.
 - [`conformance/`](conformance/README.md) contains language-neutral v1
   vectors for syntax, canonicalization, AES profile validation, exact-source
   provenance, resource-limit boundaries, the optional AEON document
-  projection, and the mutable 68-vector Film candidate. Stable external
+  projection, and the mutable 72-vector Film candidate. Stable external
   targets are published separately as `aes-events-cts-v1-snapshot-0.1` and
   `telex-cts-v1-snapshot-0.1` in the shared `aeonite-cts` repository.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
@@ -184,8 +184,10 @@ asset, release procedure, or implementation reference.
 The selected Rust Film draft reference and independent JavaScript reader pass
 the shared decoder-facing candidate vectors. Incremental chunk-state coverage,
 deterministic mutation testing, a coverage-guided Rust target, and a scheduled
-fuzz workflow are also in place. The next Film work is snapshot-readiness
-review. A later stage will cover Tape and the Aeonic Semantic Language.
+fuzz workflow are also in place. The snapshot-readiness audit is complete; the
+next Film work is promotion of immutable specification and CTS snapshot 0.1
+through their authority repositories. A later stage will cover Tape and the
+Aeonic Semantic Language.
 
 ## Design rule
 

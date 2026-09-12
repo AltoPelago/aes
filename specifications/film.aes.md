@@ -526,6 +526,14 @@ greater observation is rejected. Consumers select effective limits and may
 impose lower immutable safety ceilings. A limits-file profile claim is metadata
 and cannot allow an input stream to select or relax resource policy.
 
+A decoder compares a valid `u64` byte length with its active Film byte limit
+before converting that length to a host address-space type. Datatype generic
+and clarifier counts are not byte lengths: they are checked against their
+selected shared AES counters before host conversion. This ordering keeps a
+valid but excessive encoded value portable across hosts with different address
+widths. Only a value outside the Film `u64` domain, or a value within an active
+unbounded policy that cannot fit the host, is `FILM_INTEGER_OVERFLOW`.
+
 The proposed AltoPelago defaults for a future limits-file revision that claims
 Film support are:
 
@@ -652,10 +660,10 @@ these format-level categories:
 | `FILM_INTEGER_OVERFLOW` | an integer exceeds the Film `u64` domain or host-safe range |
 | `FILM_INVALID_UTF8` | a declared string is not valid UTF-8 |
 | `FILM_INVALID_CONTEXT` | context bits, declaration presence, or context value shape is invalid |
-| `FILM_INVALID_RECORD` | record control, field presence, boundary, origin, or span shape is invalid |
+| `FILM_INVALID_RECORD` | record-control bits, prohibited field presence, origin, or span shape is invalid |
 | `FILM_INVALID_KIND` | kind code is unassigned or cannot determine the value contract |
-| `FILM_INVALID_DATATYPE` | datatype framing, count agreement, tag, or boundary is invalid |
-| `FILM_INVALID_EXTENSION` | extension name, order, duplicate status, or pair boundary is invalid |
+| `FILM_INVALID_DATATYPE` | datatype base name, count agreement, tag, or structural shape is invalid |
+| `FILM_INVALID_EXTENSION` | an extension name does not match the Film v1 extension-name grammar |
 | `FILM_LIMIT_EXCEEDED` | a caller-selected Film format counter is exceeded |
 
 AES event-local and stream-semantic failures retain the diagnostics defined by
@@ -718,9 +726,9 @@ advances the CTS snapshot; an incompatible wire change advances the Film format
 version.
 
 The [mutable candidate](../conformance/film/v1/film-cts.v1.json) supplies the
-current language-neutral evidence for item 1. It contains 68 vectors and no
+current language-neutral evidence for item 1. It contains 72 vectors and no
 snapshot identifiers. The selected Rust reference and independent JavaScript
-decoder both pass all 64 decoder operations; the JavaScript decoder also reads
+decoder both pass all 68 decoder operations; the JavaScript decoder also reads
 the three canonical Film fixtures emitted by positive producer operations. The
 only candidate operation it does not exercise is an encoder-only buffered-byte
 rejection. This closes the independent-decoder evidence requirement without

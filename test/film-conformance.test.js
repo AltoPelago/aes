@@ -40,7 +40,7 @@ test('mutable Film manifest has resolvable suites and unique language-neutral ve
       count += 1;
     }
   }
-  assert.equal(count, 68);
+  assert.equal(count, 72);
 });
 
 test('mutable Film vectors reference existing specification headings', () => {
@@ -53,6 +53,63 @@ test('mutable Film vectors reference existing specification headings', () => {
       assert.ok(anchors.has(fragment), `missing Film specification heading: ${specRef}`);
     }
   }
+});
+
+test('mutable Film vectors satisfy the complete v1 protocol shape', () => {
+  const syntaxCodes = new Set();
+  let aesFailures = 0;
+  for (const suiteRef of manifest.suites) {
+    const suite = readJson(new URL(suiteRef.file, manifestUrl));
+    assert.ok((suite.meta.spec_refs ?? []).length > 0, `${suite.id}: missing spec_refs`);
+    for (const vector of suite.tests) {
+      assert.ok(vector.description?.length > 0, `${vector.id}: missing description`);
+      assert.ok(Array.isArray(vector.tags) && vector.tags.length > 0, `${vector.id}: tags`);
+      assert.equal(typeof vector.expected?.ok, 'boolean', `${vector.id}: expected.ok`);
+      if (vector.operation === 'decode') {
+        assert.equal(typeof vector.input?.film_hex, 'string', `${vector.id}: film_hex`);
+        if (vector.expected.ok) {
+          assert.ok(
+            typeof vector.expected.canonical_hex === 'string'
+              || vector.expected.stream !== undefined,
+            `${vector.id}: successful decode expectation`,
+          );
+        } else if (vector.expected.error?.stage === 'aes') {
+          assert.ok(vector.expected.error.diagnostic_codes?.length > 0, vector.id);
+          aesFailures += 1;
+        } else {
+          assert.equal(typeof vector.expected.error?.code, 'string', `${vector.id}: error code`);
+          syntaxCodes.add(vector.expected.error.code);
+        }
+      } else if (vector.operation === 'encode') {
+        assert.notEqual(vector.input?.stream, undefined, `${vector.id}: stream`);
+        assert.equal(
+          typeof (vector.expected.ok ? vector.expected.film_hex : vector.expected.error?.code),
+          'string',
+          `${vector.id}: encode expectation`,
+        );
+      } else {
+        assert.equal(vector.operation, 'transcode');
+        assert.equal(typeof vector.input?.telex, 'string', `${vector.id}: telex input`);
+        assert.equal(vector.expected.ok, true, `${vector.id}: transcode must succeed`);
+        assert.equal(typeof vector.expected.film_hex, 'string', `${vector.id}: film output`);
+        assert.equal(typeof vector.expected.telex, 'string', `${vector.id}: telex output`);
+      }
+    }
+  }
+  assert.deepEqual(syntaxCodes, new Set([
+    'FILM_INTEGER_OVERFLOW',
+    'FILM_INVALID_CONTEXT',
+    'FILM_INVALID_DATATYPE',
+    'FILM_INVALID_EXTENSION',
+    'FILM_INVALID_KIND',
+    'FILM_INVALID_PREAMBLE',
+    'FILM_INVALID_RECORD',
+    'FILM_INVALID_UTF8',
+    'FILM_LIMIT_EXCEEDED',
+    'FILM_NONCANONICAL',
+    'FILM_TRUNCATED',
+  ]));
+  assert.ok(aesFailures > 0);
 });
 
 test('Film specification example is fixed by the mutable scalar vector', () => {

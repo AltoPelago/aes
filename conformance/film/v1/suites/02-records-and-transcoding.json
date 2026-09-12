@@ -206,6 +206,7 @@
       "operation": "transcode",
       "input": { "telex": "telex.aes=1\n\npath=$.message\nkind=StringLiteral\nvalue=hello\n" },
       "expected": {
+        "ok": true,
         "film_hex": "4f5f5fff010012000109242e6d6573736167650568656c6c6f",
         "telex": "telex.aes=1\n\npath=$.message\nkind=StringLiteral\nvalue=hello\n"
       },
@@ -217,6 +218,7 @@
       "operation": "transcode",
       "input": { "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.b\nkind=NumberLiteral\nvalue=2\n\npath=$.a\nkind=StringLiteral\nvalue=one\n" },
       "expected": {
+        "ok": true,
         "film_hex": "4f5f5fff01010e6165732e7061727469616c2e763108000203242e6201320a000103242e61036f6e65",
         "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.b\nkind=NumberLiteral\nvalue=2\n\npath=$.a\nkind=StringLiteral\nvalue=one\n"
       },

@@ -323,6 +323,44 @@
       "input": { "film_hex": "4f5f5fff010080808080808080808002" },
       "expected": { "ok": false, "error": { "code": "FILM_INTEGER_OVERFLOW" } },
       "tags": ["uleb128", "u64", "overflow", "failure"]
+    },
+    {
+      "id": "film-limit-024-record-u64-over-active-limit",
+      "description": "A valid u64 record length is checked against max_record_bytes before host address-space conversion",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff0100ffffffffffffffffff01" },
+      "expected": { "ok": false, "error": { "code": "FILM_LIMIT_EXCEEDED" } },
+      "tags": ["limits", "max-record-bytes", "u64", "precedence", "failure"]
+    },
+    {
+      "id": "film-limit-025-field-u64-over-active-limit",
+      "description": "A valid u64 field length is checked against max_field_bytes before host address-space conversion",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01000c0001ffffffffffffffffff01" },
+      "expected": { "ok": false, "error": { "code": "FILM_LIMIT_EXCEEDED" } },
+      "tags": ["limits", "max-field-bytes", "u64", "precedence", "failure"]
+    },
+    {
+      "id": "film-limit-026-generic-count-is-a-shared-aes-limit",
+      "description": "A large generic count is governed by max_generic_arguments rather than max_field_bytes",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff01000f020203242e610803696e7481808002" },
+      "expected": {
+        "ok": false,
+        "error": { "stage": "aes", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] }
+      },
+      "tags": ["limits", "max-generic-arguments", "shared-aes", "precedence", "failure"]
+    },
+    {
+      "id": "film-limit-027-clarifier-count-is-a-shared-aes-limit",
+      "description": "A large clarifier count is governed by max_clarifier_values rather than max_field_bytes",
+      "operation": "decode",
+      "input": { "film_hex": "4f5f5fff010010020203242e610903696e740081808002" },
+      "expected": {
+        "ok": false,
+        "error": { "stage": "aes", "diagnostic_codes": ["AES_LIMIT_EXCEEDED"] }
+      },
+      "tags": ["limits", "max-clarifier-values", "shared-aes", "precedence", "failure"]
     }
   ]
 }

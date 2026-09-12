@@ -94,6 +94,16 @@ test('does not let provisional result mutation alter staged completion state', (
   assert.equal(completed.stream.records[0].value, 'hello');
 });
 
+test('releases a fully consumed caller buffer between incremental calls', () => {
+  const bytes = fromHex('4f5f5fff010012000109242e6d6573736167650568656c6c6f');
+  const decoder = new IncrementalFilmDecoder();
+  const provisional = decoder.push(bytes);
+  assert.equal(provisional.status, 'provisional');
+  assert.equal(decoder.buffer.byteLength, 0);
+  assert.equal(decoder.buffer.buffer.byteLength, 0);
+  assert.equal(decoder.finish().status, 'complete');
+});
+
 test('turns unfinished outer framing into truncation only when input is final', () => {
   const decoder = new IncrementalFilmDecoder();
   assert.equal(decoder.push(fromHex('4f5f5fff')).status, 'need-more-input');

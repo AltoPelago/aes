@@ -61,7 +61,7 @@ fn passes_mutable_film_v1_vectors() {
             count += 1;
         }
     }
-    assert_eq!(count, 68, "unexpected mutable Film vector count");
+    assert_eq!(count, 72, "unexpected mutable Film vector count");
 }
 
 fn run_vector(id: &str, vector: &Value) {

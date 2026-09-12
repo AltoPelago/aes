@@ -137,16 +137,13 @@ export function decodeFilmSyntax(input, options = {}) {
       );
     }
     reader.record = recordIndex;
-    const payloadLength = reader.readLength(filmLimits, 'record-length', false);
+    const payloadLength = reader.readLimitedLength(
+      'max_record_bytes', filmLimits.maxRecordBytes, 'record-length', 'record',
+    );
     if (payloadLength === 0) {
       throw filmError('FILM_NONCANONICAL', reader.absolutePosition(), recordIndex,
         'record-length', 'Film record payload length must be positive');
     }
-    enforceFilmLimit('max_record_bytes', payloadLength, filmLimits.maxRecordBytes, {
-      offset: reader.absolutePosition(),
-      record: recordIndex,
-      component: 'record',
-    });
     const payloadOffset = reader.absolutePosition();
     const payload = reader.readExact(payloadLength, 'record');
     records.push(decodeRecord(payload, payloadOffset, recordIndex, filmLimits, aesLimits));
@@ -230,7 +227,9 @@ export class IncrementalFilmDecoder {
           const reader = new Reader(this.buffer, this.absoluteOffset, this.records.length);
           let payloadLength;
           try {
-            payloadLength = reader.readLength(this.filmLimits, 'record-length', false);
+            payloadLength = reader.readLimitedLength(
+              'max_record_bytes', this.filmLimits.maxRecordBytes, 'record-length', 'record',
+            );
           } catch (error) {
             if (!final && isTruncation(error)) break;
             throw error;
@@ -244,11 +243,6 @@ export class IncrementalFilmDecoder {
               'Film record payload length must be positive',
             );
           }
-          enforceFilmLimit('max_record_bytes', payloadLength, this.filmLimits.maxRecordBytes, {
-            offset: reader.absolutePosition(),
-            record: this.records.length,
-            component: 'record',
-          });
           this.consume(reader.position);
           this.pendingRecordLength = payloadLength;
           this.pendingRecordOffset = this.absoluteOffset;
@@ -282,7 +276,9 @@ export class IncrementalFilmDecoder {
         }
         if (this.buffer.byteLength !== 0) {
           const reader = new Reader(this.buffer, this.absoluteOffset, this.records.length);
-          reader.readLength(this.filmLimits, 'record-length', false);
+          reader.readLimitedLength(
+            'max_record_bytes', this.filmLimits.maxRecordBytes, 'record-length', 'record',
+          );
           throw filmError(
             'FILM_TRUNCATED',
             this.absoluteOffset + this.buffer.byteLength,
@@ -322,7 +318,9 @@ export class IncrementalFilmDecoder {
   }
 
   consume(length) {
-    this.buffer = this.buffer.subarray(length);
+    this.buffer = length === this.buffer.byteLength
+      ? new Uint8Array(0)
+      : this.buffer.subarray(length);
     this.absoluteOffset += length;
   }
 
@@ -615,27 +613,25 @@ class Reader {
       'Unsigned LEB128 exceeds ten bytes');
   }
 
-  readLength(filmLimits, component, fieldLength = true) {
+  readLimitedLength(counter, limit, component, limitComponent = component) {
     const offset = this.absolutePosition();
     const value = this.readUleb(component);
-    if (value > MAX_SAFE_BIGINT) {
-      throw filmError('FILM_INTEGER_OVERFLOW', offset, this.record, component,
-        'Film length does not fit the JavaScript safe-integer address space');
+    if (value > BigInt(limit)) {
+      throw new FilmDecodeError(
+        'FILM_LIMIT_EXCEEDED',
+        `${counter} observed ${value}, limit ${limit}`,
+        { offset, record: this.record, component: limitComponent },
+      );
     }
-    const length = Number(value);
-    if (fieldLength) {
-      enforceFilmLimit('max_field_bytes', length, filmLimits.maxFieldBytes, {
-        offset,
-        record: this.record,
-        component,
-      });
-    }
-    return length;
+    return Number(value);
   }
 
-  readCount(component) {
+  readCount(component, counter, limit) {
     const offset = this.absolutePosition();
     const value = this.readUleb(component);
+    if (value > BigInt(limit)) {
+      return throwAesCountLimit(counter, value, limit, offset, this.record, component);
+    }
     if (value > MAX_SAFE_BIGINT) {
       throw filmError('FILM_INTEGER_OVERFLOW', offset, this.record, component,
         'Film count does not fit the JavaScript safe-integer domain');
@@ -645,7 +641,9 @@ class Reader {
 
   readString(filmLimits, component) {
     const offset = this.absolutePosition();
-    const length = this.readLength(filmLimits, component);
+    const length = this.readLimitedLength(
+      'max_field_bytes', filmLimits.maxFieldBytes, component,
+    );
     const bytes = this.readExact(length, component);
     try {
       return UTF8.decode(bytes);
@@ -670,7 +668,9 @@ class Reader {
       throw aesLimitError('max_generic_depth', depth, aesLimits.maxGenericDepth,
         this.absolutePosition(), this.record, 'datatype');
     }
-    const length = this.readLength(filmLimits, 'datatype');
+    const length = this.readLimitedLength(
+      'max_field_bytes', filmLimits.maxFieldBytes, 'datatype',
+    );
     const offset = this.absolutePosition();
     const body = this.readExact(length, 'datatype');
     const descriptor = new Reader(body, offset, this.record);
@@ -681,11 +681,9 @@ class Reader {
         'Film datatype names must not be empty');
     }
 
-    const genericCount = descriptor.readCount('generic-count');
-    if (genericCount > aesLimits.maxGenericArguments) {
-      throw aesLimitError('max_generic_arguments', genericCount, aesLimits.maxGenericArguments,
-        descriptor.absolutePosition(), this.record, 'generic-count');
-    }
+    const genericCount = descriptor.readCount(
+      'generic-count', 'max_generic_arguments', aesLimits.maxGenericArguments,
+    );
     const generics = [];
     for (let index = 0; index < genericCount; index += 1) {
       const tagOffset = descriptor.absolutePosition();
@@ -703,11 +701,9 @@ class Reader {
       }
     }
 
-    const clarifierCount = descriptor.readCount('clarifier-count');
-    if (clarifierCount > aesLimits.maxClarifierValues) {
-      throw aesLimitError('max_clarifier_values', clarifierCount, aesLimits.maxClarifierValues,
-        descriptor.absolutePosition(), this.record, 'clarifier-count');
-    }
+    const clarifierCount = descriptor.readCount(
+      'clarifier-count', 'max_clarifier_values', aesLimits.maxClarifierValues,
+    );
     const clarifiers = [];
     for (let index = 0; index < clarifierCount; index += 1) {
       const tagOffset = descriptor.absolutePosition();
@@ -765,6 +761,11 @@ function aesLimitError(counter, observed, selected, offset, record, component) {
     stage: 'aes',
     diagnostics: [diagnostic],
   });
+}
+
+function throwAesCountLimit(counter, observed, selected, offset, record, component) {
+  const diagnosticObserved = observed <= MAX_SAFE_BIGINT ? Number(observed) : selected + 1;
+  throw aesLimitError(counter, diagnosticObserved, selected, offset, record, component);
 }
 
 function filmError(code, offset, record, component, message) {

@@ -470,7 +470,12 @@ pub fn decode_film_view_with_limits<'a>(
             ));
         }
         reader.record = Some(record_index);
-        let payload_length = reader.read_length(film_limits, "record-length")?;
+        let payload_length = reader.read_limited_length(
+            "max_record_bytes",
+            film_limits.max_record_bytes,
+            "record-length",
+            "record",
+        )?;
         if payload_length == 0 {
             return Err(film_error(
                 "FILM_NONCANONICAL",
@@ -480,14 +485,6 @@ pub fn decode_film_view_with_limits<'a>(
                 "Film record payload length must be positive",
             ));
         }
-        enforce_limit(
-            "max_record_bytes",
-            payload_length,
-            film_limits.max_record_bytes,
-            reader.absolute_position(),
-            Some(record_index),
-            "record",
-        )?;
         let payload_offset = reader.absolute_position();
         let payload = reader.read_exact(payload_length, "record")?;
         records.push(decode_record_view(
@@ -1397,13 +1394,24 @@ impl<'a> Reader<'a> {
         ))
     }
 
-    fn read_length(
+    fn read_limited_length(
         &mut self,
-        limits: &FilmLimits,
+        counter: &'static str,
+        limit: usize,
         component: &'static str,
+        limit_component: &'static str,
     ) -> Result<usize, FilmError> {
         let offset = self.absolute_position();
         let value = self.read_uleb(component)?;
+        if value > limit as u64 {
+            return Err(film_error(
+                "FILM_LIMIT_EXCEEDED",
+                offset,
+                self.record,
+                limit_component,
+                format!("{counter} observed {value}, limit {limit}"),
+            ));
+        }
         let length = usize::try_from(value).map_err(|_| {
             film_error(
                 "FILM_INTEGER_OVERFLOW",
@@ -1413,17 +1421,36 @@ impl<'a> Reader<'a> {
                 "Film length does not fit the host address space",
             )
         })?;
-        if component != "record-length" {
-            enforce_limit(
-                "max_field_bytes",
-                length,
-                limits.max_field_bytes,
+        Ok(length)
+    }
+
+    fn read_count(
+        &mut self,
+        counter: &'static str,
+        limit: usize,
+        component: &'static str,
+    ) -> Result<usize, FilmError> {
+        let offset = self.absolute_position();
+        let value = self.read_uleb(component)?;
+        if value > limit as u64 {
+            return Err(aes_limit_error(
+                counter,
+                limit.saturating_add(1),
+                limit,
                 offset,
                 self.record,
                 component,
-            )?;
+            ));
         }
-        Ok(length)
+        usize::try_from(value).map_err(|_| {
+            film_error(
+                "FILM_INTEGER_OVERFLOW",
+                offset,
+                self.record,
+                component,
+                "Film count does not fit the host address space",
+            )
+        })
     }
 
     fn read_str(
@@ -1432,7 +1459,12 @@ impl<'a> Reader<'a> {
         component: &'static str,
     ) -> Result<&'a str, FilmError> {
         let offset = self.absolute_position();
-        let length = self.read_length(limits, component)?;
+        let length = self.read_limited_length(
+            "max_field_bytes",
+            limits.max_field_bytes,
+            component,
+            component,
+        )?;
         let bytes = self.read_exact(length, component)?;
         let value = std::str::from_utf8(bytes).map_err(|error| {
             film_error(
@@ -1481,7 +1513,12 @@ impl<'a> Reader<'a> {
                 "datatype",
             ));
         }
-        let length = self.read_length(film_limits, "datatype")?;
+        let length = self.read_limited_length(
+            "max_field_bytes",
+            film_limits.max_field_bytes,
+            "datatype",
+            "datatype",
+        )?;
         let offset = self.absolute_position();
         let bytes = self.read_exact(length, "datatype")?;
         let mut descriptor = Reader::new(bytes, offset, self.record);
@@ -1496,17 +1533,11 @@ impl<'a> Reader<'a> {
                 "Film datatype names must not be empty",
             ));
         }
-        let generic_count = descriptor.read_length(film_limits, "generic-count")?;
-        if generic_count > aes_limits.max_generic_arguments {
-            return Err(aes_limit_error(
-                "max_generic_arguments",
-                generic_count,
-                aes_limits.max_generic_arguments,
-                descriptor.absolute_position(),
-                self.record,
-                "generic-count",
-            ));
-        }
+        let generic_count = descriptor.read_count(
+            "max_generic_arguments",
+            aes_limits.max_generic_arguments,
+            "generic-count",
+        )?;
         let mut generics = Vec::with_capacity(generic_count);
         for _ in 0..generic_count {
             let tag_offset = descriptor.absolute_position();
@@ -1530,17 +1561,11 @@ impl<'a> Reader<'a> {
                 }
             }
         }
-        let clarifier_count = descriptor.read_length(film_limits, "clarifier-count")?;
-        if clarifier_count > aes_limits.max_clarifier_values {
-            return Err(aes_limit_error(
-                "max_clarifier_values",
-                clarifier_count,
-                aes_limits.max_clarifier_values,
-                descriptor.absolute_position(),
-                self.record,
-                "clarifier-count",
-            ));
-        }
+        let clarifier_count = descriptor.read_count(
+            "max_clarifier_values",
+            aes_limits.max_clarifier_values,
+            "clarifier-count",
+        )?;
         let mut clarifiers = Vec::with_capacity(clarifier_count);
         for _ in 0..clarifier_count {
             let tag_offset = descriptor.absolute_position();
