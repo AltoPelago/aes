@@ -49,6 +49,41 @@ Run the native bulk-operation benchmark with:
 cargo run --release --example bench_telex --manifest-path implementations/rust/Cargo.toml
 ```
 
+Run the phase-separated T0 scalar comparison across Film, Telex, portable JSON,
+and resident AES validation with:
+
+```bash
+npm run bench:scalar
+```
+
+The comparison labels syntax, provisional-owned, complete-validation, and
+encoding boundaries independently. Its raw JSON engine rows intentionally omit
+AES validation; the adapter and validated-adapter rows expose the additional
+work explicitly.
+
+The document-pipeline research harness compares sequential Telex parse plus
+complete validation with a bounded two-worker handoff and a two-lane 2×2 tile
+across independent documents:
+
+```bash
+npm run bench:pipeline
+```
+
+This measures steady-state document throughput. It does not claim that one
+document is parsed and semantically validated concurrently; that requires a
+separate incremental semantic-state contract.
+
+Count heap allocations for the corresponding native Film, Telex, and resident
+AES operations with:
+
+```bash
+npm run profile:allocations
+```
+
+The profiling allocator is a development-only dependency. Each operation runs
+in an isolated child process so its count has one unambiguous lifetime; setup
+and one warm-up pass occur before profiling begins.
+
 The Rust and JavaScript implementations intentionally do not call each other or
 share codec source. Their common authorities are the transport-neutral portable
 AES event contract, the published Telex encoding, and the shared vectors.

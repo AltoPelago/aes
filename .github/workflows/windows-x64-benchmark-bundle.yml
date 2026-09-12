@@ -1,0 +1,98 @@
+name: Windows x64 Benchmark Bundle
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/windows-x64-benchmark-bundle.yml
+      - implementations/rust/Cargo.lock
+      - implementations/rust/Cargo.toml
+      - implementations/rust/examples/bench_codec_phases.rs
+      - implementations/rust/examples/bench_telex_pipeline.rs
+      - implementations/rust/src/**
+      - scripts/windows-x64-benchmark/**
+  workflow_dispatch:
+    inputs:
+      incremental_iterations:
+        description: Measured iterations for the hosted incremental benchmark smoke run
+        required: true
+        default: '5'
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke-test:
+    runs-on: windows-2025
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        with:
+          toolchain: 1.93.1
+
+      - name: Build native Windows x64 benchmarks
+        shell: pwsh
+        run: |
+          $env:RUSTFLAGS = '-C target-feature=+crt-static'
+          cargo build --release --locked --examples --manifest-path implementations/rust/Cargo.toml
+          cargo test --release --locked --lib --no-run --manifest-path implementations/rust/Cargo.toml
+
+      - name: Assemble self-contained benchmark bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundle = Join-Path $env:RUNNER_TEMP 'aes-windows-x64-benchmarks'
+          New-Item -ItemType Directory -Path $bundle | Out-Null
+
+          Copy-Item implementations/rust/target/release/examples/bench_codec_phases.exe $bundle
+          Copy-Item implementations/rust/target/release/examples/bench_telex_pipeline.exe $bundle
+
+          $testBinaries = @(Get-ChildItem implementations/rust/target/release/deps/aes_telex-*.exe)
+          if ($testBinaries.Count -ne 1) {
+            throw "Expected one aes_telex test executable, found $($testBinaries.Count)"
+          }
+          Copy-Item $testBinaries[0].FullName (Join-Path $bundle 'aes_telex_incremental_bench.exe')
+          Copy-Item scripts/windows-x64-benchmark/run-benchmarks.ps1 $bundle
+          Copy-Item scripts/windows-x64-benchmark/README.md $bundle
+
+          @(
+            "repository=AltoPelago/aes"
+            "commit=${{ github.sha }}"
+            "rust=1.93.1"
+            "target=x86_64-pc-windows-msvc"
+            "crt=static"
+          ) | Set-Content -Encoding utf8 (Join-Path $bundle 'BUILD.txt')
+
+          Get-ChildItem $bundle -Filter *.exe | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash -Algorithm SHA256 $_.FullName).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          } | Set-Content -Encoding ascii (Join-Path $bundle 'SHA256SUMS.txt')
+
+          "AES_BENCHMARK_BUNDLE=$bundle" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Smoke-run bundle on hosted Windows x64
+        shell: pwsh
+        run: >-
+          & "$env:AES_BENCHMARK_BUNDLE/run-benchmarks.ps1"
+          -IncrementalIterations ${{ inputs.incremental_iterations || '5' }}
+          -OutputDirectory "$env:RUNNER_TEMP/hosted-results"
+
+      - name: Upload portable bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aes-windows-x64-benchmarks-${{ github.sha }}
+          path: ${{ env.AES_BENCHMARK_BUNDLE }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload hosted reference results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aes-windows-x64-hosted-results-${{ github.sha }}
+          path: ${{ runner.temp }}/hosted-results
+          if-no-files-found: error
+          retention-days: 14
