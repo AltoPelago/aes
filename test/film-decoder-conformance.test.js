@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 
 import { FilmDecodeError, decodeFilm } from '../src/film.js';
 import { parseTelex } from '../src/telex.js';
 
-const manifestUrl = new URL('../conformance/film/v1/film-cts.v1.json', import.meta.url);
+const manifestUrl = process.env.FILM_CTS_MANIFEST === undefined
+  ? new URL('../conformance/film/v1/film-cts.v1.json', import.meta.url)
+  : pathToFileURL(resolve(process.env.FILM_CTS_MANIFEST));
 const manifest = readJson(manifestUrl);
 let directDecodeVectors = 0;
 let producerFixtures = 0;

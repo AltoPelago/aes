@@ -32,12 +32,13 @@ telex.aes    film.aes
 This repository remains the implementation-adjacent AES workspace. Canonical
 publication sources live under `sources/aes/v1/` in
 [`aeonite-specs`](https://github.com/aeonite-org/aeonite-specs/tree/main/sources/aes/v1).
-The AES v1 index, portable
-event contract, compatibility contract, and Telex encoding are published;
-their declared lifecycle and normativity govern v1. The Aeonic Semantic
-Language remains a proposal. The integrity and Assignment Event Transaction
-contracts are normative drafts. The Markdown documents here are
-working/reference copies and do not override those canonical sources.
+The AES v1 index, portable event contract, compatibility contract, and Telex
+encoding are published conformance targets. Film, integrity, and Assignment
+Event Transactions are normative drafts; Film now also has immutable
+specification and CTS snapshot `0.1` authorities. Their declared lifecycle and
+normativity govern v1. The Aeonic Semantic Language remains a proposal. The
+Markdown documents here are working/reference copies and do not override those
+canonical sources.
 
 - [Portable AES Event Contract v1](specifications/aes.events.md) owns the
   transport-neutral record, profile, projection, and fidelity rules.
@@ -56,8 +57,10 @@ working/reference copies and do not override those canonical sources.
 - [Telex v1](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
 - [Film v1](specifications/film.aes.md) is the normative binary-encoding draft.
-  Its table-free wire layout is resolved, but it is not a released conformance
-  target and has no immutable CTS snapshot.
+  Its table-free wire layout is resolved and fixed by
+  `film-specs-v1-snapshot-0.1` and the 72-vector
+  `film-cts-v1-snapshot-0.1`. Reader conformance is available; durable writers
+  remain behind the reader-before-writer deployment gate.
 - [AltoPelago Aeonic Limits v1](notes/altopelago-aeonic-limits-v1.md) defines
   the informative, consumer-owned configuration shape used to align structural
   and processing limits across AltoPelago implementations. Format byte limits
@@ -100,12 +103,13 @@ working/reference copies and do not override those canonical sources.
   vectors for syntax, canonicalization, AES profile validation, exact-source
   provenance, resource-limit boundaries, the optional AEON document
   projection, and the mutable 72-vector Film candidate. Stable external
-  targets are published separately as `aes-events-cts-v1-snapshot-0.1` and
-  `telex-cts-v1-snapshot-0.1` in the shared `aeonite-cts` repository.
+  targets are published separately as `aes-events-cts-v1-snapshot-0.1`,
+  `telex-cts-v1-snapshot-0.1`, and `film-cts-v1-snapshot-0.1` in the shared
+  `aeonite-cts` repository.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
   Rust implementation of the same v1 event, Telex, integrity, provenance, and
-  transaction contracts, plus the selected non-released Film draft reference
-  and an archived layout comparator. Its Telex codec has no runtime
+  transaction contracts, plus the selected Film draft reference and an
+  archived layout comparator. Its Telex codec has no runtime
   dependencies; portable SHA-256 integrity uses the audited `sha2` crate.
 
 Run the syntax tests with:
@@ -126,7 +130,7 @@ Run the vectors through the Rust implementation with:
 npm run test:conformance:rust
 ```
 
-Run both published shared snapshots in JavaScript and Rust with:
+Run the three published shared snapshots in JavaScript and Rust with:
 
 ```bash
 npm run test:conformance:shared
@@ -181,13 +185,13 @@ maintained in the separate AEON family roadmap. Material is promoted into this
 repository when it becomes an AES-owned specification, policy, conformance
 asset, release procedure, or implementation reference.
 
-The selected Rust Film draft reference and independent JavaScript reader pass
-the shared decoder-facing candidate vectors. Incremental chunk-state coverage,
-deterministic mutation testing, a coverage-guided Rust target, and a scheduled
-fuzz workflow are also in place. The snapshot-readiness audit is complete; the
-next Film work is promotion of immutable specification and CTS snapshot 0.1
-through their authority repositories. A later stage will cover Tape and the
-Aeonic Semantic Language.
+The selected Rust Film reference passes the complete immutable 72-operation
+snapshot; the independent JavaScript reader claims its 68 decode operations.
+Incremental chunk-state coverage, deterministic mutation testing, a
+coverage-guided Rust target, and a scheduled fuzz workflow are also in place.
+The next Film stage is reader deployment and ecosystem compatibility review;
+durable writer enablement remains deferred. A later stage will cover Tape and
+the Aeonic Semantic Language.
 
 ## Design rule
 

@@ -76,12 +76,14 @@ limits. Exact Film bytes use contiguous lowercase hexadecimal inside the JSON
 test envelope. The lane fixes all 23 kind-code mappings and keeps Film syntax
 and canonicality failures separate from transport-neutral AES diagnostics.
 
-The Film candidate carries no `snapshot_id` or `spec_snapshot_id`. Passing it
-does not establish an immutable external conformance claim. The selected Rust
-reference and the independent JavaScript decoder both pass the 68 direct decode
-operations. The JavaScript reader also decodes the three canonical Film byte
-fixtures supplied by positive encode/transcode vectors; the remaining
-buffered-encoder rejection is deliberately outside a decoder-only surface.
+The local Film candidate carries no `snapshot_id` or `spec_snapshot_id` and
+remains the mutable development target. The immutable shared
+`film-cts-v1-snapshot-0.1` publishes the exact audited 72-vector state. The
+selected Rust reference passes all operations in that snapshot. The independent
+JavaScript implementation claims only its 68 `decode` operations; it also reads
+the three canonical Film byte fixtures supplied by positive encode/transcode
+vectors, while the remaining buffered-encoder rejection stays outside the
+decoder-only claim.
 
 The manifest separates:
 
@@ -164,6 +166,12 @@ Both manifests live in `aeonite-cts`, pin a SHA-256 digest for every suite, and
 pass independently in the JavaScript and Rust implementations. Later candidate
 changes stay here or enter a newer shared snapshot; the published identifiers
 and their suite bytes are not changed.
+
+Film adds the parallel immutable `film-cts-v1-snapshot-0.1` target. A claim may
+carry an `operations` list to narrow its scope; omitting that field claims the
+entire snapshot. This repository therefore records JavaScript as a Film reader
+for `decode`, while Rust claims `decode`, `encode`, and `transcode`. The shared
+commands select all three released AES manifests from the authority repository.
 
 The repository declares its released-snapshot coverage in
 [`cts-claims.json`](cts-claims.json). Validate those claims against an

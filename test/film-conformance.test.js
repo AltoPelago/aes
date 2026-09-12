@@ -1,22 +1,31 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 
-const manifestUrl = new URL('../conformance/film/v1/film-cts.v1.json', import.meta.url);
+const manifestUrl = process.env.FILM_CTS_MANIFEST === undefined
+  ? new URL('../conformance/film/v1/film-cts.v1.json', import.meta.url)
+  : pathToFileURL(resolve(process.env.FILM_CTS_MANIFEST));
 const manifest = readJson(manifestUrl);
 const specification = readFileSync(new URL('../specifications/film.aes.md', import.meta.url), 'utf8');
 
-test('mutable Film manifest has resolvable suites and unique language-neutral vectors', () => {
-  assert.equal(manifest.meta.version, '0.1.0-dev');
-  assert.equal(manifest.meta.status, 'draft');
+test('selected Film manifest has resolvable suites and unique language-neutral vectors', () => {
+  if (manifest.meta.status === 'released') {
+    assert.equal(manifest.meta.version, '0.1.0');
+    assert.equal(manifest.meta.snapshot_id, 'film-cts-v1-snapshot-0.1');
+    assert.equal(manifest.meta.spec_snapshot_id, 'film-specs-v1-snapshot-0.1');
+  } else {
+    assert.equal(manifest.meta.version, '0.1.0-dev');
+    assert.equal(manifest.meta.status, 'draft');
+    assert.equal(Object.hasOwn(manifest.meta, 'snapshot_id'), false);
+    assert.equal(Object.hasOwn(manifest.meta, 'spec_snapshot_id'), false);
+  }
   assert.equal(manifest.meta.lane, 'aes-film');
   assert.equal(manifest.meta.format, 'film.aes');
   assert.equal(manifest.meta.format_version, '1');
   assert.equal(manifest.meta.event_contract, 'aes.events.v1');
   assert.equal(manifest.meta.byte_encoding, 'lowercase-hex');
-  assert.equal(Object.hasOwn(manifest.meta, 'snapshot_id'), false);
-  assert.equal(Object.hasOwn(manifest.meta, 'spec_snapshot_id'), false);
-
   const seen = new Set();
   let count = 0;
   for (const suiteRef of manifest.suites) {
@@ -43,7 +52,8 @@ test('mutable Film manifest has resolvable suites and unique language-neutral ve
   assert.equal(count, 72);
 });
 
-test('mutable Film vectors reference existing specification headings', () => {
+test('selected Film candidate vectors reference existing specification headings', () => {
+  if (manifest.meta.status === 'released') return;
   const anchors = markdownHeadingAnchors(specification);
   for (const suiteRef of manifest.suites) {
     const suite = readJson(new URL(suiteRef.file, manifestUrl));
@@ -55,7 +65,7 @@ test('mutable Film vectors reference existing specification headings', () => {
   }
 });
 
-test('mutable Film vectors satisfy the complete v1 protocol shape', () => {
+test('selected Film vectors satisfy the complete v1 protocol shape', () => {
   const syntaxCodes = new Set();
   let aesFailures = 0;
   for (const suiteRef of manifest.suites) {
@@ -112,7 +122,7 @@ test('mutable Film vectors satisfy the complete v1 protocol shape', () => {
   assert.ok(aesFailures > 0);
 });
 
-test('Film specification example is fixed by the mutable scalar vector', () => {
+test('Film specification example is fixed by the selected scalar vector', () => {
   const suite = readJson(new URL('suites/01-framing-and-canonicalization.json', manifestUrl));
   const vector = suite.tests.find(({ id }) => id === 'film-framing-005-canonical-scalar');
   assert.notEqual(vector, undefined);

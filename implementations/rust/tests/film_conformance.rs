@@ -12,22 +12,31 @@ use aes_telex::{
 use serde_json::{Map, Value, json};
 
 #[test]
-fn passes_mutable_film_v1_vectors() {
+fn passes_selected_film_v1_vectors() {
     let manifest_path = selected_manifest(
         "FILM_CTS_MANIFEST",
         "../../conformance/film/v1/film-cts.v1.json",
     );
     let manifest = read_json(&manifest_path);
-    assert_eq!(manifest["meta"]["version"], "0.1.0-dev");
-    assert_eq!(manifest["meta"]["status"], "draft");
+    let released = manifest["meta"]["status"] == "released";
+    if released {
+        assert_eq!(manifest["meta"]["version"], "0.1.0");
+        assert_eq!(manifest["meta"]["snapshot_id"], "film-cts-v1-snapshot-0.1");
+        assert_eq!(
+            manifest["meta"]["spec_snapshot_id"],
+            "film-specs-v1-snapshot-0.1"
+        );
+    } else {
+        assert_eq!(manifest["meta"]["version"], "0.1.0-dev");
+        assert_eq!(manifest["meta"]["status"], "draft");
+        assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
+        assert_eq!(manifest["meta"]["spec_snapshot_id"], Value::Null);
+    }
     assert_eq!(manifest["meta"]["lane"], "aes-film");
     assert_eq!(manifest["meta"]["format"], "film.aes");
     assert_eq!(manifest["meta"]["format_version"], "1");
     assert_eq!(manifest["meta"]["event_contract"], "aes.events.v1");
     assert_eq!(manifest["meta"]["byte_encoding"], "lowercase-hex");
-    assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
-    assert_eq!(manifest["meta"]["spec_snapshot_id"], Value::Null);
-
     let mut seen = HashSet::new();
     let mut count = 0_usize;
     for suite_ref in manifest["suites"]
@@ -61,7 +70,7 @@ fn passes_mutable_film_v1_vectors() {
             count += 1;
         }
     }
-    assert_eq!(count, 72, "unexpected mutable Film vector count");
+    assert_eq!(count, 72, "unexpected selected Film vector count");
 }
 
 fn run_vector(id: &str, vector: &Value) {

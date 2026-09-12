@@ -19,6 +19,13 @@
           "snapshot_id": "telex-cts-v1-snapshot-0.1",
           "status": "claimed",
           "command": "npm run test:conformance:shared"
+        },
+        {
+          "surface": "film-reader",
+          "snapshot_id": "film-cts-v1-snapshot-0.1",
+          "operations": ["decode"],
+          "status": "claimed",
+          "command": "npm run test:conformance:shared"
         }
       ]
     },
@@ -35,6 +42,13 @@
         {
           "surface": "telex",
           "snapshot_id": "telex-cts-v1-snapshot-0.1",
+          "status": "claimed",
+          "command": "npm run test:conformance:rust:shared"
+        },
+        {
+          "surface": "film",
+          "snapshot_id": "film-cts-v1-snapshot-0.1",
+          "operations": ["decode", "encode", "transcode"],
           "status": "claimed",
           "command": "npm run test:conformance:rust:shared"
         }
