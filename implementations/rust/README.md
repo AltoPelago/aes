@@ -15,6 +15,15 @@ configuration concern. Bounds cover encoded input and line bytes, fields,
 events, cumulative decoded payload bytes, paths, and all datatype dimensions;
 limits are enforced without truncation.
 
+Producers with fixed AES event fields may use `AesEventRecord`,
+`AesEventAddress`, and `AesValueKind` with
+`encode_aes_event_records_with_projection_and_limits`. This typed path avoids
+constructing extensible textual field-name pairs and emits fields in canonical
+order without a temporary sorting vector. It is not a validation bypass: the
+same semantic checks, completeness rules, reference checks, datatype checks,
+and `TelexLimits` run before encoding. `TelexRecord` remains the extensible
+surface for parsing, registered fields, and generic Telex tooling.
+
 The default stream contains body events only. The optional
 `aeon.document.v1` projection adds flat `header` records in a disjoint address
 plane; it remains independent of the complete/partial AES profile selection.

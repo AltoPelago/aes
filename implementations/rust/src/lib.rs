@@ -135,6 +135,101 @@ pub struct TelexRecord {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AesEventAddress {
+    Header(String),
+    Path(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AesValueKind {
+    StringLiteral,
+    NumberLiteral,
+    InfinityLiteral,
+    NaNLiteral,
+    NullLiteral,
+    BooleanLiteral,
+    ToggleLiteral,
+    HexLiteral,
+    RadixLiteral,
+    EncodingLiteral,
+    SeparatorLiteral,
+    SansaAddressLiteral,
+    DateLiteral,
+    TimeLiteral,
+    DateTimeLiteral,
+    WtcDateTimeLiteral,
+    ObjectNode,
+    ListNode,
+    TupleLiteral,
+    NodeLiteral,
+    NodeHead,
+    CloneReference,
+    PointerReference,
+}
+
+impl AesValueKind {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::StringLiteral => "StringLiteral",
+            Self::NumberLiteral => "NumberLiteral",
+            Self::InfinityLiteral => "InfinityLiteral",
+            Self::NaNLiteral => "NaNLiteral",
+            Self::NullLiteral => "NullLiteral",
+            Self::BooleanLiteral => "BooleanLiteral",
+            Self::ToggleLiteral => "ToggleLiteral",
+            Self::HexLiteral => "HexLiteral",
+            Self::RadixLiteral => "RadixLiteral",
+            Self::EncodingLiteral => "EncodingLiteral",
+            Self::SeparatorLiteral => "SeparatorLiteral",
+            Self::SansaAddressLiteral => "SansaAddressLiteral",
+            Self::DateLiteral => "DateLiteral",
+            Self::TimeLiteral => "TimeLiteral",
+            Self::DateTimeLiteral => "DateTimeLiteral",
+            Self::WtcDateTimeLiteral => "WTCDateTimeLiteral",
+            Self::ObjectNode => "ObjectNode",
+            Self::ListNode => "ListNode",
+            Self::TupleLiteral => "TupleLiteral",
+            Self::NodeLiteral => "NodeLiteral",
+            Self::NodeHead => "NodeHead",
+            Self::CloneReference => "CloneReference",
+            Self::PointerReference => "PointerReference",
+        }
+    }
+}
+
+/// A typed AES event for producers that already hold canonical event
+/// components and do not need Telex's extensible name/value record model.
+///
+/// Typed records still pass through the complete AES semantic validator and
+/// every configured limit before canonical wire encoding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesEventRecord {
+    pub address: AesEventAddress,
+    pub kind: AesValueKind,
+    pub datatype: Option<DatatypeDescriptor>,
+    pub identity: Option<String>,
+    pub value: Option<String>,
+    pub origin: Option<String>,
+    pub span: Option<String>,
+}
+
+impl AesEventRecord {
+    #[must_use]
+    pub const fn new(address: AesEventAddress, kind: AesValueKind) -> Self {
+        Self {
+            address,
+            kind,
+            datatype: None,
+            identity: None,
+            value: None,
+            origin: None,
+            span: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatatypeDescriptor {
     pub datatype: String,
     pub generics: Vec<GenericArgument>,
@@ -207,6 +302,113 @@ impl TelexRecord {
     #[must_use]
     pub fn contains(&self, field: &str) -> bool {
         self.get(field).is_some()
+    }
+}
+
+trait RecordView {
+    const FIXED_CORE_FIELDS: bool;
+
+    fn field_count(&self) -> usize;
+    fn get(&self, field: &str) -> Option<&str>;
+    fn datatype(&self) -> Option<&DatatypeDescriptor>;
+    fn visit_fields<'a>(&'a self, visitor: &mut dyn FnMut(&'a str, &'a str));
+
+    fn contains(&self, field: &str) -> bool {
+        self.get(field).is_some()
+    }
+
+    fn validate_encode_field_structure(&self) -> Result<(), TelexEncodeError> {
+        Ok(())
+    }
+}
+
+impl RecordView for TelexRecord {
+    const FIXED_CORE_FIELDS: bool = false;
+
+    fn field_count(&self) -> usize {
+        self.fields.len()
+    }
+
+    fn get(&self, field: &str) -> Option<&str> {
+        Self::get(self, field)
+    }
+
+    fn datatype(&self) -> Option<&DatatypeDescriptor> {
+        Self::datatype(self)
+    }
+
+    fn visit_fields<'a>(&'a self, visitor: &mut dyn FnMut(&'a str, &'a str)) {
+        for (field, value) in &self.fields {
+            visitor(field, value);
+        }
+    }
+
+    fn validate_encode_field_structure(&self) -> Result<(), TelexEncodeError> {
+        for (field_index, (field, _)) in self.fields.iter().enumerate() {
+            if !valid_field_name(field) {
+                return Err(TelexEncodeError::new(format!(
+                    "Invalid Telex field name: {field}"
+                )));
+            }
+            if self.fields[..field_index]
+                .iter()
+                .any(|(existing, _)| existing == field)
+            {
+                return Err(TelexEncodeError::new(format!(
+                    "Duplicate Telex field: {field}"
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl RecordView for AesEventRecord {
+    const FIXED_CORE_FIELDS: bool = true;
+
+    fn field_count(&self) -> usize {
+        2 + usize::from(self.datatype.is_some())
+            + usize::from(self.identity.is_some())
+            + usize::from(self.value.is_some())
+            + usize::from(self.origin.is_some())
+            + usize::from(self.span.is_some())
+    }
+
+    fn get(&self, field: &str) -> Option<&str> {
+        match field {
+            "header" => match &self.address {
+                AesEventAddress::Header(address) => Some(address),
+                AesEventAddress::Path(_) => None,
+            },
+            "path" => match &self.address {
+                AesEventAddress::Path(address) => Some(address),
+                AesEventAddress::Header(_) => None,
+            },
+            "kind" => Some(self.kind.as_str()),
+            "datatype" => self.datatype.as_ref().map(|value| value.datatype.as_str()),
+            "identity" => self.identity.as_deref(),
+            "value" => self.value.as_deref(),
+            "origin" => self.origin.as_deref(),
+            "span" => self.span.as_deref(),
+            _ => None,
+        }
+    }
+
+    fn datatype(&self) -> Option<&DatatypeDescriptor> {
+        self.datatype.as_ref()
+    }
+
+    fn visit_fields<'a>(&'a self, visitor: &mut dyn FnMut(&'a str, &'a str)) {
+        match &self.address {
+            AesEventAddress::Header(address) => visitor("header", address),
+            AesEventAddress::Path(address) => visitor("path", address),
+        }
+        visitor("kind", self.kind.as_str());
+        for field in ["datatype", "identity", "value", "origin", "span"] {
+            if let Some(value) = self.get(field) {
+                visitor(field, value);
+            }
+        }
     }
 }
 
@@ -2494,6 +2696,24 @@ pub fn encode_telex_with_projection_and_limits(
     projection: Option<&str>,
     limits: &TelexLimits,
 ) -> Result<String, TelexEncodeError> {
+    encode_record_views_with_projection_and_limits(records, profile, projection, limits)
+}
+
+pub fn encode_aes_event_records_with_projection_and_limits(
+    records: &[AesEventRecord],
+    profile: Option<&str>,
+    projection: Option<&str>,
+    limits: &TelexLimits,
+) -> Result<String, TelexEncodeError> {
+    encode_record_views_with_projection_and_limits(records, profile, projection, limits)
+}
+
+fn encode_record_views_with_projection_and_limits<R: RecordView>(
+    records: &[R],
+    profile: Option<&str>,
+    projection: Option<&str>,
+    limits: &TelexLimits,
+) -> Result<String, TelexEncodeError> {
     enforce_encode_limit("max_events", records.len(), limits.max_events)?;
     if profile == Some("") {
         return Err(TelexEncodeError::new(
@@ -2505,7 +2725,7 @@ pub fn encode_telex_with_projection_and_limits(
             "Telex projection must be a non-empty string",
         ));
     }
-    let validation = validate_telex_records_with_projection_and_limits(
+    let validation = validate_record_views_with_projection_and_limits(
         records,
         profile.unwrap_or(COMPLETE_AES_PROFILE),
         projection,
@@ -2542,7 +2762,7 @@ pub fn encode_telex_with_projection_and_limits(
 
     encoded.push_str("\n\n");
     for (record_index, record) in records.iter().enumerate() {
-        if record.fields.is_empty() {
+        if record.field_count() == 0 {
             return Err(TelexEncodeError::new(format!(
                 "Telex record {} must not be empty",
                 record_index + 1
@@ -2550,36 +2770,28 @@ pub fn encode_telex_with_projection_and_limits(
         }
         enforce_encode_limit(
             "max_fields_per_event",
-            record.fields.len(),
+            record.field_count(),
             limits.max_fields_per_event,
         )?;
-        for (field_index, (field, _)) in record.fields.iter().enumerate() {
-            if !valid_field_name(field) {
-                return Err(TelexEncodeError::new(format!(
-                    "Invalid Telex field name: {field}"
-                )));
-            }
-            if record.fields[..field_index]
-                .iter()
-                .any(|(existing, _)| existing == field)
-            {
-                return Err(TelexEncodeError::new(format!(
-                    "Duplicate Telex field: {field}"
-                )));
-            }
+        if !R::FIXED_CORE_FIELDS {
+            record.validate_encode_field_structure()?;
         }
-        let mut fields = wire_fields(record, limits).map_err(TelexEncodeError::new)?;
-        for (_, value) in &fields {
-            add_encoded_payload_bytes(value, limits, &mut decoded_payload_bytes)?;
-        }
-        if !has_canonical_wire_field_order(&fields) {
-            fields.sort_by(|left, right| compare_fields(left.0, right.0));
-        }
-        for (field_index, (field, value)) in fields.iter().enumerate() {
-            if field_index > 0 {
-                encoded.push('\n');
+        if R::FIXED_CORE_FIELDS {
+            push_typed_wire_record(record, &mut encoded, limits, &mut decoded_payload_bytes)?;
+        } else {
+            let mut fields = wire_fields(record, limits).map_err(TelexEncodeError::new)?;
+            for (_, value) in &fields {
+                add_encoded_payload_bytes(value, limits, &mut decoded_payload_bytes)?;
             }
-            push_wire_line(&mut encoded, field, value, limits)?;
+            if !has_canonical_wire_field_order(&fields) {
+                fields.sort_by(|left, right| compare_fields(left.0, right.0));
+            }
+            for (field_index, (field, value)) in fields.iter().enumerate() {
+                if field_index > 0 {
+                    encoded.push('\n');
+                }
+                push_wire_line(&mut encoded, field, value, limits)?;
+            }
         }
         if record_index + 1 < records.len() {
             encoded.push_str("\n\n");
@@ -2589,6 +2801,42 @@ pub fn encode_telex_with_projection_and_limits(
     encoded.push('\n');
     enforce_encode_limit("max_input_bytes", encoded.len(), limits.max_input_bytes)?;
     Ok(encoded)
+}
+
+fn push_typed_wire_record<R: RecordView>(
+    record: &R,
+    encoded: &mut String,
+    limits: &TelexLimits,
+    decoded_payload_bytes: &mut usize,
+) -> Result<(), TelexEncodeError> {
+    let formatted_datatype = if let Some(descriptor) = record.datatype() {
+        validate_datatype_descriptor(descriptor, limits)
+            .map_err(|(_, detail)| TelexEncodeError::new(detail))?;
+        (!descriptor.generics.is_empty() || !descriptor.clarifiers.is_empty())
+            .then(|| format_datatype_descriptor(descriptor))
+    } else {
+        None
+    };
+    let mut field_index = 0_usize;
+    for field in [
+        "header", "path", "kind", "datatype", "identity", "value", "origin", "span",
+    ] {
+        let value = if field == "datatype" {
+            formatted_datatype.as_deref().or_else(|| record.get(field))
+        } else {
+            record.get(field)
+        };
+        let Some(value) = value else {
+            continue;
+        };
+        add_encoded_payload_bytes(value, limits, decoded_payload_bytes)?;
+        if field_index > 0 {
+            encoded.push('\n');
+        }
+        push_wire_line(encoded, field, value, limits)?;
+        field_index += 1;
+    }
+    Ok(())
 }
 
 pub fn canonicalize_telex(input: &str) -> Result<String, TelexSyntaxError> {
@@ -2693,6 +2941,32 @@ pub fn validate_telex_records_with_projection_and_limits(
     registered_fields: &[&str],
     limits: &TelexLimits,
 ) -> ValidationResult {
+    validate_record_views_with_projection_and_limits(
+        records,
+        profile,
+        projection,
+        registered_fields,
+        limits,
+    )
+}
+
+#[must_use]
+pub fn validate_aes_event_records_with_projection_and_limits(
+    records: &[AesEventRecord],
+    profile: &str,
+    projection: Option<&str>,
+    limits: &TelexLimits,
+) -> ValidationResult {
+    validate_record_views_with_projection_and_limits(records, profile, projection, &[], limits)
+}
+
+fn validate_record_views_with_projection_and_limits<R: RecordView>(
+    records: &[R],
+    profile: &str,
+    projection: Option<&str>,
+    registered_fields: &[&str],
+    limits: &TelexLimits,
+) -> ValidationResult {
     let mut diagnostics = Vec::new();
 
     if records.len() > limits.max_events {
@@ -2743,8 +3017,8 @@ pub fn validate_telex_records_with_projection_and_limits(
     }
 }
 
-fn prepare_event_candidates(
-    records: &[TelexRecord],
+fn prepare_event_candidates<R: RecordView>(
+    records: &[R],
     profile: &str,
     projection: Option<&str>,
     registered_fields: &[&str],
@@ -2769,8 +3043,8 @@ fn prepare_event_candidates(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn prepare_event_candidates_into(
-    records: &[TelexRecord],
+fn prepare_event_candidates_into<R: RecordView>(
+    records: &[R],
     start_index: usize,
     profile: &str,
     projection: Option<&str>,
@@ -2784,8 +3058,8 @@ fn prepare_event_candidates_into(
         let index = start_index + offset;
         let address_field = record_address_field(event);
         let address = address_field.and_then(|field| event.get(field.name()));
-        for (field, _) in event.fields() {
-            if !CORE_FIELDS.contains(&field.as_str()) && !registered.contains(field.as_str()) {
+        event.visit_fields(&mut |field, _| {
+            if !CORE_FIELDS.contains(&field) && !registered.contains(field) {
                 diagnostics.push(
                     Diagnostic::new(
                         "AES_UNKNOWN_FIELD",
@@ -2795,7 +3069,7 @@ fn prepare_event_candidates_into(
                     .with_field(field),
                 );
             }
-        }
+        });
         if let Some(datatype) = event.datatype()
             && let Err((code, message)) = validate_datatype_descriptor(datatype, limits)
         {
@@ -2936,8 +3210,8 @@ fn prepare_event_candidates_into(
     }
 }
 
-fn finalize_event_candidates(
-    records: &[TelexRecord],
+fn finalize_event_candidates<R: RecordView>(
+    records: &[R],
     events: &[EventCandidate],
     profile: &str,
     projection: Option<&str>,
@@ -2993,8 +3267,8 @@ fn finalize_event_candidates(
     }
 }
 
-fn index_event_paths<'records, 'events>(
-    records: &'records [TelexRecord],
+fn index_event_paths<'records, 'events, R: RecordView>(
+    records: &'records [R],
     events: &[&'events EventCandidate],
 ) -> HashMap<&'records str, &'events EventCandidate> {
     let mut by_path = HashMap::with_capacity(events.len());
@@ -3008,8 +3282,8 @@ fn index_event_paths<'records, 'events>(
     by_path
 }
 
-fn validate_event_value<'a>(
-    event: &'a TelexRecord,
+fn validate_event_value<'a, R: RecordView>(
+    event: &'a R,
     index: usize,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
@@ -3146,7 +3420,11 @@ fn validate_event_value<'a>(
     reference_target
 }
 
-fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut Vec<Diagnostic>) {
+fn validate_optional_fields<R: RecordView>(
+    event: &R,
+    index: usize,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     let path = record_address(event);
     for field in ["datatype", "identity"] {
         if event.get(field) == Some("") {
@@ -3196,9 +3474,9 @@ fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut
     }
 }
 
-fn validate_datatype_string_limits(
+fn validate_datatype_string_limits<R: RecordView>(
     descriptor: &DatatypeDescriptor,
-    event: &TelexRecord,
+    event: &R,
     index: usize,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
@@ -3296,8 +3574,8 @@ fn validate_path_limits(
     }
 }
 
-fn validate_represented_structural_limits(
-    records: &[TelexRecord],
+fn validate_represented_structural_limits<R: RecordView>(
+    records: &[R],
     events: &[&EventCandidate],
     by_path: &HashMap<&str, &EventCandidate>,
     limits: &TelexLimits,
@@ -3392,8 +3670,8 @@ struct EventCandidate {
     has_valid_reference_target: bool,
 }
 
-fn candidate_address<'a>(
-    records: &'a [TelexRecord],
+fn candidate_address<'a, R: RecordView>(
+    records: &'a [R],
     candidate: &EventCandidate,
 ) -> Option<&'a str> {
     candidate
@@ -3401,8 +3679,8 @@ fn candidate_address<'a>(
         .and_then(|field| records[candidate.index].get(field.name()))
 }
 
-fn validate_complete_stream(
-    records: &[TelexRecord],
+fn validate_complete_stream<R: RecordView>(
+    records: &[R],
     events: &[&EventCandidate],
     by_path: &HashMap<&str, &EventCandidate>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -3504,8 +3782,8 @@ fn validate_complete_stream(
     }
 }
 
-fn validate_reference_targets(
-    records: &[TelexRecord],
+fn validate_reference_targets<R: RecordView>(
+    records: &[R],
     reference_events: &[&EventCandidate],
     additional_reference_events: Option<&[&EventCandidate]>,
     body_by_path: &HashMap<&str, &EventCandidate>,
@@ -3548,8 +3826,8 @@ fn validate_reference_targets(
     }
 }
 
-fn validate_identity_uniqueness(
-    records: &[TelexRecord],
+fn validate_identity_uniqueness<R: RecordView>(
+    records: &[R],
     events: &[&EventCandidate],
     additional_events: Option<&[&EventCandidate]>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -3582,8 +3860,8 @@ fn validate_identity_uniqueness(
     }
 }
 
-fn incompatible_parent(
-    records: &[TelexRecord],
+fn incompatible_parent<R: RecordView>(
+    records: &[R],
     candidate: &EventCandidate,
     parent_path: &str,
     actual: Option<&str>,
@@ -3600,7 +3878,7 @@ fn incompatible_parent(
     .with_required_path(parent_path)
 }
 
-fn invalid_node_head(records: &[TelexRecord], candidate: &EventCandidate) -> Diagnostic {
+fn invalid_node_head<R: RecordView>(records: &[R], candidate: &EventCandidate) -> Diagnostic {
     Diagnostic::new(
         "AES_INVALID_NODE_HEAD",
         "A 'NodeHead' must be an indexed direct child of a 'NodeLiteral'",
@@ -3623,7 +3901,7 @@ impl AddressField {
     }
 }
 
-fn record_address_field(record: &TelexRecord) -> Option<AddressField> {
+fn record_address_field<R: RecordView>(record: &R) -> Option<AddressField> {
     match (record.contains("path"), record.contains("header")) {
         (true, false) => Some(AddressField::Path),
         (false, true) => Some(AddressField::Header),
@@ -3631,7 +3909,7 @@ fn record_address_field(record: &TelexRecord) -> Option<AddressField> {
     }
 }
 
-fn record_address(record: &TelexRecord) -> Option<&str> {
+fn record_address<R: RecordView>(record: &R) -> Option<&str> {
     record_address_field(record).and_then(|field| record.get(field.name()))
 }
 
@@ -3925,11 +4203,11 @@ fn decode_wire_record(
     ))
 }
 
-fn wire_fields<'a>(
-    record: &'a TelexRecord,
+fn wire_fields<'a, R: RecordView>(
+    record: &'a R,
     limits: &TelexLimits,
 ) -> Result<Vec<(&'a str, Cow<'a, str>)>, String> {
-    let mut wire_datatype = if let Some(descriptor) = &record.datatype {
+    let mut wire_datatype = if let Some(descriptor) = record.datatype() {
         validate_datatype_descriptor(descriptor, limits).map_err(|(_, detail)| detail)?;
         Some(
             if descriptor.generics.is_empty() && descriptor.clarifiers.is_empty() {
@@ -3941,18 +4219,18 @@ fn wire_fields<'a>(
     } else {
         None
     };
-    let mut fields = Vec::with_capacity(record.fields.len());
-    for (field, value) in &record.fields {
+    let mut fields = Vec::with_capacity(record.field_count());
+    record.visit_fields(&mut |field, value| {
         if field == "datatype" {
             let Some(datatype) = wire_datatype.take() else {
-                fields.push((field.as_str(), Cow::Borrowed(value.as_str())));
-                continue;
+                fields.push((field, Cow::Borrowed(value)));
+                return;
             };
-            fields.push((field.as_str(), datatype));
+            fields.push((field, datatype));
         } else {
-            fields.push((field.as_str(), Cow::Borrowed(value.as_str())));
+            fields.push((field, Cow::Borrowed(value)));
         }
-    }
+    });
     if wire_datatype.is_some() {
         return Err("A structured datatype requires the logical datatype field".to_owned());
     }
