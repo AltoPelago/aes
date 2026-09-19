@@ -123,3 +123,38 @@ fn invalid_paths_do_not_also_emit_structural_path_limits() {
             .all(|diagnostic| diagnostic.counter != Some("max_path_characters"))
     );
 }
+
+#[test]
+fn path_character_limits_count_unicode_scalars_instead_of_utf8_bytes() {
+    let records = vec![TelexRecord::new(vec![
+        ("path".to_owned(), "$.[\"é\"]".to_owned()),
+        ("kind".to_owned(), "NumberLiteral".to_owned()),
+        ("value".to_owned(), "1".to_owned()),
+    ])];
+    let accepted_limits = TelexLimits {
+        max_path_characters: 7,
+        ..TelexLimits::default()
+    };
+    let rejected_limits = TelexLimits {
+        max_path_characters: 6,
+        ..TelexLimits::default()
+    };
+
+    let accepted =
+        validate_telex_records_with_limits(&records, "aes.partial.v1", &[], &accepted_limits);
+    assert!(
+        accepted
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.counter != Some("max_path_characters"))
+    );
+
+    let rejected =
+        validate_telex_records_with_limits(&records, "aes.partial.v1", &[], &rejected_limits);
+    assert!(
+        rejected
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.counter == Some("max_path_characters"))
+    );
+}

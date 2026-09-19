@@ -3711,7 +3711,11 @@ fn validate_path_limits(
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let field = address_field.map_or("path", AddressField::name);
-    let characters = path.chars().count();
+    let characters = if path.is_ascii() {
+        path.len()
+    } else {
+        path.chars().count()
+    };
     if characters > limits.max_path_characters {
         diagnostics.push(
             limit_diagnostic(
