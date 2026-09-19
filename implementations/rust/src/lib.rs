@@ -4,7 +4,7 @@ use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
-use std::hash::{BuildHasher, Hash, Hasher};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 use std::sync::{Arc, OnceLock};
 
 use sha2::{Digest, Sha256};
@@ -3412,8 +3412,9 @@ fn finalize_event_candidates<R: RecordView>(
 fn index_event_paths<'records, 'events, R: RecordView>(
     records: &'records [R],
     events: &[&'events EventCandidate],
-) -> HashMap<IndexedPath<'records>, &'events EventCandidate> {
-    let mut by_path = HashMap::with_capacity(events.len());
+) -> PathIndex<'records, 'events> {
+    let mut by_path =
+        PathIndex::with_capacity_and_hasher(events.len(), BuildHasherDefault::default());
     for &candidate in events {
         if candidate.path_details.is_some()
             && let Some(path) = candidate_address(records, candidate)
@@ -3718,11 +3719,15 @@ fn validate_path_limits(
 fn validate_represented_structural_limits<R: RecordView>(
     records: &[R],
     events: &[&EventCandidate],
-    by_path: &HashMap<IndexedPath<'_>, &EventCandidate>,
+    by_path: &PathIndex<'_, '_>,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let mut direct_items: HashMap<IndexedPath<'_>, usize> = HashMap::new();
+    let mut direct_items: HashMap<
+        IndexedPath<'_>,
+        usize,
+        BuildHasherDefault<PathFingerprintHasher>,
+    > = HashMap::with_capacity_and_hasher(events.len(), BuildHasherDefault::default());
     for &candidate in events {
         let Some(path) = candidate_address(records, candidate) else {
             continue;
@@ -3981,7 +3986,7 @@ fn candidate_address<'a, R: RecordView>(
 fn validate_complete_stream<R: RecordView>(
     records: &[R],
     events: &[&EventCandidate],
-    by_path: &HashMap<IndexedPath<'_>, &EventCandidate>,
+    by_path: &PathIndex<'_, '_>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     for candidate in events {
@@ -4100,7 +4105,7 @@ fn validate_reference_targets<R: RecordView>(
     records: &[R],
     reference_events: &[&EventCandidate],
     additional_reference_events: Option<&[&EventCandidate]>,
-    body_by_path: &HashMap<IndexedPath<'_>, &EventCandidate>,
+    body_by_path: &PathIndex<'_, '_>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     if !reference_events
@@ -4332,6 +4337,57 @@ impl Eq for IndexedPath<'_> {}
 impl Hash for IndexedPath<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u64(self.fingerprint);
+    }
+}
+
+/// The path fingerprint is already process-seeded and incrementally computed.
+/// Feeding it through `RandomState` again only repeats keyed hashing on every
+/// validation lookup. This hasher preserves the cached value as the table hash;
+/// `IndexedPath::eq` still compares complete rendered paths, so collisions do
+/// not affect identity or validation semantics.
+#[derive(Default)]
+struct PathFingerprintHasher(u64);
+
+impl Hasher for PathFingerprintHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.0 = extend_canonical_path_fingerprint(canonical_path_fingerprint_offset(), bytes);
+    }
+
+    fn write_u64(&mut self, fingerprint: u64) {
+        self.0 = fingerprint;
+    }
+}
+
+type PathIndex<'path, 'event> =
+    HashMap<IndexedPath<'path>, &'event EventCandidate, BuildHasherDefault<PathFingerprintHasher>>;
+
+#[cfg(test)]
+mod path_fingerprint_tests {
+    use super::{BuildHasherDefault, HashMap, IndexedPath, PathFingerprintHasher};
+
+    #[test]
+    fn indexed_paths_keep_rendered_equality_when_fingerprints_collide() {
+        let mut paths: HashMap<IndexedPath<'_>, usize, BuildHasherDefault<PathFingerprintHasher>> =
+            HashMap::default();
+        let first = IndexedPath {
+            rendered: "$.first",
+            fingerprint: 7,
+        };
+        let second = IndexedPath {
+            rendered: "$.second",
+            fingerprint: 7,
+        };
+
+        paths.insert(first, 1);
+        paths.insert(second, 2);
+
+        assert_eq!(paths.len(), 2);
+        assert_eq!(paths.get(&first), Some(&1));
+        assert_eq!(paths.get(&second), Some(&2));
     }
 }
 
