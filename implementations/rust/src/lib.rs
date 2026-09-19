@@ -3779,8 +3779,7 @@ fn validate_represented_structural_limits<R: RecordView>(
         IndexedPath<'_>,
         usize,
         BuildHasherDefault<PathFingerprintHasher>,
-    > = HashMap::with_hasher(BuildHasherDefault::default());
-    let mut pending_direct_items = None;
+    > = HashMap::with_capacity_and_hasher(events.len(), BuildHasherDefault::default());
     for &candidate in events {
         let Some(path) = candidate_address(records, candidate) else {
             continue;
@@ -3845,24 +3844,13 @@ fn validate_represented_structural_limits<R: RecordView>(
             let parent_fingerprint = details
                 .parent_fingerprint(path)
                 .expect("a depth-two path has a parent fingerprint");
-            let parent_key = IndexedPath {
-                rendered: parent_path,
-                fingerprint: parent_fingerprint,
-            };
-            if let Some((pending_parent, pending_count)) = &mut pending_direct_items
-                && *pending_parent == parent_key
-            {
-                *pending_count += 1;
-            } else {
-                if let Some((pending_parent, pending_count)) = pending_direct_items.take() {
-                    *direct_items.entry(pending_parent).or_default() += pending_count;
-                }
-                pending_direct_items = Some((parent_key, 1));
-            }
+            *direct_items
+                .entry(IndexedPath {
+                    rendered: parent_path,
+                    fingerprint: parent_fingerprint,
+                })
+                .or_default() += 1;
         }
-    }
-    if let Some((pending_parent, pending_count)) = pending_direct_items {
-        *direct_items.entry(pending_parent).or_default() += pending_count;
     }
     for &parent in events {
         let Some(path) = candidate_address(records, parent) else {

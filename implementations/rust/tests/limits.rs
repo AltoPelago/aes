@@ -64,10 +64,10 @@ fn encoder_enforces_shared_structural_limits() {
 fn represented_limit_diagnostics_follow_parent_record_order() {
     let records = [
         ("$.a", "ListNode", None),
-        ("$.b", "ListNode", None),
         ("$.a[0]", "NumberLiteral", Some("0")),
-        ("$.b[0]", "NumberLiteral", Some("0")),
         ("$.a[1]", "NumberLiteral", Some("1")),
+        ("$.b", "ListNode", None),
+        ("$.b[0]", "NumberLiteral", Some("0")),
         ("$.b[1]", "NumberLiteral", Some("1")),
     ]
     .into_iter()
@@ -94,7 +94,7 @@ fn represented_limit_diagnostics_follow_parent_record_order() {
         .filter(|diagnostic| diagnostic.counter == Some("max_list_items"))
         .map(|diagnostic| diagnostic.record)
         .collect::<Vec<_>>();
-    assert_eq!(records, [Some(0), Some(1)]);
+    assert_eq!(records, [Some(0), Some(3)]);
 }
 
 #[test]
