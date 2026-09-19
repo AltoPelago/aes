@@ -1,6 +1,6 @@
 use aes_telex::{
-    AesEventAddress, AesEventRecord, AesValueKind, ClarifierKind, DatatypeClarifier,
-    DatatypeDescriptor, TelexLimits, TelexRecord,
+    AesCanonicalPath, AesEventAddress, AesEventRecord, AesValueKind, ClarifierKind,
+    DatatypeClarifier, DatatypeDescriptor, TelexLimits, TelexRecord,
     encode_aes_event_records_with_projection_and_limits, encode_telex_with_projection_and_limits,
     validate_aes_event_records_with_projection_and_limits,
     validate_telex_records_with_projection_and_limits,
@@ -26,7 +26,9 @@ fn equivalent_records() -> (Vec<TelexRecord>, Vec<AesEventRecord>) {
         datatype.clone(),
     )];
     let typed = vec![AesEventRecord {
-        address: AesEventAddress::Path("$.answer".to_owned()),
+        address: AesEventAddress::Path(
+            AesCanonicalPath::parse("$.answer".to_owned()).expect("canonical test path"),
+        ),
         kind: AesValueKind::NumberLiteral,
         datatype: Some(datatype),
         identity: Some("answer-id".to_owned()),
@@ -71,7 +73,9 @@ fn typed_records_match_extensible_records_for_validation_and_encoding() {
 #[test]
 fn typed_records_retain_semantic_and_resource_validation() {
     let record = AesEventRecord {
-        address: AesEventAddress::Path("$.bad".to_owned()),
+        address: AesEventAddress::Path(
+            AesCanonicalPath::parse("$.bad".to_owned()).expect("canonical test path"),
+        ),
         kind: AesValueKind::HexLiteral,
         datatype: None,
         identity: None,
@@ -100,4 +104,21 @@ fn typed_records_retain_semantic_and_resource_validation() {
     .expect_err("typed encoding must enforce the common event limit");
     assert_eq!(error.code, "TELEX_LIMIT_EXCEEDED");
     assert_eq!(error.counter, Some("max_events"));
+}
+
+#[test]
+fn segment_builder_matches_validated_canonical_paths_and_is_copy_on_write() {
+    let mut path = AesCanonicalPath::root();
+    path.push_member("answer").expect("nonempty member");
+    path.push_index(12);
+    path.push_attribute("not bare").expect("nonempty attribute");
+
+    let parsed = AesCanonicalPath::parse("$.answer[12].@.[\"not bare\"]".to_owned())
+        .expect("builder output is canonical");
+    assert_eq!(path, parsed);
+
+    let mut child = path.clone();
+    child.push_member("leaf").expect("nonempty member");
+    assert_eq!(path.as_str(), "$.answer[12].@.[\"not bare\"]");
+    assert_eq!(child.as_str(), "$.answer[12].@.[\"not bare\"].leaf");
 }
