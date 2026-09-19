@@ -3414,17 +3414,11 @@ fn finalize_event_candidates<R: RecordView>(
         .collect::<Vec<_>>();
     let body_index = index_event_paths(records, &body_events);
     let header_index = index_event_paths(records, &header_events);
-    validate_represented_structural_limits(
-        records,
-        &body_events,
-        &body_index.by_path,
-        limits,
-        diagnostics,
-    );
+    validate_represented_structural_limits(records, &body_events, &body_index, limits, diagnostics);
     validate_represented_structural_limits(
         records,
         &header_events,
-        &header_index.by_path,
+        &header_index,
         limits,
         diagnostics,
     );
@@ -3772,10 +3766,11 @@ fn validate_path_limits(
 fn validate_represented_structural_limits<R: RecordView>(
     records: &[R],
     events: &[&EventCandidate],
-    by_path: &PathIndex<'_, '_>,
+    index: &EventPathIndex<'_, '_>,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
+    let has_duplicates = !index.duplicates.is_empty();
     let mut direct_items: HashMap<
         IndexedPath<'_>,
         usize,
@@ -3793,9 +3788,11 @@ fn validate_represented_structural_limits<R: RecordView>(
             fingerprint: path_fingerprint,
         };
         if candidate.path_details.is_none()
-            || !by_path
-                .get(&path_key)
-                .is_some_and(|first| std::ptr::eq(*first, candidate))
+            || has_duplicates
+                && !index
+                    .by_path
+                    .get(&path_key)
+                    .is_some_and(|first| std::ptr::eq(*first, candidate))
         {
             continue;
         }
@@ -3810,7 +3807,8 @@ fn validate_represented_structural_limits<R: RecordView>(
             details.visit_ancestor_prefixes(path, &mut |prefix_end, fingerprint| {
                 let prefix = &path[..prefix_end];
                 if matches!(
-                    by_path
+                    index
+                        .by_path
                         .get(&IndexedPath {
                             rendered: prefix,
                             fingerprint,
@@ -3862,9 +3860,11 @@ fn validate_represented_structural_limits<R: RecordView>(
             fingerprint: path_fingerprint,
         };
         if parent.path_details.is_none()
-            || !by_path
-                .get(&path_key)
-                .is_some_and(|first| std::ptr::eq(*first, parent))
+            || has_duplicates
+                && !index
+                    .by_path
+                    .get(&path_key)
+                    .is_some_and(|first| std::ptr::eq(*first, parent))
         {
             continue;
         }
