@@ -107,7 +107,7 @@ fn typed_records_retain_semantic_and_resource_validation() {
 }
 
 #[test]
-fn segment_builder_matches_validated_canonical_paths_and_is_copy_on_write() {
+fn segment_builder_matches_validated_canonical_paths_and_persists_parents() {
     let mut path = AesCanonicalPath::root();
     path.push_member("answer").expect("nonempty member");
     path.push_index(12);

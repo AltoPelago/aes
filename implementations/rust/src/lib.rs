@@ -3,7 +3,6 @@ use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
-use std::ops::Deref;
 use std::sync::Arc;
 
 use sha2::{Digest, Sha256};
@@ -151,16 +150,23 @@ pub enum AesEventAddress {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AesCanonicalPath {
     rendered: String,
-    details: Arc<PathDetails>,
+    tail: Option<Arc<PathNode>>,
+    depth: usize,
 }
 
 impl AesCanonicalPath {
     /// Validate and retain an already-rendered absolute canonical path.
     pub fn parse(rendered: String) -> Result<Self, String> {
         let details = parse_canonical_data_path(&rendered)?;
+        let depth = details.segments.len();
+        let mut tail = None;
+        for segment in details.segments {
+            tail = Some(Arc::new(PathNode::new(tail, segment)));
+        }
         Ok(Self {
             rendered,
-            details: Arc::new(details),
+            tail,
+            depth,
         })
     }
 
@@ -170,7 +176,8 @@ impl AesCanonicalPath {
     pub fn root() -> Self {
         Self {
             rendered: "$".to_owned(),
-            details: Arc::new(PathDetails::default()),
+            tail: None,
+            depth: 0,
         }
     }
 
@@ -191,8 +198,7 @@ impl AesCanonicalPath {
         self.rendered.push('[');
         self.rendered.push_str(&index.to_string());
         self.rendered.push(']');
-        let details = Arc::make_mut(&mut self.details);
-        details.segments.push(ParsedSegment {
+        self.push_segment(ParsedSegment {
             kind: Segment::Index,
             prefix_end: self.rendered.len(),
             member_codepoints: None,
@@ -215,13 +221,17 @@ impl AesCanonicalPath {
             self.rendered.push_str(&canonical_json_string(member));
             self.rendered.push(']');
         }
-        let details = Arc::make_mut(&mut self.details);
-        details.segments.push(ParsedSegment {
+        self.push_segment(ParsedSegment {
             kind: segment,
             prefix_end: self.rendered.len(),
             member_codepoints: Some(member.chars().count()),
         });
         Ok(())
+    }
+
+    fn push_segment(&mut self, segment: ParsedSegment) {
+        self.tail = Some(Arc::new(PathNode::new(self.tail.take(), segment)));
+        self.depth = self.depth.saturating_add(1);
     }
 }
 
@@ -3211,7 +3221,10 @@ fn prepare_event_candidates_into<R: RecordView>(
             Some(path) => {
                 if let Some(canonical) = event.canonical_path() {
                     (
-                        Some(PathDetailsStorage::Shared(Arc::clone(&canonical.details))),
+                        Some(PathDetailsStorage::Shared {
+                            tail: canonical.tail.clone(),
+                            depth: canonical.depth,
+                        }),
                         None,
                     )
                 } else {
@@ -3228,7 +3241,9 @@ fn prepare_event_candidates_into<R: RecordView>(
         {
             validate_path_limits(
                 path,
-                path_details.as_deref(),
+                path_details
+                    .as_ref()
+                    .map(|details| details as &dyn PathDetailsView),
                 index,
                 address_field,
                 limits,
@@ -3513,7 +3528,10 @@ fn validate_event_value<'a, R: RecordView>(
         } else {
             validate_path_limits(
                 value,
-                parsed.as_ref().ok(),
+                parsed
+                    .as_ref()
+                    .ok()
+                    .map(|details| details as &dyn PathDetailsView),
                 index,
                 Some(AddressField::Path),
                 limits,
@@ -3610,7 +3628,7 @@ fn validate_datatype_string_limits<R: RecordView>(
 
 fn validate_path_limits(
     path: &str,
-    details: Option<&PathDetails>,
+    details: Option<&dyn PathDetailsView>,
     index: usize,
     address_field: Option<AddressField>,
     limits: &TelexLimits,
@@ -3630,27 +3648,14 @@ fn validate_path_limits(
         );
     }
     if let Some(details) = details {
-        if details.segments.len() > limits.max_path_depth {
+        if details.len() > limits.max_path_depth {
             diagnostics.push(
-                limit_diagnostic(
-                    "max_path_depth",
-                    details.segments.len(),
-                    limits.max_path_depth,
-                )
-                .at_record(index, Some(path))
-                .with_field(field),
+                limit_diagnostic("max_path_depth", details.len(), limits.max_path_depth)
+                    .at_record(index, Some(path))
+                    .with_field(field),
             );
         }
-        let mut attribute_depth = 0_usize;
-        let mut current_attribute_depth = 0_usize;
-        for segment in &details.segments {
-            current_attribute_depth = if segment.kind == Segment::Attribute {
-                current_attribute_depth.saturating_add(1)
-            } else {
-                0
-            };
-            attribute_depth = attribute_depth.max(current_attribute_depth);
-        }
+        let attribute_depth = details.max_attribute_depth();
         if attribute_depth > limits.max_attribute_depth {
             diagnostics.push(
                 limit_diagnostic(
@@ -3662,22 +3667,22 @@ fn validate_path_limits(
                 .with_field(field),
             );
         }
-        for observed in details
-            .segments
-            .iter()
-            .filter_map(|segment| segment.member_codepoints)
-        {
-            if observed > limits.max_key_segment_codepoints {
-                diagnostics.push(
-                    limit_diagnostic(
-                        "max_key_segment_codepoints",
-                        observed,
-                        limits.max_key_segment_codepoints,
-                    )
-                    .at_record(index, Some(path))
-                    .with_field(field),
-                );
-            }
+        if details.max_member_codepoints() > limits.max_key_segment_codepoints {
+            details.visit_segments(&mut |segment| {
+                if let Some(observed) = segment.member_codepoints
+                    && observed > limits.max_key_segment_codepoints
+                {
+                    diagnostics.push(
+                        limit_diagnostic(
+                            "max_key_segment_codepoints",
+                            observed,
+                            limits.max_key_segment_codepoints,
+                        )
+                        .at_record(index, Some(path))
+                        .with_field(field),
+                    );
+                }
+            });
         }
     }
 }
@@ -3709,12 +3714,8 @@ fn validate_represented_structural_limits<R: RecordView>(
             Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
         ) {
             let mut depth = 1_usize;
-            for segment in details
-                .segments
-                .iter()
-                .take(details.segments.len().saturating_sub(1))
-            {
-                let prefix = &path[..segment.prefix_end];
+            details.visit_ancestor_prefix_ends(&mut |prefix_end| {
+                let prefix = &path[..prefix_end];
                 if matches!(
                     by_path
                         .get(prefix)
@@ -3723,7 +3724,7 @@ fn validate_represented_structural_limits<R: RecordView>(
                 ) {
                     depth = depth.saturating_add(1);
                 }
-            }
+            });
             if depth > limits.max_value_nesting_depth {
                 diagnostics.push(
                     limit_diagnostic(
@@ -3736,10 +3737,11 @@ fn validate_represented_structural_limits<R: RecordView>(
                 );
             }
         }
-        if details.segments.last().map(|segment| segment.kind) == Some(Segment::Index)
-            && details.segments.len() >= 2
+        if details.last().map(|segment| segment.kind) == Some(Segment::Index) && details.len() >= 2
         {
-            let parent_path = &path[..details.segments[details.segments.len() - 2].prefix_end];
+            let parent_path = &path[..details
+                .parent_prefix_end()
+                .expect("a depth-two path has a parent prefix")];
             *direct_items.entry(parent_path).or_default() += 1;
         }
     }
@@ -3776,16 +3778,91 @@ fn validate_represented_structural_limits<R: RecordView>(
 
 enum PathDetailsStorage {
     Owned(PathDetails),
-    Shared(Arc<PathDetails>),
+    Shared {
+        tail: Option<Arc<PathNode>>,
+        depth: usize,
+    },
 }
 
-impl Deref for PathDetailsStorage {
-    type Target = PathDetails;
-
-    fn deref(&self) -> &Self::Target {
+impl PathDetailsView for PathDetailsStorage {
+    fn len(&self) -> usize {
         match self {
-            Self::Owned(details) => details,
-            Self::Shared(details) => details,
+            Self::Owned(details) => details.len(),
+            Self::Shared { depth, .. } => *depth,
+        }
+    }
+
+    fn first(&self) -> Option<ParsedSegment> {
+        match self {
+            Self::Owned(details) => details.first(),
+            Self::Shared { tail, .. } => {
+                let mut cursor = tail.as_deref();
+                let mut first = None;
+                while let Some(node) = cursor {
+                    first = Some(node.segment);
+                    cursor = node.parent.as_deref();
+                }
+                first
+            }
+        }
+    }
+
+    fn last(&self) -> Option<ParsedSegment> {
+        match self {
+            Self::Owned(details) => details.last(),
+            Self::Shared { tail, .. } => tail.as_deref().map(|node| node.segment),
+        }
+    }
+
+    fn parent_prefix_end(&self) -> Option<usize> {
+        match self {
+            Self::Owned(details) => details.parent_prefix_end(),
+            Self::Shared { tail, .. } => tail
+                .as_deref()
+                .and_then(|node| node.parent.as_deref())
+                .map(|parent| parent.segment.prefix_end),
+        }
+    }
+
+    fn max_attribute_depth(&self) -> usize {
+        match self {
+            Self::Owned(details) => details.max_attribute_depth(),
+            Self::Shared { tail, .. } => tail.as_deref().map_or(0, |node| node.max_attribute_depth),
+        }
+    }
+
+    fn max_member_codepoints(&self) -> usize {
+        match self {
+            Self::Owned(details) => details.max_member_codepoints(),
+            Self::Shared { tail, .. } => {
+                tail.as_deref().map_or(0, |node| node.max_member_codepoints)
+            }
+        }
+    }
+
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment)) {
+        match self {
+            Self::Owned(details) => details.visit_segments(visitor),
+            Self::Shared { tail, .. } => {
+                let mut cursor = tail.as_deref();
+                while let Some(node) = cursor {
+                    visitor(node.segment);
+                    cursor = node.parent.as_deref();
+                }
+            }
+        }
+    }
+
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize)) {
+        match self {
+            Self::Owned(details) => details.visit_ancestor_prefix_ends(visitor),
+            Self::Shared { tail, .. } => {
+                let mut cursor = tail.as_deref().and_then(|node| node.parent.as_deref());
+                while let Some(node) = cursor {
+                    visitor(node.segment.prefix_end);
+                    cursor = node.parent.as_deref();
+                }
+            }
         }
     }
 }
@@ -3836,8 +3913,8 @@ fn validate_complete_stream<R: RecordView>(
         };
         let path = candidate_address(records, candidate);
         let kind = records[candidate.index].get("kind");
-        if details.segments.len() == 1 {
-            if details.segments[0].kind != Segment::Member {
+        if details.len() == 1 {
+            if details.first().map(|segment| segment.kind) != Some(Segment::Member) {
                 diagnostics.push(
                     Diagnostic::new(
                         "AES_MISSING_PARENT",
@@ -3853,13 +3930,15 @@ fn validate_complete_stream<R: RecordView>(
             continue;
         }
 
-        let Some(segment) = details.segments.last().map(|segment| segment.kind) else {
+        let Some(segment) = details.last().map(|segment| segment.kind) else {
             continue;
         };
         let Some(path) = path else {
             continue;
         };
-        let parent_path = &path[..details.segments[details.segments.len() - 2].prefix_end];
+        let parent_path = &path[..details
+            .parent_prefix_end()
+            .expect("a non-root child has a parent prefix")];
         let Some(parent) = by_path.get(parent_path) else {
             diagnostics.push(
                 Diagnostic::new(
@@ -4043,11 +4122,11 @@ fn record_address<R: RecordView>(record: &R) -> Option<&str> {
     record_address_field(record).and_then(|field| record.get(field.name()))
 }
 
-fn is_aeon_header_path(path: &str, details: &PathDetails) -> bool {
-    if details.segments.first().map(|segment| segment.kind) != Some(Segment::Member) {
+fn is_aeon_header_path(path: &str, details: &dyn PathDetailsView) -> bool {
+    if details.first().map(|segment| segment.kind) != Some(Segment::Member) {
         return false;
     }
-    let Some(first_end) = details.segments.first().map(|segment| segment.prefix_end) else {
+    let Some(first_end) = details.first().map(|segment| segment.prefix_end) else {
         return false;
     };
     let first = &path[..first_end];
@@ -4070,11 +4149,119 @@ struct PathDetails {
     segments: Vec<ParsedSegment>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PathNode {
+    parent: Option<Arc<PathNode>>,
+    segment: ParsedSegment,
+    max_attribute_depth: usize,
+    current_attribute_depth: usize,
+    max_member_codepoints: usize,
+}
+
+impl PathNode {
+    fn new(parent: Option<Arc<Self>>, segment: ParsedSegment) -> Self {
+        let current_attribute_depth = if segment.kind == Segment::Attribute {
+            parent
+                .as_deref()
+                .map_or(1, |node| node.current_attribute_depth.saturating_add(1))
+        } else {
+            0
+        };
+        let max_attribute_depth = parent.as_deref().map_or(current_attribute_depth, |node| {
+            node.max_attribute_depth.max(current_attribute_depth)
+        });
+        let max_member_codepoints = parent.as_deref().map_or_else(
+            || segment.member_codepoints.unwrap_or_default(),
+            |node| {
+                node.max_member_codepoints
+                    .max(segment.member_codepoints.unwrap_or_default())
+            },
+        );
+        Self {
+            parent,
+            segment,
+            max_attribute_depth,
+            current_attribute_depth,
+            max_member_codepoints,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ParsedSegment {
     kind: Segment,
     prefix_end: usize,
     member_codepoints: Option<usize>,
+}
+
+trait PathDetailsView {
+    fn len(&self) -> usize;
+    fn first(&self) -> Option<ParsedSegment>;
+    fn last(&self) -> Option<ParsedSegment>;
+    fn parent_prefix_end(&self) -> Option<usize>;
+    fn max_attribute_depth(&self) -> usize;
+    fn max_member_codepoints(&self) -> usize;
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment));
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize));
+}
+
+impl PathDetailsView for PathDetails {
+    fn len(&self) -> usize {
+        self.segments.len()
+    }
+
+    fn first(&self) -> Option<ParsedSegment> {
+        self.segments.first().copied()
+    }
+
+    fn last(&self) -> Option<ParsedSegment> {
+        self.segments.last().copied()
+    }
+
+    fn parent_prefix_end(&self) -> Option<usize> {
+        self.segments
+            .len()
+            .checked_sub(2)
+            .map(|index| self.segments[index].prefix_end)
+    }
+
+    fn max_attribute_depth(&self) -> usize {
+        let mut maximum = 0_usize;
+        let mut current = 0_usize;
+        for segment in &self.segments {
+            current = if segment.kind == Segment::Attribute {
+                current.saturating_add(1)
+            } else {
+                0
+            };
+            maximum = maximum.max(current);
+        }
+        maximum
+    }
+
+    fn max_member_codepoints(&self) -> usize {
+        self.segments
+            .iter()
+            .filter_map(|segment| segment.member_codepoints)
+            .max()
+            .unwrap_or_default()
+    }
+
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment)) {
+        for &segment in &self.segments {
+            visitor(segment);
+        }
+    }
+
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize)) {
+        for segment in self
+            .segments
+            .iter()
+            .take(self.segments.len().saturating_sub(1))
+        {
+            visitor(segment.prefix_end);
+        }
+    }
 }
 
 fn parse_canonical_data_path(path: &str) -> Result<PathDetails, String> {
