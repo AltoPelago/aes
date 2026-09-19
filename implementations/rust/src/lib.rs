@@ -424,6 +424,22 @@ trait RecordView {
     fn datatype(&self) -> Option<&DatatypeDescriptor>;
     fn visit_fields<'a>(&'a self, visitor: &mut dyn FnMut(&'a str, &'a str));
 
+    fn fixed_core_fields<'a>(
+        &'a self,
+        datatype: Option<&'a str>,
+    ) -> [(&'static str, Option<&'a str>); 8] {
+        [
+            ("header", self.get("header")),
+            ("path", self.get("path")),
+            ("kind", self.get("kind")),
+            ("datatype", datatype),
+            ("identity", self.get("identity")),
+            ("value", self.get("value")),
+            ("origin", self.get("origin")),
+            ("span", self.get("span")),
+        ]
+    }
+
     fn canonical_path(&self) -> Option<&AesCanonicalPath> {
         None
     }
@@ -525,11 +541,41 @@ impl RecordView for AesEventRecord {
             AesEventAddress::Path(address) => visitor("path", address.as_str()),
         }
         visitor("kind", self.kind.as_str());
-        for field in ["datatype", "identity", "value", "origin", "span"] {
-            if let Some(value) = self.get(field) {
-                visitor(field, value);
-            }
+        if let Some(datatype) = &self.datatype {
+            visitor("datatype", datatype.datatype.as_str());
         }
+        if let Some(identity) = &self.identity {
+            visitor("identity", identity);
+        }
+        if let Some(value) = &self.value {
+            visitor("value", value);
+        }
+        if let Some(origin) = &self.origin {
+            visitor("origin", origin);
+        }
+        if let Some(span) = &self.span {
+            visitor("span", span);
+        }
+    }
+
+    fn fixed_core_fields<'a>(
+        &'a self,
+        datatype: Option<&'a str>,
+    ) -> [(&'static str, Option<&'a str>); 8] {
+        let (header, path) = match &self.address {
+            AesEventAddress::Header(address) => (Some(address.as_str()), None),
+            AesEventAddress::Path(address) => (None, Some(address.as_str())),
+        };
+        [
+            ("header", header),
+            ("path", path),
+            ("kind", Some(self.kind.as_str())),
+            ("datatype", datatype),
+            ("identity", self.identity.as_deref()),
+            ("value", self.value.as_deref()),
+            ("origin", self.origin.as_deref()),
+            ("span", self.span.as_deref()),
+        ]
     }
 }
 
@@ -2939,15 +2985,13 @@ fn push_typed_wire_record<R: RecordView>(
     } else {
         None
     };
+    let datatype = formatted_datatype.as_deref().or_else(|| {
+        record
+            .datatype()
+            .map(|descriptor| descriptor.datatype.as_str())
+    });
     let mut field_index = 0_usize;
-    for field in [
-        "header", "path", "kind", "datatype", "identity", "value", "origin", "span",
-    ] {
-        let value = if field == "datatype" {
-            formatted_datatype.as_deref().or_else(|| record.get(field))
-        } else {
-            record.get(field)
-        };
+    for (field, value) in record.fixed_core_fields(datatype) {
         let Some(value) = value else {
             continue;
         };
