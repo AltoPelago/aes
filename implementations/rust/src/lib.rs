@@ -1,9 +1,11 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
-use std::sync::Arc;
+use std::hash::{BuildHasher, Hash, Hasher};
+use std::sync::{Arc, OnceLock};
 
 use sha2::{Digest, Sha256};
 
@@ -152,6 +154,7 @@ pub struct AesCanonicalPath {
     rendered: String,
     tail: Option<Arc<PathNode>>,
     depth: usize,
+    fingerprint: u64,
 }
 
 impl AesCanonicalPath {
@@ -163,10 +166,12 @@ impl AesCanonicalPath {
         for segment in details.segments {
             tail = Some(Arc::new(PathNode::new(tail, segment)));
         }
+        let fingerprint = canonical_path_fingerprint(&rendered);
         Ok(Self {
             rendered,
             tail,
             depth,
+            fingerprint,
         })
     }
 
@@ -178,6 +183,7 @@ impl AesCanonicalPath {
             rendered: "$".to_owned(),
             tail: None,
             depth: 0,
+            fingerprint: canonical_path_fingerprint("$"),
         }
     }
 
@@ -195,9 +201,14 @@ impl AesCanonicalPath {
     }
 
     pub fn push_index(&mut self, index: usize) {
+        let suffix_start = self.rendered.len();
         self.rendered.push('[');
         self.rendered.push_str(&index.to_string());
         self.rendered.push(']');
+        self.fingerprint = extend_canonical_path_fingerprint(
+            self.fingerprint,
+            &self.rendered.as_bytes()[suffix_start..],
+        );
         self.push_segment(ParsedSegment {
             kind: Segment::Index,
             prefix_end: self.rendered.len(),
@@ -209,6 +220,7 @@ impl AesCanonicalPath {
         if member.is_empty() {
             return Err("Canonical path members must not be empty".to_owned());
         }
+        let suffix_start = self.rendered.len();
         match segment {
             Segment::Member => self.rendered.push('.'),
             Segment::Attribute => self.rendered.push_str(".@."),
@@ -221,6 +233,10 @@ impl AesCanonicalPath {
             self.rendered.push_str(&canonical_json_string(member));
             self.rendered.push(']');
         }
+        self.fingerprint = extend_canonical_path_fingerprint(
+            self.fingerprint,
+            &self.rendered.as_bytes()[suffix_start..],
+        );
         self.push_segment(ParsedSegment {
             kind: segment,
             prefix_end: self.rendered.len(),
@@ -3224,6 +3240,7 @@ fn prepare_event_candidates_into<R: RecordView>(
                         Some(PathDetailsStorage::Shared {
                             tail: canonical.tail.clone(),
                             depth: canonical.depth,
+                            fingerprint: canonical.fingerprint,
                         }),
                         None,
                     )
@@ -3321,10 +3338,15 @@ fn prepare_event_candidates_into<R: RecordView>(
             .then(|| validate_event_value(event, index, limits, diagnostics))
             .flatten();
         validate_optional_fields(event, index, diagnostics);
+        let path_fingerprint = path_details
+            .as_ref()
+            .zip(address)
+            .map(|(details, path)| details.path_fingerprint(path));
         events.push(EventCandidate {
             index,
             address_field,
             path_details,
+            path_fingerprint,
             has_valid_reference_target: reference_target.is_some(),
         });
     }
@@ -3390,13 +3412,19 @@ fn finalize_event_candidates<R: RecordView>(
 fn index_event_paths<'records, 'events, R: RecordView>(
     records: &'records [R],
     events: &[&'events EventCandidate],
-) -> HashMap<&'records str, &'events EventCandidate> {
+) -> HashMap<IndexedPath<'records>, &'events EventCandidate> {
     let mut by_path = HashMap::with_capacity(events.len());
     for &candidate in events {
         if candidate.path_details.is_some()
             && let Some(path) = candidate_address(records, candidate)
+            && let Some(fingerprint) = candidate.path_fingerprint
         {
-            by_path.entry(path).or_insert(candidate);
+            by_path
+                .entry(IndexedPath {
+                    rendered: path,
+                    fingerprint,
+                })
+                .or_insert(candidate);
         }
     }
     by_path
@@ -3690,18 +3718,25 @@ fn validate_path_limits(
 fn validate_represented_structural_limits<R: RecordView>(
     records: &[R],
     events: &[&EventCandidate],
-    by_path: &HashMap<&str, &EventCandidate>,
+    by_path: &HashMap<IndexedPath<'_>, &EventCandidate>,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let mut direct_items: HashMap<&str, usize> = HashMap::new();
+    let mut direct_items: HashMap<IndexedPath<'_>, usize> = HashMap::new();
     for &candidate in events {
         let Some(path) = candidate_address(records, candidate) else {
             continue;
         };
+        let Some(path_fingerprint) = candidate.path_fingerprint else {
+            continue;
+        };
+        let path_key = IndexedPath {
+            rendered: path,
+            fingerprint: path_fingerprint,
+        };
         if candidate.path_details.is_none()
             || !by_path
-                .get(path)
+                .get(&path_key)
                 .is_some_and(|first| std::ptr::eq(*first, candidate))
         {
             continue;
@@ -3714,11 +3749,14 @@ fn validate_represented_structural_limits<R: RecordView>(
             Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
         ) {
             let mut depth = 1_usize;
-            details.visit_ancestor_prefix_ends(&mut |prefix_end| {
+            details.visit_ancestor_prefixes(path, &mut |prefix_end, fingerprint| {
                 let prefix = &path[..prefix_end];
                 if matches!(
                     by_path
-                        .get(prefix)
+                        .get(&IndexedPath {
+                            rendered: prefix,
+                            fingerprint,
+                        })
                         .and_then(|parent| records[parent.index].get("kind")),
                     Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
                 ) {
@@ -3739,24 +3777,40 @@ fn validate_represented_structural_limits<R: RecordView>(
         }
         if details.last().map(|segment| segment.kind) == Some(Segment::Index) && details.len() >= 2
         {
-            let parent_path = &path[..details
+            let parent_prefix_end = details
                 .parent_prefix_end()
-                .expect("a depth-two path has a parent prefix")];
-            *direct_items.entry(parent_path).or_default() += 1;
+                .expect("a depth-two path has a parent prefix");
+            let parent_path = &path[..parent_prefix_end];
+            let parent_fingerprint = details
+                .parent_fingerprint(path)
+                .expect("a depth-two path has a parent fingerprint");
+            *direct_items
+                .entry(IndexedPath {
+                    rendered: parent_path,
+                    fingerprint: parent_fingerprint,
+                })
+                .or_default() += 1;
         }
     }
     for &parent in events {
         let Some(path) = candidate_address(records, parent) else {
             continue;
         };
+        let Some(path_fingerprint) = parent.path_fingerprint else {
+            continue;
+        };
+        let path_key = IndexedPath {
+            rendered: path,
+            fingerprint: path_fingerprint,
+        };
         if parent.path_details.is_none()
             || !by_path
-                .get(path)
+                .get(&path_key)
                 .is_some_and(|first| std::ptr::eq(*first, parent))
         {
             continue;
         }
-        let Some(&observed) = direct_items.get(path) else {
+        let Some(&observed) = direct_items.get(&path_key) else {
             continue;
         };
         let selected = match records[parent.index].get("kind") {
@@ -3781,7 +3835,47 @@ enum PathDetailsStorage {
     Shared {
         tail: Option<Arc<PathNode>>,
         depth: usize,
+        fingerprint: u64,
     },
+}
+
+impl PathDetailsStorage {
+    fn path_fingerprint(&self, path: &str) -> u64 {
+        match self {
+            Self::Owned(_) => canonical_path_fingerprint(path),
+            Self::Shared { fingerprint, .. } => *fingerprint,
+        }
+    }
+
+    fn parent_fingerprint(&self, path: &str) -> Option<u64> {
+        match self {
+            Self::Owned(details) => details
+                .parent_prefix_end()
+                .map(|prefix_end| canonical_path_fingerprint(&path[..prefix_end])),
+            Self::Shared { tail, .. } => tail
+                .as_deref()
+                .and_then(|node| node.parent.as_deref())
+                .map(|node| canonical_path_fingerprint(&path[..node.segment.prefix_end])),
+        }
+    }
+
+    fn visit_ancestor_prefixes(&self, path: &str, visitor: &mut dyn FnMut(usize, u64)) {
+        match self {
+            Self::Owned(details) => details.visit_ancestor_prefix_ends(&mut |prefix_end| {
+                visitor(prefix_end, canonical_path_fingerprint(&path[..prefix_end]));
+            }),
+            Self::Shared { tail, .. } => {
+                let mut cursor = tail.as_deref().and_then(|node| node.parent.as_deref());
+                while let Some(node) = cursor {
+                    visitor(
+                        node.segment.prefix_end,
+                        canonical_path_fingerprint(&path[..node.segment.prefix_end]),
+                    );
+                    cursor = node.parent.as_deref();
+                }
+            }
+        }
+    }
 }
 
 impl PathDetailsView for PathDetailsStorage {
@@ -3871,6 +3965,7 @@ struct EventCandidate {
     index: usize,
     address_field: Option<AddressField>,
     path_details: Option<PathDetailsStorage>,
+    path_fingerprint: Option<u64>,
     has_valid_reference_target: bool,
 }
 
@@ -3886,14 +3981,18 @@ fn candidate_address<'a, R: RecordView>(
 fn validate_complete_stream<R: RecordView>(
     records: &[R],
     events: &[&EventCandidate],
-    by_path: &HashMap<&str, &EventCandidate>,
+    by_path: &HashMap<IndexedPath<'_>, &EventCandidate>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     for candidate in events {
         if candidate.path_details.is_some()
             && let Some(path) = candidate_address(records, candidate)
+            && let Some(fingerprint) = candidate.path_fingerprint
             && let Some(first) = by_path
-                .get(path)
+                .get(&IndexedPath {
+                    rendered: path,
+                    fingerprint,
+                })
                 .filter(|first| !std::ptr::eq(**first, *candidate))
         {
             diagnostics.push(
@@ -3939,7 +4038,13 @@ fn validate_complete_stream<R: RecordView>(
         let parent_path = &path[..details
             .parent_prefix_end()
             .expect("a non-root child has a parent prefix")];
-        let Some(parent) = by_path.get(parent_path) else {
+        let parent_fingerprint = details
+            .parent_fingerprint(path)
+            .expect("a non-root child has a parent fingerprint");
+        let Some(parent) = by_path.get(&IndexedPath {
+            rendered: parent_path,
+            fingerprint: parent_fingerprint,
+        }) else {
             diagnostics.push(
                 Diagnostic::new(
                     "AES_MISSING_PARENT",
@@ -3995,7 +4100,7 @@ fn validate_reference_targets<R: RecordView>(
     records: &[R],
     reference_events: &[&EventCandidate],
     additional_reference_events: Option<&[&EventCandidate]>,
-    body_by_path: &HashMap<&str, &EventCandidate>,
+    body_by_path: &HashMap<IndexedPath<'_>, &EventCandidate>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     if !reference_events
@@ -4021,7 +4126,10 @@ fn validate_reference_targets<R: RecordView>(
         let target = records[candidate.index]
             .get("value")
             .expect("a prepared reference target retains its value");
-        if !body_by_path.contains_key(target) {
+        if !body_by_path.contains_key(&IndexedPath {
+            rendered: target,
+            fingerprint: canonical_path_fingerprint(target),
+        }) {
             diagnostics.push(
                 Diagnostic::new(
                     "AES_MISSING_REFERENCE_TARGET",
@@ -4184,6 +4292,46 @@ impl PathNode {
             current_attribute_depth,
             max_member_codepoints,
         }
+    }
+}
+
+const CANONICAL_PATH_FINGERPRINT_PRIME: u64 = 0x0000_0100_0000_01b3;
+static CANONICAL_PATH_FINGERPRINT_OFFSET: OnceLock<u64> = OnceLock::new();
+
+fn canonical_path_fingerprint_offset() -> u64 {
+    *CANONICAL_PATH_FINGERPRINT_OFFSET
+        .get_or_init(|| RandomState::new().hash_one(b"aes.canonical-path-fingerprint.v1"))
+}
+
+fn canonical_path_fingerprint(path: &str) -> u64 {
+    extend_canonical_path_fingerprint(canonical_path_fingerprint_offset(), path.as_bytes())
+}
+
+fn extend_canonical_path_fingerprint(mut fingerprint: u64, bytes: &[u8]) -> u64 {
+    for &byte in bytes {
+        fingerprint ^= u64::from(byte);
+        fingerprint = fingerprint.wrapping_mul(CANONICAL_PATH_FINGERPRINT_PRIME);
+    }
+    fingerprint
+}
+
+#[derive(Clone, Copy)]
+struct IndexedPath<'a> {
+    rendered: &'a str,
+    fingerprint: u64,
+}
+
+impl PartialEq for IndexedPath<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.rendered == other.rendered
+    }
+}
+
+impl Eq for IndexedPath<'_> {}
+
+impl Hash for IndexedPath<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.fingerprint);
     }
 }
 

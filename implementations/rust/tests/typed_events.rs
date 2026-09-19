@@ -122,3 +122,52 @@ fn segment_builder_matches_validated_canonical_paths_and_persists_parents() {
     assert_eq!(path.as_str(), "$.answer[12].@.[\"not bare\"]");
     assert_eq!(child.as_str(), "$.answer[12].@.[\"not bare\"].leaf");
 }
+
+#[test]
+fn cached_path_fingerprints_preserve_parent_and_duplicate_semantics() {
+    let parent_path = AesCanonicalPath::parse("$.items".to_owned()).expect("canonical parent");
+    let mut built_child_path = parent_path.clone();
+    built_child_path.push_index(0);
+    let parsed_child_path =
+        AesCanonicalPath::parse("$.items[0]".to_owned()).expect("canonical duplicate child");
+    let records = vec![
+        AesEventRecord::new(AesEventAddress::Path(parent_path), AesValueKind::ListNode),
+        AesEventRecord {
+            address: AesEventAddress::Path(built_child_path),
+            kind: AesValueKind::NumberLiteral,
+            datatype: None,
+            identity: None,
+            value: Some("1".to_owned()),
+            origin: None,
+            span: None,
+        },
+        AesEventRecord {
+            address: AesEventAddress::Path(parsed_child_path),
+            kind: AesValueKind::NumberLiteral,
+            datatype: None,
+            identity: None,
+            value: Some("2".to_owned()),
+            origin: None,
+            span: None,
+        },
+    ];
+
+    let validation = validate_aes_event_records_with_projection_and_limits(
+        &records,
+        "aes.complete.v1",
+        None,
+        &TelexLimits::default(),
+    );
+    assert!(
+        validation
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "AES_DUPLICATE_PATH")
+    );
+    assert!(
+        validation
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code != "AES_MISSING_PARENT")
+    );
+}
