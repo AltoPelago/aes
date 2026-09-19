@@ -4055,7 +4055,6 @@ fn validate_complete_stream<R: RecordView>(
         );
     }
 
-    let mut last_parent = None;
     for candidate in events {
         let Some(details) = &candidate.path_details else {
             continue;
@@ -4088,30 +4087,22 @@ fn validate_complete_stream<R: RecordView>(
         let parent_path = &path[..details
             .parent_prefix_end()
             .expect("a non-root child has a parent prefix")];
-        let parent = if let Some((cached_path, cached_parent)) = last_parent
-            && cached_path == parent_path
-        {
-            cached_parent
-        } else {
-            let parent_fingerprint = details
-                .parent_fingerprint(path)
-                .expect("a non-root child has a parent fingerprint");
-            let Some(&parent) = index.by_path.get(&IndexedPath {
-                rendered: parent_path,
-                fingerprint: parent_fingerprint,
-            }) else {
-                diagnostics.push(
-                    Diagnostic::new(
-                        "AES_MISSING_PARENT",
-                        format!("Missing parent event '{parent_path}'"),
-                    )
-                    .at_record(candidate.index, Some(path))
-                    .with_required_path(parent_path),
-                );
-                continue;
-            };
-            last_parent = Some((parent_path, parent));
-            parent
+        let parent_fingerprint = details
+            .parent_fingerprint(path)
+            .expect("a non-root child has a parent fingerprint");
+        let Some(parent) = index.by_path.get(&IndexedPath {
+            rendered: parent_path,
+            fingerprint: parent_fingerprint,
+        }) else {
+            diagnostics.push(
+                Diagnostic::new(
+                    "AES_MISSING_PARENT",
+                    format!("Missing parent event '{parent_path}'"),
+                )
+                .at_record(candidate.index, Some(path))
+                .with_required_path(parent_path),
+            );
+            continue;
         };
         let parent_kind = records[parent.index].get("kind");
         match segment {
