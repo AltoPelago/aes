@@ -2952,20 +2952,34 @@ fn finalize_event_candidates(
         .iter()
         .filter(|candidate| candidate.address_field == Some(AddressField::Header))
         .collect::<Vec<_>>();
-    validate_represented_structural_limits(records, &body_events, limits, diagnostics);
-    validate_represented_structural_limits(records, &header_events, limits, diagnostics);
+    let body_by_path = index_event_paths(records, &body_events);
+    let header_by_path = index_event_paths(records, &header_events);
+    validate_represented_structural_limits(
+        records,
+        &body_events,
+        &body_by_path,
+        limits,
+        diagnostics,
+    );
+    validate_represented_structural_limits(
+        records,
+        &header_events,
+        &header_by_path,
+        limits,
+        diagnostics,
+    );
     if profile == COMPLETE_AES_PROFILE {
-        validate_complete_stream(records, &body_events, diagnostics);
+        validate_complete_stream(records, &body_events, &body_by_path, diagnostics);
         validate_reference_targets(
             records,
             &body_events,
             (projection == Some(AEON_DOCUMENT_PROJECTION)).then_some(&header_events),
-            &body_events,
+            &body_by_path,
             diagnostics,
         );
     }
     if projection == Some(AEON_DOCUMENT_PROJECTION) {
-        validate_complete_stream(records, &header_events, diagnostics);
+        validate_complete_stream(records, &header_events, &header_by_path, diagnostics);
     }
     if profile == COMPLETE_AES_PROFILE {
         validate_identity_uniqueness(
@@ -2977,6 +2991,21 @@ fn finalize_event_candidates(
     } else if projection == Some(AEON_DOCUMENT_PROJECTION) {
         validate_identity_uniqueness(records, &header_events, None, diagnostics);
     }
+}
+
+fn index_event_paths<'records, 'events>(
+    records: &'records [TelexRecord],
+    events: &[&'events EventCandidate],
+) -> HashMap<&'records str, &'events EventCandidate> {
+    let mut by_path = HashMap::with_capacity(events.len());
+    for &candidate in events {
+        if candidate.path_details.is_some()
+            && let Some(path) = candidate_address(records, candidate)
+        {
+            by_path.entry(path).or_insert(candidate);
+        }
+    }
+    by_path
 }
 
 fn validate_event_value<'a>(
@@ -3270,17 +3299,10 @@ fn validate_path_limits(
 fn validate_represented_structural_limits(
     records: &[TelexRecord],
     events: &[&EventCandidate],
+    by_path: &HashMap<&str, &EventCandidate>,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let mut by_path: HashMap<&str, &EventCandidate> = HashMap::new();
-    for &candidate in events {
-        if candidate.path_details.is_some()
-            && let Some(path) = candidate_address(records, candidate)
-        {
-            by_path.entry(path).or_insert(candidate);
-        }
-    }
     let mut direct_items: HashMap<&str, usize> = HashMap::new();
     for &candidate in events {
         let Some(path) = candidate_address(records, candidate) else {
@@ -3382,26 +3404,24 @@ fn candidate_address<'a>(
 fn validate_complete_stream(
     records: &[TelexRecord],
     events: &[&EventCandidate],
+    by_path: &HashMap<&str, &EventCandidate>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let mut by_path: HashMap<&str, &EventCandidate> = HashMap::new();
-
     for candidate in events {
         if candidate.path_details.is_some()
             && let Some(path) = candidate_address(records, candidate)
+            && let Some(first) = by_path
+                .get(path)
+                .filter(|first| !std::ptr::eq(**first, *candidate))
         {
-            if let Some(first) = by_path.get(path) {
-                diagnostics.push(
-                    Diagnostic::new(
-                        "AES_DUPLICATE_PATH",
-                        format!("Duplicate event path '{path}'"),
-                    )
-                    .at_record(candidate.index, Some(path))
-                    .with_first_record(first.index),
-                );
-            } else {
-                by_path.insert(path, candidate);
-            }
+            diagnostics.push(
+                Diagnostic::new(
+                    "AES_DUPLICATE_PATH",
+                    format!("Duplicate event path '{path}'"),
+                )
+                .at_record(candidate.index, Some(path))
+                .with_first_record(first.index),
+            );
         }
     }
 
@@ -3488,14 +3508,21 @@ fn validate_reference_targets(
     records: &[TelexRecord],
     reference_events: &[&EventCandidate],
     additional_reference_events: Option<&[&EventCandidate]>,
-    body_events: &[&EventCandidate],
+    body_by_path: &HashMap<&str, &EventCandidate>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let body_paths = body_events
+    if !reference_events
         .iter()
-        .filter(|candidate| candidate.path_details.is_some())
-        .filter_map(|candidate| candidate_address(records, candidate))
-        .collect::<HashSet<_>>();
+        .chain(
+            additional_reference_events
+                .into_iter()
+                .flat_map(|events| events.iter()),
+        )
+        .any(|candidate| candidate.has_valid_reference_target)
+    {
+        return;
+    }
+
     for candidate in reference_events.iter().chain(
         additional_reference_events
             .into_iter()
@@ -3507,7 +3534,7 @@ fn validate_reference_targets(
         let target = records[candidate.index]
             .get("value")
             .expect("a prepared reference target retains its value");
-        if !body_paths.contains(target) {
+        if !body_by_path.contains_key(target) {
             diagnostics.push(
                 Diagnostic::new(
                     "AES_MISSING_REFERENCE_TARGET",
