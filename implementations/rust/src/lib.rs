@@ -3412,34 +3412,34 @@ fn finalize_event_candidates<R: RecordView>(
         .iter()
         .filter(|candidate| candidate.address_field == Some(AddressField::Header))
         .collect::<Vec<_>>();
-    let body_by_path = index_event_paths(records, &body_events);
-    let header_by_path = index_event_paths(records, &header_events);
+    let body_index = index_event_paths(records, &body_events);
+    let header_index = index_event_paths(records, &header_events);
     validate_represented_structural_limits(
         records,
         &body_events,
-        &body_by_path,
+        &body_index.by_path,
         limits,
         diagnostics,
     );
     validate_represented_structural_limits(
         records,
         &header_events,
-        &header_by_path,
+        &header_index.by_path,
         limits,
         diagnostics,
     );
     if profile == COMPLETE_AES_PROFILE {
-        validate_complete_stream(records, &body_events, &body_by_path, diagnostics);
+        validate_complete_stream(records, &body_events, &body_index, diagnostics);
         validate_reference_targets(
             records,
             &body_events,
             (projection == Some(AEON_DOCUMENT_PROJECTION)).then_some(&header_events),
-            &body_by_path,
+            &body_index.by_path,
             diagnostics,
         );
     }
     if projection == Some(AEON_DOCUMENT_PROJECTION) {
-        validate_complete_stream(records, &header_events, &header_by_path, diagnostics);
+        validate_complete_stream(records, &header_events, &header_index, diagnostics);
     }
     if profile == COMPLETE_AES_PROFILE {
         validate_identity_uniqueness(
@@ -3456,23 +3456,32 @@ fn finalize_event_candidates<R: RecordView>(
 fn index_event_paths<'records, 'events, R: RecordView>(
     records: &'records [R],
     events: &[&'events EventCandidate],
-) -> PathIndex<'records, 'events> {
+) -> EventPathIndex<'records, 'events> {
     let mut by_path =
         PathIndex::with_capacity_and_hasher(events.len(), BuildHasherDefault::default());
+    let mut duplicates = Vec::new();
     for &candidate in events {
         if candidate.path_details.is_some()
             && let Some(path) = candidate_address(records, candidate)
             && let Some(fingerprint) = candidate.path_fingerprint
         {
-            by_path
-                .entry(IndexedPath {
-                    rendered: path,
-                    fingerprint,
-                })
-                .or_insert(candidate);
+            match by_path.entry(IndexedPath {
+                rendered: path,
+                fingerprint,
+            }) {
+                std::collections::hash_map::Entry::Occupied(entry) => {
+                    duplicates.push((candidate, *entry.get()));
+                }
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(candidate);
+                }
+            }
         }
     }
-    by_path
+    EventPathIndex {
+        by_path,
+        duplicates,
+    }
 }
 
 fn validate_event_value<'a, R: RecordView>(
@@ -4030,29 +4039,20 @@ fn candidate_address<'a, R: RecordView>(
 fn validate_complete_stream<R: RecordView>(
     records: &[R],
     events: &[&EventCandidate],
-    by_path: &PathIndex<'_, '_>,
+    index: &EventPathIndex<'_, '_>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    for candidate in events {
-        if candidate.path_details.is_some()
-            && let Some(path) = candidate_address(records, candidate)
-            && let Some(fingerprint) = candidate.path_fingerprint
-            && let Some(first) = by_path
-                .get(&IndexedPath {
-                    rendered: path,
-                    fingerprint,
-                })
-                .filter(|first| !std::ptr::eq(**first, *candidate))
-        {
-            diagnostics.push(
-                Diagnostic::new(
-                    "AES_DUPLICATE_PATH",
-                    format!("Duplicate event path '{path}'"),
-                )
-                .at_record(candidate.index, Some(path))
-                .with_first_record(first.index),
-            );
-        }
+    for &(candidate, first) in &index.duplicates {
+        let path = candidate_address(records, candidate)
+            .expect("an indexed duplicate candidate has an address");
+        diagnostics.push(
+            Diagnostic::new(
+                "AES_DUPLICATE_PATH",
+                format!("Duplicate event path '{path}'"),
+            )
+            .at_record(candidate.index, Some(path))
+            .with_first_record(first.index),
+        );
     }
 
     for candidate in events {
@@ -4090,7 +4090,7 @@ fn validate_complete_stream<R: RecordView>(
         let parent_fingerprint = details
             .parent_fingerprint(path)
             .expect("a non-root child has a parent fingerprint");
-        let Some(parent) = by_path.get(&IndexedPath {
+        let Some(parent) = index.by_path.get(&IndexedPath {
             rendered: parent_path,
             fingerprint: parent_fingerprint,
         }) else {
@@ -4408,6 +4408,11 @@ impl Hasher for PathFingerprintHasher {
 
 type PathIndex<'path, 'event> =
     HashMap<IndexedPath<'path>, &'event EventCandidate, BuildHasherDefault<PathFingerprintHasher>>;
+
+struct EventPathIndex<'path, 'event> {
+    by_path: PathIndex<'path, 'event>,
+    duplicates: Vec<(&'event EventCandidate, &'event EventCandidate)>,
+}
 
 #[cfg(test)]
 mod path_fingerprint_tests {
