@@ -3276,21 +3276,16 @@ fn prepare_event_candidates_into<R: RecordView>(
             );
         }
 
+        let canonical_path = event.canonical_path();
+        let mut borrowed_path_details = address != Some("$") && canonical_path.is_some();
         let (mut path_details, path_error) = match address {
             Some("$") => (None, Some("The root is not an event path".to_owned())),
             Some(path) => {
-                if let Some(canonical) = event.canonical_path() {
-                    (
-                        Some(PathDetailsStorage::Shared {
-                            tail: canonical.tail.clone(),
-                            depth: canonical.depth,
-                            fingerprint: canonical.fingerprint,
-                        }),
-                        None,
-                    )
+                if canonical_path.is_some() {
+                    (None, None)
                 } else {
                     match parse_canonical_data_path(path) {
-                        Ok(details) => (Some(PathDetailsStorage::Owned(details)), None),
+                        Ok(details) => (Some(details), None),
                         Err(message) => (None, Some(message)),
                     }
                 }
@@ -3302,9 +3297,13 @@ fn prepare_event_candidates_into<R: RecordView>(
         {
             validate_path_limits(
                 path,
-                path_details
-                    .as_ref()
-                    .map(|details| details as &dyn PathDetailsView),
+                canonical_path
+                    .map(|details| details as &dyn PathDetailsView)
+                    .or_else(|| {
+                        path_details
+                            .as_ref()
+                            .map(|details| details as &dyn PathDetailsView)
+                    }),
                 index,
                 address_field,
                 limits,
@@ -3348,7 +3347,14 @@ fn prepare_event_candidates_into<R: RecordView>(
                         .with_field("header"),
                     );
                 }
-                if let (Some(path), Some(details)) = (address, &path_details)
+                let details = canonical_path
+                    .map(|details| details as &dyn PathDetailsView)
+                    .or_else(|| {
+                        path_details
+                            .as_ref()
+                            .map(|details| details as &dyn PathDetailsView)
+                    });
+                if let (Some(path), Some(details)) = (address, details)
                     && !is_aeon_header_path(path, details)
                 {
                     diagnostics.push(
@@ -3360,6 +3366,7 @@ fn prepare_event_candidates_into<R: RecordView>(
                         .with_field("header"),
                     );
                     path_details = None;
+                    borrowed_path_details = false;
                 }
             }
             Some(AddressField::Path) => *body_seen = true,
@@ -3382,14 +3389,20 @@ fn prepare_event_candidates_into<R: RecordView>(
             .then(|| validate_event_value(event, index, limits, diagnostics))
             .flatten();
         validate_optional_fields(event, index, diagnostics);
-        let path_fingerprint = path_details
-            .as_ref()
-            .zip(address)
-            .map(|(details, path)| details.path_fingerprint(path));
+        let path_fingerprint = borrowed_path_details
+            .then(|| canonical_path.map(|canonical| canonical.fingerprint))
+            .flatten()
+            .or_else(|| {
+                path_details
+                    .as_ref()
+                    .zip(address)
+                    .map(|(details, path)| details.path_fingerprint(path))
+            });
         events.push(EventCandidate {
             index,
             address_field,
             path_details,
+            borrowed_path_details,
             path_fingerprint,
             has_valid_reference_target: reference_target.is_some(),
         });
@@ -3455,7 +3468,7 @@ fn index_event_paths<'records, 'events, R: RecordView>(
         PathIndex::with_capacity_and_hasher(events.len(), BuildHasherDefault::default());
     let mut duplicates = Vec::new();
     for &candidate in events {
-        if candidate.path_details.is_some()
+        if candidate_path_details(records, candidate).is_some()
             && let Some(path) = candidate_address(records, candidate)
             && let Some(fingerprint) = candidate.path_fingerprint
         {
@@ -3791,7 +3804,7 @@ fn validate_represented_structural_limits<R: RecordView>(
             rendered: path,
             fingerprint: path_fingerprint,
         };
-        if candidate.path_details.is_none()
+        if candidate_path_details(records, candidate).is_none()
             || has_duplicates
                 && !index
                     .by_path
@@ -3800,7 +3813,7 @@ fn validate_represented_structural_limits<R: RecordView>(
         {
             continue;
         }
-        let Some(details) = &candidate.path_details else {
+        let Some(details) = candidate_path_details(records, candidate) else {
             continue;
         };
         if matches!(
@@ -3863,7 +3876,7 @@ fn validate_represented_structural_limits<R: RecordView>(
             rendered: path,
             fingerprint: path_fingerprint,
         };
-        if parent.path_details.is_none()
+        if candidate_path_details(records, parent).is_none()
             || has_duplicates
                 && !index
                     .by_path
@@ -3892,133 +3905,161 @@ fn validate_represented_structural_limits<R: RecordView>(
     }
 }
 
-enum PathDetailsStorage {
-    Owned(PathDetails),
-    Shared {
-        tail: Option<Arc<PathNode>>,
-        depth: usize,
-        fingerprint: u64,
-    },
-}
+type PathDetailsStorage = PathDetails;
 
-impl PathDetailsStorage {
+impl PathDetails {
     fn path_fingerprint(&self, path: &str) -> u64 {
-        match self {
-            Self::Owned(_) => canonical_path_fingerprint(path),
-            Self::Shared { fingerprint, .. } => *fingerprint,
-        }
+        canonical_path_fingerprint(path)
     }
 
     fn parent_fingerprint(&self, path: &str) -> Option<u64> {
+        self.parent_prefix_end()
+            .map(|prefix_end| canonical_path_fingerprint(&path[..prefix_end]))
+    }
+
+    fn visit_ancestor_prefixes(&self, path: &str, visitor: &mut dyn FnMut(usize, u64)) {
+        self.visit_ancestor_prefix_ends(&mut |prefix_end| {
+            visitor(prefix_end, canonical_path_fingerprint(&path[..prefix_end]));
+        });
+    }
+}
+
+impl PathDetailsView for AesCanonicalPath {
+    fn len(&self) -> usize {
+        self.depth
+    }
+
+    fn first(&self) -> Option<ParsedSegment> {
+        let mut cursor = self.tail.as_deref();
+        let mut first = None;
+        while let Some(node) = cursor {
+            first = Some(node.segment);
+            cursor = node.parent.as_deref();
+        }
+        first
+    }
+
+    fn last(&self) -> Option<ParsedSegment> {
+        self.tail.as_deref().map(|node| node.segment)
+    }
+
+    fn parent_prefix_end(&self) -> Option<usize> {
+        self.tail
+            .as_deref()
+            .and_then(|node| node.parent.as_deref())
+            .map(|parent| parent.segment.prefix_end)
+    }
+
+    fn max_attribute_depth(&self) -> usize {
+        self.tail
+            .as_deref()
+            .map_or(0, |node| node.max_attribute_depth)
+    }
+
+    fn max_member_codepoints(&self) -> usize {
+        self.tail
+            .as_deref()
+            .map_or(0, |node| node.max_member_codepoints)
+    }
+
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment)) {
+        let mut cursor = self.tail.as_deref();
+        while let Some(node) = cursor {
+            visitor(node.segment);
+            cursor = node.parent.as_deref();
+        }
+    }
+
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize)) {
+        let mut cursor = self.tail.as_deref().and_then(|node| node.parent.as_deref());
+        while let Some(node) = cursor {
+            visitor(node.segment.prefix_end);
+            cursor = node.parent.as_deref();
+        }
+    }
+}
+
+enum CandidatePathDetails<'a> {
+    Prepared(&'a PathDetailsStorage),
+    Borrowed(&'a AesCanonicalPath),
+}
+
+impl CandidatePathDetails<'_> {
+    fn parent_fingerprint(&self, path: &str) -> Option<u64> {
         match self {
-            Self::Owned(details) => details
+            Self::Prepared(details) => details.parent_fingerprint(path),
+            Self::Borrowed(details) => details
                 .parent_prefix_end()
                 .map(|prefix_end| canonical_path_fingerprint(&path[..prefix_end])),
-            Self::Shared { tail, .. } => tail
-                .as_deref()
-                .and_then(|node| node.parent.as_deref())
-                .map(|node| canonical_path_fingerprint(&path[..node.segment.prefix_end])),
         }
     }
 
     fn visit_ancestor_prefixes(&self, path: &str, visitor: &mut dyn FnMut(usize, u64)) {
         match self {
-            Self::Owned(details) => details.visit_ancestor_prefix_ends(&mut |prefix_end| {
-                visitor(prefix_end, canonical_path_fingerprint(&path[..prefix_end]));
-            }),
-            Self::Shared { tail, .. } => {
-                let mut cursor = tail.as_deref().and_then(|node| node.parent.as_deref());
-                while let Some(node) = cursor {
-                    visitor(
-                        node.segment.prefix_end,
-                        canonical_path_fingerprint(&path[..node.segment.prefix_end]),
-                    );
-                    cursor = node.parent.as_deref();
-                }
+            Self::Prepared(details) => details.visit_ancestor_prefixes(path, visitor),
+            Self::Borrowed(details) => {
+                details.visit_ancestor_prefix_ends(&mut |prefix_end| {
+                    visitor(prefix_end, canonical_path_fingerprint(&path[..prefix_end]));
+                });
             }
         }
     }
 }
 
-impl PathDetailsView for PathDetailsStorage {
+impl PathDetailsView for CandidatePathDetails<'_> {
     fn len(&self) -> usize {
         match self {
-            Self::Owned(details) => details.len(),
-            Self::Shared { depth, .. } => *depth,
+            Self::Prepared(details) => details.len(),
+            Self::Borrowed(details) => details.len(),
         }
     }
 
     fn first(&self) -> Option<ParsedSegment> {
         match self {
-            Self::Owned(details) => details.first(),
-            Self::Shared { tail, .. } => {
-                let mut cursor = tail.as_deref();
-                let mut first = None;
-                while let Some(node) = cursor {
-                    first = Some(node.segment);
-                    cursor = node.parent.as_deref();
-                }
-                first
-            }
+            Self::Prepared(details) => details.first(),
+            Self::Borrowed(details) => details.first(),
         }
     }
 
     fn last(&self) -> Option<ParsedSegment> {
         match self {
-            Self::Owned(details) => details.last(),
-            Self::Shared { tail, .. } => tail.as_deref().map(|node| node.segment),
+            Self::Prepared(details) => details.last(),
+            Self::Borrowed(details) => details.last(),
         }
     }
 
     fn parent_prefix_end(&self) -> Option<usize> {
         match self {
-            Self::Owned(details) => details.parent_prefix_end(),
-            Self::Shared { tail, .. } => tail
-                .as_deref()
-                .and_then(|node| node.parent.as_deref())
-                .map(|parent| parent.segment.prefix_end),
+            Self::Prepared(details) => details.parent_prefix_end(),
+            Self::Borrowed(details) => details.parent_prefix_end(),
         }
     }
 
     fn max_attribute_depth(&self) -> usize {
         match self {
-            Self::Owned(details) => details.max_attribute_depth(),
-            Self::Shared { tail, .. } => tail.as_deref().map_or(0, |node| node.max_attribute_depth),
+            Self::Prepared(details) => details.max_attribute_depth(),
+            Self::Borrowed(details) => details.max_attribute_depth(),
         }
     }
 
     fn max_member_codepoints(&self) -> usize {
         match self {
-            Self::Owned(details) => details.max_member_codepoints(),
-            Self::Shared { tail, .. } => {
-                tail.as_deref().map_or(0, |node| node.max_member_codepoints)
-            }
+            Self::Prepared(details) => details.max_member_codepoints(),
+            Self::Borrowed(details) => details.max_member_codepoints(),
         }
     }
 
     fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment)) {
         match self {
-            Self::Owned(details) => details.visit_segments(visitor),
-            Self::Shared { tail, .. } => {
-                let mut cursor = tail.as_deref();
-                while let Some(node) = cursor {
-                    visitor(node.segment);
-                    cursor = node.parent.as_deref();
-                }
-            }
+            Self::Prepared(details) => details.visit_segments(visitor),
+            Self::Borrowed(details) => details.visit_segments(visitor),
         }
     }
 
     fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize)) {
         match self {
-            Self::Owned(details) => details.visit_ancestor_prefix_ends(visitor),
-            Self::Shared { tail, .. } => {
-                let mut cursor = tail.as_deref().and_then(|node| node.parent.as_deref());
-                while let Some(node) = cursor {
-                    visitor(node.segment.prefix_end);
-                    cursor = node.parent.as_deref();
-                }
-            }
+            Self::Prepared(details) => details.visit_ancestor_prefix_ends(visitor),
+            Self::Borrowed(details) => details.visit_ancestor_prefix_ends(visitor),
         }
     }
 }
@@ -4027,6 +4068,7 @@ struct EventCandidate {
     index: usize,
     address_field: Option<AddressField>,
     path_details: Option<PathDetailsStorage>,
+    borrowed_path_details: bool,
     path_fingerprint: Option<u64>,
     has_valid_reference_target: bool,
 }
@@ -4038,6 +4080,25 @@ fn candidate_address<'a, R: RecordView>(
     candidate
         .address_field
         .and_then(|field| records[candidate.index].get(field.name()))
+}
+
+fn candidate_path_details<'a, R: RecordView>(
+    records: &'a [R],
+    candidate: &'a EventCandidate,
+) -> Option<CandidatePathDetails<'a>> {
+    candidate
+        .path_details
+        .as_ref()
+        .map(CandidatePathDetails::Prepared)
+        .or_else(|| {
+            if candidate.borrowed_path_details {
+                records[candidate.index]
+                    .canonical_path()
+                    .map(CandidatePathDetails::Borrowed)
+            } else {
+                None
+            }
+        })
 }
 
 fn validate_complete_stream<R: RecordView>(
@@ -4060,7 +4121,7 @@ fn validate_complete_stream<R: RecordView>(
     }
 
     for candidate in events {
-        let Some(details) = &candidate.path_details else {
+        let Some(details) = candidate_path_details(records, candidate) else {
             continue;
         };
         let path = candidate_address(records, candidate);
