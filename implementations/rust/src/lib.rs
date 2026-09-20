@@ -163,10 +163,16 @@ impl AesCanonicalPath {
         let details = parse_canonical_data_path(&rendered)?;
         let depth = details.segments.len();
         let mut tail = None;
+        let mut fingerprint = canonical_path_fingerprint_offset();
+        let mut prefix_start = 0;
         for segment in details.segments {
-            tail = Some(Arc::new(PathNode::new(tail, segment)));
+            fingerprint = extend_canonical_path_fingerprint(
+                fingerprint,
+                &rendered.as_bytes()[prefix_start..segment.prefix_end],
+            );
+            prefix_start = segment.prefix_end;
+            tail = Some(Arc::new(PathNode::new(tail, segment, fingerprint)));
         }
-        let fingerprint = canonical_path_fingerprint(&rendered);
         Ok(Self {
             rendered,
             tail,
@@ -246,7 +252,11 @@ impl AesCanonicalPath {
     }
 
     fn push_segment(&mut self, segment: ParsedSegment) {
-        self.tail = Some(Arc::new(PathNode::new(self.tail.take(), segment)));
+        self.tail = Some(Arc::new(PathNode::new(
+            self.tail.take(),
+            segment,
+            self.fingerprint,
+        )));
         self.depth = self.depth.saturating_add(1);
     }
 }
@@ -3989,8 +3999,10 @@ impl CandidatePathDetails<'_> {
         match self {
             Self::Prepared(details) => details.parent_fingerprint(path),
             Self::Borrowed(details) => details
-                .parent_prefix_end()
-                .map(|prefix_end| canonical_path_fingerprint(&path[..prefix_end])),
+                .tail
+                .as_deref()
+                .and_then(|node| node.parent.as_deref())
+                .map(|parent| parent.fingerprint),
         }
     }
 
@@ -3998,9 +4010,14 @@ impl CandidatePathDetails<'_> {
         match self {
             Self::Prepared(details) => details.visit_ancestor_prefixes(path, visitor),
             Self::Borrowed(details) => {
-                details.visit_ancestor_prefix_ends(&mut |prefix_end| {
-                    visitor(prefix_end, canonical_path_fingerprint(&path[..prefix_end]));
-                });
+                let mut cursor = details
+                    .tail
+                    .as_deref()
+                    .and_then(|node| node.parent.as_deref());
+                while let Some(node) = cursor {
+                    visitor(node.segment.prefix_end, node.fingerprint);
+                    cursor = node.parent.as_deref();
+                }
             }
         }
     }
@@ -4375,13 +4392,14 @@ struct PathDetails {
 struct PathNode {
     parent: Option<Arc<PathNode>>,
     segment: ParsedSegment,
+    fingerprint: u64,
     max_attribute_depth: usize,
     current_attribute_depth: usize,
     max_member_codepoints: usize,
 }
 
 impl PathNode {
-    fn new(parent: Option<Arc<Self>>, segment: ParsedSegment) -> Self {
+    fn new(parent: Option<Arc<Self>>, segment: ParsedSegment, fingerprint: u64) -> Self {
         let current_attribute_depth = if segment.kind == Segment::Attribute {
             parent
                 .as_deref()
@@ -4402,6 +4420,7 @@ impl PathNode {
         Self {
             parent,
             segment,
+            fingerprint,
             max_attribute_depth,
             current_attribute_depth,
             max_member_codepoints,
@@ -4481,7 +4500,10 @@ struct EventPathIndex<'path, 'event> {
 
 #[cfg(test)]
 mod path_fingerprint_tests {
-    use super::{BuildHasherDefault, HashMap, IndexedPath, PathFingerprintHasher};
+    use super::{
+        AesCanonicalPath, BuildHasherDefault, HashMap, IndexedPath, PathFingerprintHasher,
+        canonical_path_fingerprint,
+    };
 
     #[test]
     fn indexed_paths_keep_rendered_equality_when_fingerprints_collide() {
@@ -4502,6 +4524,32 @@ mod path_fingerprint_tests {
         assert_eq!(paths.len(), 2);
         assert_eq!(paths.get(&first), Some(&1));
         assert_eq!(paths.get(&second), Some(&2));
+    }
+
+    #[test]
+    fn parsed_and_built_nodes_cache_each_prefix_fingerprint() {
+        fn assert_cached_prefixes(path: &AesCanonicalPath) {
+            let mut cursor = path.tail.as_deref();
+            while let Some(node) = cursor {
+                assert_eq!(
+                    node.fingerprint,
+                    canonical_path_fingerprint(&path.rendered[..node.segment.prefix_end]),
+                );
+                cursor = node.parent.as_deref();
+            }
+        }
+
+        let parsed = AesCanonicalPath::parse("$.items[12].@.metadata.value".to_owned())
+            .expect("canonical parsed path");
+        assert_cached_prefixes(&parsed);
+
+        let mut built = AesCanonicalPath::root();
+        built.push_member("items").expect("member");
+        built.push_index(12);
+        built.push_attribute("metadata").expect("attribute");
+        built.push_member("value").expect("member");
+        assert_eq!(built, parsed);
+        assert_cached_prefixes(&built);
     }
 }
 
