@@ -185,8 +185,17 @@ impl AesCanonicalPath {
     /// address, but it is the base for segment-oriented construction.
     #[must_use]
     pub fn root() -> Self {
+        Self::root_with_capacity(1)
+    }
+
+    /// Start a path at the absolute root with space reserved for its rendered
+    /// representation.
+    #[must_use]
+    pub fn root_with_capacity(capacity: usize) -> Self {
+        let mut rendered = String::with_capacity(capacity.max(1));
+        rendered.push('$');
         Self {
-            rendered: "$".to_owned(),
+            rendered,
             tail: None,
             depth: 0,
             fingerprint: canonical_path_fingerprint("$"),
@@ -4550,6 +4559,14 @@ mod path_fingerprint_tests {
         built.push_member("value").expect("member");
         assert_eq!(built, parsed);
         assert_cached_prefixes(&built);
+
+        let mut reserved = AesCanonicalPath::root_with_capacity(parsed.as_str().len());
+        reserved.push_member("items").expect("member");
+        reserved.push_index(12);
+        reserved.push_attribute("metadata").expect("attribute");
+        reserved.push_member("value").expect("member");
+        assert_eq!(reserved, parsed);
+        assert_cached_prefixes(&reserved);
     }
 }
 
