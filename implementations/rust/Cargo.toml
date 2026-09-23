@@ -1,11 +1,14 @@
 [package]
-name = "aes-telex"
-version = "0.0.0"
+name = "altopelago-aes-telex"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.93.1"
 license = "MIT"
-description = "Dependency-free Rust reference implementation of telex.aes"
-publish = false
+description = "Telex codec and portable AES validation for AltoPelago"
+repository = "https://github.com/AltoPelago/aes"
+readme = "README.md"
+keywords = ["aes", "telex", "serialization", "validation"]
+categories = ["encoding", "parser-implementations"]
 
 [dependencies]
 sha2 = "0.11.0"
@@ -14,6 +17,7 @@ sha2 = "0.11.0"
 pipeline-dhat = []
 
 [lib]
+name = "aes_telex"
 path = "src/lib.rs"
 
 [dev-dependencies]
