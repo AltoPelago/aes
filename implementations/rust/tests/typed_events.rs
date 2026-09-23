@@ -107,6 +107,51 @@ fn typed_records_retain_semantic_and_resource_validation() {
 }
 
 #[test]
+fn encoding_reuses_complete_datatype_validation_errors() {
+    let invalid_datatype = DatatypeDescriptor {
+        datatype: "not-valid".to_owned(),
+        generics: Vec::new(),
+        clarifiers: Vec::new(),
+    };
+    let telex = vec![TelexRecord::with_datatype(
+        vec![
+            ("path".to_owned(), "$.answer".to_owned()),
+            ("kind".to_owned(), "NumberLiteral".to_owned()),
+            ("datatype".to_owned(), String::new()),
+            ("value".to_owned(), "42".to_owned()),
+        ],
+        invalid_datatype.clone(),
+    )];
+    let typed = vec![AesEventRecord {
+        address: AesEventAddress::Path(
+            AesCanonicalPath::parse("$.answer".to_owned()).expect("canonical test path"),
+        ),
+        kind: AesValueKind::NumberLiteral,
+        datatype: Some(invalid_datatype),
+        identity: None,
+        value: Some("42".to_owned()),
+        origin: None,
+        span: None,
+    }];
+    let limits = TelexLimits::default();
+
+    let extensible_error =
+        encode_telex_with_projection_and_limits(&telex, Some("aes.complete.v1"), None, &limits)
+            .expect_err("invalid extensible datatype must fail encoding");
+    let typed_error = encode_aes_event_records_with_projection_and_limits(
+        &typed,
+        Some("aes.complete.v1"),
+        None,
+        &limits,
+    )
+    .expect_err("invalid typed datatype must fail encoding");
+
+    assert_eq!(typed_error, extensible_error);
+    assert_eq!(typed_error.code, "TELEX_ENCODE_ERROR");
+    assert_eq!(typed_error.detail, "Datatype must be an ASCII identifier");
+}
+
+#[test]
 fn segment_builder_matches_validated_canonical_paths_and_persists_parents() {
     let mut path = AesCanonicalPath::root();
     path.push_member("answer").expect("nonempty member");

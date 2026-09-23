@@ -2926,6 +2926,13 @@ fn encode_record_views_with_projection_and_limits<R: RecordView>(
     }) {
         return Err(TelexEncodeError::limit(counter, observed, limit));
     }
+    if let Some(diagnostic) = validation
+        .diagnostics
+        .iter()
+        .find(|item| matches!(item.code, "AES_INVALID_DATATYPE" | "AES_DATATYPE_LIMIT"))
+    {
+        return Err(TelexEncodeError::new(diagnostic.message.clone()));
+    }
 
     let mut encoded = String::with_capacity(records.len().saturating_mul(60));
     encoded.push_str(VERSION_LINE);
@@ -2966,7 +2973,7 @@ fn encode_record_views_with_projection_and_limits<R: RecordView>(
         if R::FIXED_CORE_FIELDS {
             push_typed_wire_record(record, &mut encoded, limits, &mut decoded_payload_bytes)?;
         } else {
-            let mut fields = wire_fields(record, limits).map_err(TelexEncodeError::new)?;
+            let mut fields = wire_fields(record).map_err(TelexEncodeError::new)?;
             for (_, value) in &fields {
                 add_encoded_payload_bytes(value, limits, &mut decoded_payload_bytes)?;
             }
@@ -2997,8 +3004,6 @@ fn push_typed_wire_record<R: RecordView>(
     decoded_payload_bytes: &mut usize,
 ) -> Result<(), TelexEncodeError> {
     let formatted_datatype = if let Some(descriptor) = record.datatype() {
-        validate_datatype_descriptor(descriptor, limits)
-            .map_err(|(_, detail)| TelexEncodeError::new(detail))?;
         (!descriptor.generics.is_empty() || !descriptor.clarifiers.is_empty())
             .then(|| format_datatype_descriptor(descriptor))
     } else {
@@ -4898,12 +4903,8 @@ fn decode_wire_record(
     ))
 }
 
-fn wire_fields<'a, R: RecordView>(
-    record: &'a R,
-    limits: &TelexLimits,
-) -> Result<Vec<(&'a str, Cow<'a, str>)>, String> {
+fn wire_fields<R: RecordView>(record: &R) -> Result<Vec<(&str, Cow<'_, str>)>, String> {
     let mut wire_datatype = if let Some(descriptor) = record.datatype() {
-        validate_datatype_descriptor(descriptor, limits).map_err(|(_, detail)| detail)?;
         Some(
             if descriptor.generics.is_empty() && descriptor.clarifiers.is_empty() {
                 Cow::Borrowed(descriptor.datatype.as_str())
