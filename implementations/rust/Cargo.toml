@@ -9,6 +9,7 @@ repository = "https://github.com/AltoPelago/aes"
 readme = "README.md"
 keywords = ["aes", "telex", "serialization", "validation"]
 categories = ["encoding", "parser-implementations"]
+include = ["src/**", "README.md", "LICENSE"]
 
 [dependencies]
 sha2 = "0.11.0"
