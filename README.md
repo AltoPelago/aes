@@ -109,8 +109,11 @@ canonical sources.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
   Rust implementation of the same v1 event, Telex, integrity, provenance, and
   transaction contracts, plus the selected Film draft reference and an
-  archived layout comparator. Its Telex codec has no runtime
-  dependencies; portable SHA-256 integrity uses the audited `sha2` crate.
+  archived layout comparator. Experimental Candidate C also exercises a
+  checkpointed prefix-delta codec, compact typed ownership, and native
+  portable-AES validation over that representation. Its Telex codec has no
+  runtime dependencies; portable SHA-256 integrity uses the audited `sha2`
+  crate.
 
 Run the syntax tests with:
 

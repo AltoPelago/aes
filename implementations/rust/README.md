@@ -82,8 +82,8 @@ This measures steady-state document throughput. It does not claim that one
 document is parsed and semantically validated concurrently; that requires a
 separate incremental semantic-state contract.
 
-Count heap allocations for the corresponding native Film, Telex, and resident
-AES operations with:
+Count heap allocations for the corresponding native Film, checkpointed
+Candidate C, Telex, and resident AES operations with:
 
 ```bash
 npm run profile:allocations
@@ -91,7 +91,9 @@ npm run profile:allocations
 
 The profiling allocator is a development-only dependency. Each operation runs
 in an isolated child process so its count has one unambiguous lifetime; setup
-and one warm-up pass occur before profiling begins.
+and one warm-up pass occur before profiling begins. Candidate C rows separate
+checkpoint indexing, compact physical decode, compact decode plus validation,
+compatibility conversion to general owned AES records, and encoding.
 
 The Rust and JavaScript implementations intentionally do not call each other or
 share codec source. Their common authorities are the transport-neutral portable
@@ -118,7 +120,30 @@ deployment and ecosystem compatibility review close the separate writer gate.
 replaces each address with the longest UTF-8 prefix shared with the previous
 address in the same address plane plus an inline suffix. It uses the distinct
 experimental `O_B FF 00` preamble and can never be represented as
-`film.aes=1`.
+`film.aes=1`. Its general decoder reads Candidate B directly, supports all Film
+record fields, enforces limits and prefix canonicality, and performs complete
+AES validation without constructing an intermediate Film v1 buffer. The
+historical transcode decoder remains available under an explicit
+`*_via_film_v1_*` name for benchmark comparison only.
+
+`film_candidate_c` is a separate checkpointed experiment with an `O_C FF 00`
+preamble. Every 256-record block resets both address planes and encodes the
+first body and header address used in that block absolutely. It provides a
+checkpoint directory and independently decodable provisional blocks, and
+decodes all Film fields into a compact typed result with one text slab and
+bounded side tables. Its decoder reconstructs each address in a reusable
+per-plane buffer rather than allocating an address buffer per record. Its
+complete-validation adapter feeds that representation
+directly to the portable AES validator, borrowing common fields and preparing
+only sparse datatype and formatted-provenance metadata. Candidate C remains
+research code, not a Film v1 revision. An explicit cached-path decoder variant
+retains parsed segment evidence for benchmarking; it is not the default because
+the matched experiment found no material completion win and a 2.36–3.70×
+retained-storage increase. A separate shared transient path-arena validator
+stores parsed segments in one temporary allocation family and discards them
+before returning. Explicit Film v1 and Candidate C entry points exercise it;
+normal decoding remains unchanged because tiny documents do not consistently
+amortize its setup cost.
 
 Run its focused tests and native benchmark with:
 
@@ -127,6 +152,7 @@ cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_api
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_conformance
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_b
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_c
 cargo run --release --locked --example bench_film_candidate_a --manifest-path implementations/rust/Cargo.toml
 cargo run --release --locked --example compare_film_layouts --manifest-path implementations/rust/Cargo.toml -- path/to/input.telex.aes
 ```

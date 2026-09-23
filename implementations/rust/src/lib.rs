@@ -14,6 +14,7 @@ pub mod film_candidate_a {
     pub use crate::film::*;
 }
 pub mod film_candidate_b;
+pub mod film_candidate_c;
 mod telex_incremental;
 
 const VERSION_LINE: &str = "telex.aes=1";
@@ -416,7 +417,7 @@ impl TelexRecord {
     }
 }
 
-trait RecordView {
+pub(crate) trait RecordView {
     const FIXED_CORE_FIELDS: bool;
 
     fn field_count(&self) -> usize;
@@ -441,6 +442,10 @@ trait RecordView {
     }
 
     fn canonical_path(&self) -> Option<&AesCanonicalPath> {
+        None
+    }
+
+    fn canonical_path_evidence(&self) -> Option<CanonicalPathEvidence<'_>> {
         None
     }
 
@@ -3126,7 +3131,7 @@ pub fn validate_aes_event_records_with_projection_and_limits(
     validate_record_views_with_projection_and_limits(records, profile, projection, &[], limits)
 }
 
-fn validate_record_views_with_projection_and_limits<R: RecordView>(
+pub(crate) fn validate_record_views_with_projection_and_limits<R: RecordView>(
     records: &[R],
     profile: &str,
     projection: Option<&str>,
@@ -3181,6 +3186,55 @@ fn validate_record_views_with_projection_and_limits<R: RecordView>(
         profile: profile.to_owned(),
         diagnostics,
     }
+}
+
+/// Experimental shared validator entry point that supplies canonical path
+/// evidence from one transient segment arena. The wrapped records and arena
+/// are discarded before this function returns.
+pub(crate) fn validate_record_views_with_projection_and_limits_path_arena<R: RecordView>(
+    records: &[R],
+    profile: &str,
+    projection: Option<&str>,
+    registered_fields: &[&str],
+    limits: &TelexLimits,
+) -> ValidationResult {
+    let mut evidence = Vec::with_capacity(records.len());
+    let mut segments = Vec::with_capacity(records.len().saturating_mul(2));
+    let mut scratch = Vec::new();
+    for record in records {
+        let parsed = record_address(record)
+            .filter(|path| parse_canonical_data_path_into(path, &mut scratch).is_ok())
+            .and_then(|path| {
+                let start = u32::try_from(segments.len()).ok()?;
+                let len = u32::try_from(scratch.len()).ok()?;
+                start.checked_add(len)?;
+                segments.extend_from_slice(&scratch);
+                Some(PathArenaEvidence {
+                    start,
+                    len,
+                    fingerprint: canonical_path_fingerprint(path),
+                })
+            })
+            .unwrap_or(PathArenaEvidence::ABSENT);
+        evidence.push(parsed);
+    }
+    let arena = PathArena { segments };
+    let wrapped = records
+        .iter()
+        .zip(evidence)
+        .map(|(record, evidence)| PathArenaRecord {
+            record,
+            evidence,
+            arena: &arena,
+        })
+        .collect::<Vec<_>>();
+    validate_record_views_with_projection_and_limits(
+        &wrapped,
+        profile,
+        projection,
+        registered_fields,
+        limits,
+    )
 }
 
 fn prepare_event_candidates<R: RecordView>(
@@ -3276,10 +3330,15 @@ fn prepare_event_candidates_into<R: RecordView>(
             );
         }
 
+        let cached_evidence = event.canonical_path_evidence();
+        let cached_details = cached_evidence.map(|evidence| evidence.details);
+        let mut cached_path_details = address != Some("$") && cached_evidence.is_some();
         let (mut path_details, path_error) = match address {
             Some("$") => (None, Some("The root is not an event path".to_owned())),
             Some(path) => {
-                if let Some(canonical) = event.canonical_path() {
+                if cached_evidence.is_some() {
+                    (None, None)
+                } else if let Some(canonical) = event.canonical_path() {
                     (
                         Some(PathDetailsStorage::Shared {
                             tail: canonical.tail.clone(),
@@ -3302,9 +3361,14 @@ fn prepare_event_candidates_into<R: RecordView>(
         {
             validate_path_limits(
                 path,
-                path_details
+                cached_details
                     .as_ref()
-                    .map(|details| details as &dyn PathDetailsView),
+                    .map(|details| details as &dyn PathDetailsView)
+                    .or_else(|| {
+                        path_details
+                            .as_ref()
+                            .map(|details| details as &dyn PathDetailsView)
+                    }),
                 index,
                 address_field,
                 limits,
@@ -3348,7 +3412,15 @@ fn prepare_event_candidates_into<R: RecordView>(
                         .with_field("header"),
                     );
                 }
-                if let (Some(path), Some(details)) = (address, &path_details)
+                let details = cached_details
+                    .as_ref()
+                    .map(|details| details as &dyn PathDetailsView)
+                    .or_else(|| {
+                        path_details
+                            .as_ref()
+                            .map(|details| details as &dyn PathDetailsView)
+                    });
+                if let (Some(path), Some(details)) = (address, details)
                     && !is_aeon_header_path(path, details)
                 {
                     diagnostics.push(
@@ -3360,6 +3432,7 @@ fn prepare_event_candidates_into<R: RecordView>(
                         .with_field("header"),
                     );
                     path_details = None;
+                    cached_path_details = false;
                 }
             }
             Some(AddressField::Path) => *body_seen = true,
@@ -3382,14 +3455,20 @@ fn prepare_event_candidates_into<R: RecordView>(
             .then(|| validate_event_value(event, index, limits, diagnostics))
             .flatten();
         validate_optional_fields(event, index, diagnostics);
-        let path_fingerprint = path_details
-            .as_ref()
-            .zip(address)
-            .map(|(details, path)| details.path_fingerprint(path));
+        let path_fingerprint = cached_path_details
+            .then(|| cached_evidence.map(|evidence| evidence.fingerprint))
+            .flatten()
+            .or_else(|| {
+                path_details
+                    .as_ref()
+                    .zip(address)
+                    .map(|(details, path)| details.path_fingerprint(path))
+            });
         events.push(EventCandidate {
             index,
             address_field,
             path_details,
+            cached_path_details,
             path_fingerprint,
             has_valid_reference_target: reference_target.is_some(),
         });
@@ -3455,7 +3534,7 @@ fn index_event_paths<'records, 'events, R: RecordView>(
         PathIndex::with_capacity_and_hasher(events.len(), BuildHasherDefault::default());
     let mut duplicates = Vec::new();
     for &candidate in events {
-        if candidate.path_details.is_some()
+        if candidate_path_details(records, candidate).is_some()
             && let Some(path) = candidate_address(records, candidate)
             && let Some(fingerprint) = candidate.path_fingerprint
         {
@@ -3791,7 +3870,7 @@ fn validate_represented_structural_limits<R: RecordView>(
             rendered: path,
             fingerprint: path_fingerprint,
         };
-        if candidate.path_details.is_none()
+        if candidate_path_details(records, candidate).is_none()
             || has_duplicates
                 && !index
                     .by_path
@@ -3800,7 +3879,7 @@ fn validate_represented_structural_limits<R: RecordView>(
         {
             continue;
         }
-        let Some(details) = &candidate.path_details else {
+        let Some(details) = candidate_path_details(records, candidate) else {
             continue;
         };
         if matches!(
@@ -3863,7 +3942,7 @@ fn validate_represented_structural_limits<R: RecordView>(
             rendered: path,
             fingerprint: path_fingerprint,
         };
-        if parent.path_details.is_none()
+        if candidate_path_details(records, parent).is_none()
             || has_duplicates
                 && !index
                     .by_path
@@ -3889,6 +3968,86 @@ fn validate_represented_structural_limits<R: RecordView>(
                     .with_field(parent.address_field.map_or("path", AddressField::name)),
             );
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct CanonicalPathEvidence<'a> {
+    pub(crate) details: PathDetailsSlice<'a>,
+    pub(crate) fingerprint: u64,
+}
+
+struct PathArena {
+    segments: Vec<ParsedSegment>,
+}
+
+#[derive(Clone, Copy)]
+struct PathArenaEvidence {
+    start: u32,
+    len: u32,
+    fingerprint: u64,
+}
+
+impl PathArenaEvidence {
+    const ABSENT: Self = Self {
+        start: u32::MAX,
+        len: 0,
+        fingerprint: 0,
+    };
+}
+
+struct PathArenaRecord<'a, R> {
+    record: &'a R,
+    evidence: PathArenaEvidence,
+    arena: &'a PathArena,
+}
+
+impl<R: RecordView> RecordView for PathArenaRecord<'_, R> {
+    const FIXED_CORE_FIELDS: bool = R::FIXED_CORE_FIELDS;
+
+    fn field_count(&self) -> usize {
+        self.record.field_count()
+    }
+
+    fn get(&self, field: &str) -> Option<&str> {
+        self.record.get(field)
+    }
+
+    fn datatype(&self) -> Option<&DatatypeDescriptor> {
+        self.record.datatype()
+    }
+
+    fn canonical_path(&self) -> Option<&AesCanonicalPath> {
+        self.record.canonical_path()
+    }
+
+    fn canonical_path_evidence(&self) -> Option<CanonicalPathEvidence<'_>> {
+        if self.evidence.start == u32::MAX {
+            return self.record.canonical_path_evidence();
+        }
+        let start = self.evidence.start as usize;
+        let end = start + self.evidence.len as usize;
+        Some(CanonicalPathEvidence {
+            details: PathDetailsSlice::new(&self.arena.segments[start..end]),
+            fingerprint: self.evidence.fingerprint,
+        })
+    }
+
+    fn visit_fields<'a>(&'a self, visitor: &mut dyn FnMut(&'a str, &'a str)) {
+        self.record.visit_fields(visitor);
+    }
+
+    fn validate_encode_field_structure(&self) -> Result<(), TelexEncodeError> {
+        self.record.validate_encode_field_structure()
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct PathDetailsSlice<'a>(&'a [ParsedSegment]);
+
+impl<'a> PathDetailsSlice<'a> {
+    pub(crate) fn new(segments: &'a [ParsedSegment]) -> Self {
+        Self(segments)
     }
 }
 
@@ -4023,10 +4182,151 @@ impl PathDetailsView for PathDetailsStorage {
     }
 }
 
+enum CandidatePathDetails<'a> {
+    Prepared(&'a PathDetailsStorage),
+    Cached(PathDetailsSlice<'a>),
+}
+
+impl CandidatePathDetails<'_> {
+    fn parent_fingerprint(&self, path: &str) -> Option<u64> {
+        match self {
+            Self::Prepared(details) => details.parent_fingerprint(path),
+            Self::Cached(details) => details
+                .parent_prefix_end()
+                .map(|prefix_end| canonical_path_fingerprint(&path[..prefix_end])),
+        }
+    }
+
+    fn visit_ancestor_prefixes(&self, path: &str, visitor: &mut dyn FnMut(usize, u64)) {
+        match self {
+            Self::Prepared(details) => details.visit_ancestor_prefixes(path, visitor),
+            Self::Cached(details) => {
+                details.visit_ancestor_prefix_ends(&mut |prefix_end| {
+                    visitor(prefix_end, canonical_path_fingerprint(&path[..prefix_end]));
+                });
+            }
+        }
+    }
+}
+
+impl PathDetailsView for CandidatePathDetails<'_> {
+    fn len(&self) -> usize {
+        match self {
+            Self::Prepared(details) => details.len(),
+            Self::Cached(details) => details.len(),
+        }
+    }
+
+    fn first(&self) -> Option<ParsedSegment> {
+        match self {
+            Self::Prepared(details) => details.first(),
+            Self::Cached(details) => details.first(),
+        }
+    }
+
+    fn last(&self) -> Option<ParsedSegment> {
+        match self {
+            Self::Prepared(details) => details.last(),
+            Self::Cached(details) => details.last(),
+        }
+    }
+
+    fn parent_prefix_end(&self) -> Option<usize> {
+        match self {
+            Self::Prepared(details) => details.parent_prefix_end(),
+            Self::Cached(details) => details.parent_prefix_end(),
+        }
+    }
+
+    fn max_attribute_depth(&self) -> usize {
+        match self {
+            Self::Prepared(details) => details.max_attribute_depth(),
+            Self::Cached(details) => details.max_attribute_depth(),
+        }
+    }
+
+    fn max_member_codepoints(&self) -> usize {
+        match self {
+            Self::Prepared(details) => details.max_member_codepoints(),
+            Self::Cached(details) => details.max_member_codepoints(),
+        }
+    }
+
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment)) {
+        match self {
+            Self::Prepared(details) => details.visit_segments(visitor),
+            Self::Cached(details) => details.visit_segments(visitor),
+        }
+    }
+
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize)) {
+        match self {
+            Self::Prepared(details) => details.visit_ancestor_prefix_ends(visitor),
+            Self::Cached(details) => details.visit_ancestor_prefix_ends(visitor),
+        }
+    }
+}
+
+impl PathDetailsView for PathDetailsSlice<'_> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn first(&self) -> Option<ParsedSegment> {
+        self.0.first().copied()
+    }
+
+    fn last(&self) -> Option<ParsedSegment> {
+        self.0.last().copied()
+    }
+
+    fn parent_prefix_end(&self) -> Option<usize> {
+        self.0
+            .len()
+            .checked_sub(2)
+            .map(|index| self.0[index].prefix_end)
+    }
+
+    fn max_attribute_depth(&self) -> usize {
+        let mut maximum = 0_usize;
+        let mut current = 0_usize;
+        for segment in self.0 {
+            current = if segment.kind == Segment::Attribute {
+                current.saturating_add(1)
+            } else {
+                0
+            };
+            maximum = maximum.max(current);
+        }
+        maximum
+    }
+
+    fn max_member_codepoints(&self) -> usize {
+        self.0
+            .iter()
+            .filter_map(|segment| segment.member_codepoints)
+            .max()
+            .unwrap_or_default()
+    }
+
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment)) {
+        for &segment in self.0 {
+            visitor(segment);
+        }
+    }
+
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize)) {
+        for segment in self.0.iter().take(self.0.len().saturating_sub(1)) {
+            visitor(segment.prefix_end);
+        }
+    }
+}
+
 struct EventCandidate {
     index: usize,
     address_field: Option<AddressField>,
     path_details: Option<PathDetailsStorage>,
+    cached_path_details: bool,
     path_fingerprint: Option<u64>,
     has_valid_reference_target: bool,
 }
@@ -4038,6 +4338,25 @@ fn candidate_address<'a, R: RecordView>(
     candidate
         .address_field
         .and_then(|field| records[candidate.index].get(field.name()))
+}
+
+fn candidate_path_details<'a, R: RecordView>(
+    records: &'a [R],
+    candidate: &'a EventCandidate,
+) -> Option<CandidatePathDetails<'a>> {
+    candidate
+        .path_details
+        .as_ref()
+        .map(CandidatePathDetails::Prepared)
+        .or_else(|| {
+            if candidate.cached_path_details {
+                records[candidate.index]
+                    .canonical_path_evidence()
+                    .map(|evidence| CandidatePathDetails::Cached(evidence.details))
+            } else {
+                None
+            }
+        })
 }
 
 fn validate_complete_stream<R: RecordView>(
@@ -4060,7 +4379,7 @@ fn validate_complete_stream<R: RecordView>(
     }
 
     for candidate in events {
-        let Some(details) = &candidate.path_details else {
+        let Some(details) = candidate_path_details(records, candidate) else {
             continue;
         };
         let path = candidate_address(records, candidate);
@@ -4306,7 +4625,7 @@ enum Segment {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-struct PathDetails {
+pub(crate) struct PathDetails {
     segments: Vec<ParsedSegment>,
 }
 
@@ -4445,7 +4764,7 @@ mod path_fingerprint_tests {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct ParsedSegment {
+pub(crate) struct ParsedSegment {
     kind: Segment,
     prefix_end: usize,
     member_codepoints: Option<usize>,
@@ -4522,18 +4841,25 @@ impl PathDetailsView for PathDetails {
 }
 
 fn parse_canonical_data_path(path: &str) -> Result<PathDetails, String> {
+    let mut segments = Vec::new();
+    parse_canonical_data_path_into(path, &mut segments)?;
+    Ok(PathDetails { segments })
+}
+
+pub(crate) fn parse_canonical_data_path_into(
+    path: &str,
+    segments: &mut Vec<ParsedSegment>,
+) -> Result<(), String> {
+    segments.clear();
     if !path.starts_with('$') {
         return Err(format!("Expected an absolute canonical path: {path}"));
     }
     if path == "$" {
-        return Ok(PathDetails {
-            segments: Vec::new(),
-        });
+        return Ok(());
     }
 
     let bytes = path.as_bytes();
     let mut cursor = 1_usize;
-    let mut segments = Vec::new();
     while cursor < bytes.len() {
         let (segment, codepoints) = if path[cursor..].starts_with(".@.") {
             cursor += 3;
@@ -4557,7 +4883,7 @@ fn parse_canonical_data_path(path: &str) -> Result<PathDetails, String> {
             member_codepoints: codepoints,
         });
     }
-    Ok(PathDetails { segments })
+    Ok(())
 }
 
 fn read_member(path: &str, cursor: usize) -> Result<(usize, usize), String> {

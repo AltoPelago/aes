@@ -31,6 +31,19 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ### Changed
 
+- Replaced the experimental Candidate B decode wrapper with a direct general
+  decoder covering all Film fields, limits, prefix canonicality, diagnostics,
+  and complete AES validation; retained the wrapper as an explicit benchmark
+  baseline and added Candidate B to the bounded fuzz target.
+- Added experimental checkpointed Film Candidate C with mandatory 256-record
+  absolute addresses, checkpoint indexing and block recovery, a general compact
+  typed owned result, native portable-AES validation without `TelexRecord`
+  materialization, an opt-in cached-path evidence experiment, and a shared
+  transient path-arena validation experiment available to both Film v1 and
+  Candidate C, with diagnostic-equivalence tests, full-field round trips,
+  resource bounds, and fuzz coverage. Its direct
+  decoder reuses the active body and header address buffers during prefix
+  reconstruction instead of allocating one buffer per record.
 - Promoted the audited Film v1 wire contract and 72-vector candidate to
   immutable specification and CTS snapshot `0.1` authorities. JavaScript now
   records a scoped `decode` claim, while Rust claims all Film operations.

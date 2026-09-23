@@ -10,7 +10,8 @@ use std::fmt;
 use crate::{
     COMPLETE_AES_PROFILE, ClarifierKind, DatatypeClarifier, DatatypeDescriptor, Diagnostic,
     GenericArgument, ParsedTelex, TelexLimits, TelexRecord, encode_telex_with_projection,
-    limit_diagnostic, parse_telex, validate_telex_records_with_projection_and_limits,
+    limit_diagnostic, parse_telex, validate_record_views_with_projection_and_limits_path_arena,
+    validate_telex_records_with_projection_and_limits,
 };
 
 pub const FILM_V1_PREAMBLE: [u8; 5] = [0x4f, 0x5f, 0x5f, 0xff, 0x01];
@@ -230,6 +231,18 @@ impl FilmStreamView<'_> {
     ) -> Result<OwnedFilmStream, FilmError> {
         let stream = self.to_owned_unvalidated();
         validate_stream(&stream, registered_fields, aes_limits, self.input_bytes)?;
+        Ok(stream)
+    }
+
+    /// Experimental complete-validation path using the shared transient path
+    /// arena before returning the normal owned Film stream.
+    pub fn to_validated_owned_path_arena(
+        &self,
+        registered_fields: &[&str],
+        aes_limits: &TelexLimits,
+    ) -> Result<OwnedFilmStream, FilmError> {
+        let stream = self.to_owned_unvalidated();
+        validate_stream_path_arena(&stream, registered_fields, aes_limits, self.input_bytes)?;
         Ok(stream)
     }
 }
@@ -460,6 +473,18 @@ pub fn decode_film_with_limits(
 ) -> Result<FilmStream, FilmError> {
     decode_film_view_with_limits(input, film_limits, aes_limits)?
         .to_validated_owned(registered_fields, aes_limits)
+}
+
+/// Experimental Film v1 complete decoder using the shared transient path
+/// arena. The Film v1 wire and returned owned representation are unchanged.
+pub fn decode_film_with_limits_path_arena(
+    input: &[u8],
+    registered_fields: &[&str],
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+) -> Result<FilmStream, FilmError> {
+    decode_film_view_with_limits(input, film_limits, aes_limits)?
+        .to_validated_owned_path_arena(registered_fields, aes_limits)
 }
 
 /// Decodes Film framing, fields, and canonical physical form while borrowing
@@ -695,7 +720,7 @@ fn validate_context(stream: &FilmStream) -> Result<(), FilmError> {
     }
 }
 
-fn validate_stream(
+pub(crate) fn validate_stream(
     stream: &FilmStream,
     registered_fields: &[&str],
     limits: &TelexLimits,
@@ -708,6 +733,29 @@ fn validate_stream(
         registered_fields,
         limits,
     );
+    film_validation_result(validation, offset)
+}
+
+pub(crate) fn validate_stream_path_arena(
+    stream: &FilmStream,
+    registered_fields: &[&str],
+    limits: &TelexLimits,
+    offset: usize,
+) -> Result<(), FilmError> {
+    let validation = validate_record_views_with_projection_and_limits_path_arena(
+        &stream.records,
+        &stream.profile,
+        stream.projection.as_deref(),
+        registered_fields,
+        limits,
+    );
+    film_validation_result(validation, offset)
+}
+
+fn film_validation_result(
+    validation: crate::ValidationResult,
+    offset: usize,
+) -> Result<(), FilmError> {
     if validation.valid {
         return Ok(());
     }
@@ -1140,6 +1188,77 @@ fn decode_record_view<'a>(
 ) -> Result<FilmRecordView<'a>, FilmError> {
     let mut reader = Reader::new(payload, payload_offset, Some(record_index));
     let control = reader.read_byte("record-control")?;
+    validate_record_control(control, payload_offset, record_index)?;
+    let kind_offset = reader.absolute_position();
+    let kind_code = reader.read_byte("kind")?;
+    let kind = decode_kind(kind_code, kind_offset, record_index)?;
+    let address_value = reader.read_str(film_limits, "address")?;
+    let address = if control & RECORD_HEADER != 0 {
+        FilmAddressView::Header(address_value)
+    } else {
+        FilmAddressView::Path(address_value)
+    };
+    decode_record_remainder(
+        reader,
+        control,
+        kind,
+        address,
+        record_index,
+        film_limits,
+        aes_limits,
+    )
+}
+
+pub(crate) struct FilmRecordPrefix<'a> {
+    pub(crate) control: u8,
+    pub(crate) control_offset: usize,
+    pub(crate) kind_code: u8,
+    pub(crate) kind_offset: usize,
+    pub(crate) address_value: &'a str,
+    pub(crate) tail_offset: usize,
+}
+
+pub(crate) fn decode_record_tail_owned(
+    prefix: FilmRecordPrefix<'_>,
+    tail: &[u8],
+    record_index: usize,
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+) -> Result<TelexRecord, FilmError> {
+    decode_record_tail_view(prefix, tail, record_index, film_limits, aes_limits)
+        .map(|record| record.to_owned())
+}
+
+pub(crate) fn decode_record_tail_view<'a>(
+    prefix: FilmRecordPrefix<'a>,
+    tail: &'a [u8],
+    record_index: usize,
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+) -> Result<FilmRecordView<'a>, FilmError> {
+    validate_record_control(prefix.control, prefix.control_offset, record_index)?;
+    let kind = decode_kind(prefix.kind_code, prefix.kind_offset, record_index)?;
+    let address = if prefix.control & RECORD_HEADER != 0 {
+        FilmAddressView::Header(prefix.address_value)
+    } else {
+        FilmAddressView::Path(prefix.address_value)
+    };
+    decode_record_remainder(
+        Reader::new(tail, prefix.tail_offset, Some(record_index)),
+        prefix.control,
+        kind,
+        address,
+        record_index,
+        film_limits,
+        aes_limits,
+    )
+}
+
+fn validate_record_control(
+    control: u8,
+    payload_offset: usize,
+    record_index: usize,
+) -> Result<(), FilmError> {
     if control & !0x1f != 0 {
         return Err(film_error(
             "FILM_INVALID_RECORD",
@@ -1158,8 +1277,15 @@ fn decode_record_view<'a>(
             "Span presence requires origin presence",
         ));
     }
-    let kind_offset = reader.absolute_position();
-    let kind = kind_name(reader.read_byte("kind")?).ok_or_else(|| {
+    Ok(())
+}
+
+fn decode_kind(
+    kind_code: u8,
+    kind_offset: usize,
+    record_index: usize,
+) -> Result<&'static str, FilmError> {
+    kind_name(kind_code).ok_or_else(|| {
         film_error(
             "FILM_INVALID_KIND",
             kind_offset,
@@ -1167,13 +1293,18 @@ fn decode_record_view<'a>(
             "kind",
             "Unassigned Film v1 kind code",
         )
-    })?;
-    let address_value = reader.read_str(film_limits, "address")?;
-    let address = if control & RECORD_HEADER != 0 {
-        FilmAddressView::Header(address_value)
-    } else {
-        FilmAddressView::Path(address_value)
-    };
+    })
+}
+
+fn decode_record_remainder<'a>(
+    mut reader: Reader<'a>,
+    control: u8,
+    kind: &'static str,
+    address: FilmAddressView<'a>,
+    record_index: usize,
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+) -> Result<FilmRecordView<'a>, FilmError> {
     let mut datatype_components = 0_usize;
     let datatype = if control & RECORD_DATATYPE != 0 {
         Some(reader.read_descriptor_view(film_limits, aes_limits, 0, &mut datatype_components)?)
@@ -1398,7 +1529,7 @@ fn kind_code(kind: &str) -> Option<u8> {
         .and_then(|index| u8::try_from(index.saturating_add(1)).ok())
 }
 
-fn kind_name(code: u8) -> Option<&'static str> {
+pub(crate) fn kind_name(code: u8) -> Option<&'static str> {
     code.checked_sub(1)
         .and_then(|index| KIND_NAMES.get(usize::from(index)))
         .copied()
