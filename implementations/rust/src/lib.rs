@@ -3812,11 +3812,16 @@ fn validate_represented_structural_limits<R: RecordView>(
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let has_duplicates = !index.duplicates.is_empty();
-    let mut direct_items: HashMap<
-        IndexedPath<'_>,
-        usize,
-        BuildHasherDefault<PathFingerprintHasher>,
-    > = HashMap::with_capacity_and_hasher(events.len(), BuildHasherDefault::default());
+    let tracks_direct_items = events.iter().any(|candidate| {
+        matches!(
+            records[candidate.index].get("kind"),
+            Some("ListNode" | "TupleLiteral")
+        )
+    });
+    let mut direct_items = tracks_direct_items.then(|| {
+        HashMap::<IndexedPath<'_>, usize, BuildHasherDefault<PathFingerprintHasher>>::
+            with_capacity_and_hasher(events.len(), BuildHasherDefault::default())
+    });
     for &candidate in events {
         let Some(path) = candidate_address(records, candidate) else {
             continue;
@@ -3872,7 +3877,9 @@ fn validate_represented_structural_limits<R: RecordView>(
                 );
             }
         }
-        if details.last().map(|segment| segment.kind) == Some(Segment::Index) && details.len() >= 2
+        if let Some(direct_items) = &mut direct_items
+            && details.last().map(|segment| segment.kind) == Some(Segment::Index)
+            && details.len() >= 2
         {
             let parent_prefix_end = details
                 .parent_prefix_end()
@@ -3889,6 +3896,9 @@ fn validate_represented_structural_limits<R: RecordView>(
                 .or_default() += 1;
         }
     }
+    let Some(direct_items) = direct_items else {
+        return;
+    };
     for &parent in events {
         let Some(path) = candidate_address(records, parent) else {
             continue;
