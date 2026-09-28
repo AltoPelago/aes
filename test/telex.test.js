@@ -141,6 +141,22 @@ test('round-trips records and canonicalizes core field order', () => {
   });
 });
 
+test('preserves temporal claims without inventing chronology or normalizing anchors', () => {
+  const records = [
+    { path: '$.fraction', kind: 'DateTimeLiteral', value: '2027-01-31T23:59:59.3400Z' },
+    { path: '$.leap', kind: 'WTCDateTimeLiteral', value: '2017-01-01T10:59:60.25+11:00&Australia/Melbourne' },
+    { path: '$.unknown', kind: 'WTCDateTimeLiteral', value: '2027-01-31T23:59:59-00:00&Australia/Melbourne' },
+    { path: '$.timescale', kind: 'WTCDateTimeLiteral', value: '2026-01-01T09:10:10&TAI' },
+    { path: '$.place', kind: 'WTCDateTimeLiteral', value: '2026-01-01T09:10:00+01:00&+/Antarctica/Elisabeth' },
+  ];
+
+  const encoded = encodeTelex(records);
+  const parsed = parseTelex(encoded);
+
+  assert.equal(validateTelex(encoded).valid, true);
+  assert.deepEqual(parsed.records, records);
+});
+
 test('preserves Unicode and escapes control scalars', () => {
   const encoded = encodeTelex([{ path: '$.波', kind: 'StringLiteral', value: '🌊\u0001' }]);
   assert.match(encoded, /value=🌊\\u\{1\}/u);
