@@ -110,8 +110,8 @@ portable AES record model. The historical `film_candidate_a` module re-exports
 this surface temporarily for local prototype compatibility.
 
 This module is reference code in an unpublished crate. Its reader claims the
-immutable `film-cts-v1-snapshot-0.1` target and passes the repository-local
-mutable 72-vector Film candidate; later local additions do not alter that
+immutable `film-cts-v1-snapshot-0.2` target and passes the repository-local
+mutable 73-vector Film candidate; later local additions do not alter that
 snapshot claim. The writer remains available for conformance tooling and
 experimentation, but must not be enabled for durable interchange until reader
 deployment and ecosystem compatibility review close the separate writer gate.
