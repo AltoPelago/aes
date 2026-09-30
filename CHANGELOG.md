@@ -33,6 +33,8 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ### Changed
 
+- Advanced the symbol-capable Film contract and shared conformance target to
+  immutable snapshot `0.2`, preserving snapshot `0.1` unchanged.
 - Staged the non-publishable Rust reference crate as
   `altopelago-aes-telex` `0.2.0` for coordinated symbol-capable AEON builds.
 - Appended the Film mapping for `SymbolicLiteral` at kind code `0x18`, leaving

@@ -20,11 +20,11 @@ fn passes_selected_film_v1_vectors() {
     let manifest = read_json(&manifest_path);
     let released = manifest["meta"]["status"] == "released";
     if released {
-        assert_eq!(manifest["meta"]["version"], "0.1.0");
-        assert_eq!(manifest["meta"]["snapshot_id"], "film-cts-v1-snapshot-0.1");
+        assert_eq!(manifest["meta"]["version"], "0.2.0");
+        assert_eq!(manifest["meta"]["snapshot_id"], "film-cts-v1-snapshot-0.2");
         assert_eq!(
             manifest["meta"]["spec_snapshot_id"],
-            "film-specs-v1-snapshot-0.1"
+            "film-specs-v1-snapshot-0.2"
         );
     } else {
         assert_eq!(manifest["meta"]["version"], "0.1.0-dev");
@@ -58,6 +58,12 @@ fn passes_selected_film_v1_vectors() {
             suite["meta"]["event_contract"],
             manifest["meta"]["event_contract"]
         );
+        let excluded: HashSet<&str> = suite_ref["exclude_tests"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
         for vector in suite["tests"]
             .as_array()
             .expect("Film suite tests must be an array")
@@ -65,12 +71,15 @@ fn passes_selected_film_v1_vectors() {
             let id = vector["id"]
                 .as_str()
                 .expect("Film vector id must be a string");
+            if excluded.contains(id) {
+                continue;
+            }
             assert!(seen.insert(id.to_owned()), "duplicate Film vector id: {id}");
             run_vector(id, vector);
             count += 1;
         }
     }
-    assert_eq!(count, 72, "unexpected selected Film vector count");
+    assert_eq!(count, 73, "unexpected selected Film vector count");
 }
 
 fn run_vector(id: &str, vector: &Value) {

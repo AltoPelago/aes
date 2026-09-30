@@ -12,9 +12,9 @@ const specification = readFileSync(new URL('../specifications/film.aes.md', impo
 
 test('selected Film manifest has resolvable suites and unique language-neutral vectors', () => {
   if (manifest.meta.status === 'released') {
-    assert.equal(manifest.meta.version, '0.1.0');
-    assert.equal(manifest.meta.snapshot_id, 'film-cts-v1-snapshot-0.1');
-    assert.equal(manifest.meta.spec_snapshot_id, 'film-specs-v1-snapshot-0.1');
+    assert.equal(manifest.meta.version, '0.2.0');
+    assert.equal(manifest.meta.snapshot_id, 'film-cts-v1-snapshot-0.2');
+    assert.equal(manifest.meta.spec_snapshot_id, 'film-specs-v1-snapshot-0.2');
   } else {
     assert.equal(manifest.meta.version, '0.1.0-dev');
     assert.equal(manifest.meta.status, 'draft');
@@ -36,7 +36,7 @@ test('selected Film manifest has resolvable suites and unique language-neutral v
     assert.equal(suite.meta.format_version, manifest.meta.format_version);
     assert.equal(suite.meta.event_contract, manifest.meta.event_contract);
     assert.ok(Array.isArray(suite.tests));
-    for (const vector of suite.tests) {
+    for (const vector of selectedVectors(suiteRef, suite)) {
       assert.equal(typeof vector.id, 'string');
       assert.equal(seen.has(vector.id), false, `duplicate vector id: ${vector.id}`);
       seen.add(vector.id);
@@ -49,7 +49,7 @@ test('selected Film manifest has resolvable suites and unique language-neutral v
       count += 1;
     }
   }
-  assert.equal(count, 72);
+  assert.equal(count, 73);
 });
 
 test('selected Film candidate vectors reference existing specification headings', () => {
@@ -71,7 +71,7 @@ test('selected Film vectors satisfy the complete v1 protocol shape', () => {
   for (const suiteRef of manifest.suites) {
     const suite = readJson(new URL(suiteRef.file, manifestUrl));
     assert.ok((suite.meta.spec_refs ?? []).length > 0, `${suite.id}: missing spec_refs`);
-    for (const vector of suite.tests) {
+    for (const vector of selectedVectors(suiteRef, suite)) {
       assert.ok(vector.description?.length > 0, `${vector.id}: missing description`);
       assert.ok(Array.isArray(vector.tags) && vector.tags.length > 0, `${vector.id}: tags`);
       assert.equal(typeof vector.expected?.ok, 'boolean', `${vector.id}: expected.ok`);
@@ -151,6 +151,11 @@ function validateHexFields(value, id) {
 
 function readJson(url) {
   return JSON.parse(readFileSync(url, 'utf8'));
+}
+
+function selectedVectors(suiteRef, suite) {
+  const excluded = new Set(suiteRef.exclude_tests ?? []);
+  return suite.tests.filter((vector) => !excluded.has(vector.id));
 }
 
 function markdownHeadingAnchors(markdown) {

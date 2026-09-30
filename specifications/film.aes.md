@@ -696,8 +696,8 @@ host authorization.
 
 This document remains a normative draft for Film's overall rollout. Its v1
 binary contract is fixed as immutable specification snapshot
-`film-specs-v1-snapshot-0.1`, aligned with the released reader-conformance
-snapshot `film-cts-v1-snapshot-0.1`. Those snapshots establish a stable external
+`film-specs-v1-snapshot-0.2`, aligned with the released reader-conformance
+snapshot `film-cts-v1-snapshot-0.2`. Those snapshots establish a stable external
 target without declaring Film generally released or enabling durable writers.
 
 The repository's informative Rust API exposes borrowed physical views through
@@ -722,7 +722,7 @@ Full Film v1 release requires:
 6. the canonical specification source is promoted through the Aeonite specs
    publication process.
 
-Items 1 through 4 and item 6 are complete for snapshot `0.1`. Item 5 remains
+Items 1 through 4 and item 6 are complete for snapshot `0.2`. Item 5 remains
 the release gate: reader support must be deployed and compatibility-reviewed
 before durable writers are enabled.
 
@@ -731,10 +731,10 @@ manifest identifies an immutable shared snapshot. Compatible added coverage
 advances the CTS snapshot; an incompatible wire change advances the Film format
 version.
 
-The immutable `film-cts-v1-snapshot-0.1` supplies the language-neutral evidence
-for item 1. It contains 72 vectors and aligns with
-`film-specs-v1-snapshot-0.1`. The selected Rust reference passes all 72
-operations. The independent JavaScript decoder passes all 68 decoder operations
+The immutable `film-cts-v1-snapshot-0.2` supplies the language-neutral evidence
+for item 1. It contains 73 vectors and aligns with
+`film-specs-v1-snapshot-0.2`. The selected Rust reference passes all 73
+operations. The independent JavaScript decoder passes all 69 decoder operations
 and also reads the three canonical Film fixtures emitted by positive producer
 operations; the encoder-only buffered-byte rejection remains outside its
 scoped `decode` claim. This closes the independent-decoder evidence requirement

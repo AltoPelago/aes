@@ -17,7 +17,8 @@ let encoderOnlyVectors = 0;
 
 for (const suiteRef of manifest.suites) {
   const suite = readJson(new URL(suiteRef.file, manifestUrl));
-  for (const vector of suite.tests) {
+  const excluded = new Set(suiteRef.exclude_tests ?? []);
+  for (const vector of suite.tests.filter((candidate) => !excluded.has(candidate.id))) {
     if (vector.operation === 'decode') {
       directDecodeVectors += 1;
       test(`javascript-decoder/${vector.id}`, () => runDecodeVector(vector));
@@ -32,7 +33,7 @@ for (const suiteRef of manifest.suites) {
 
 test('independent JavaScript decoder coverage has an explicit decoder-only boundary', () => {
   assert.deepEqual({ directDecodeVectors, producerFixtures, encoderOnlyVectors }, {
-    directDecodeVectors: 68,
+    directDecodeVectors: 69,
     producerFixtures: 3,
     encoderOnlyVectors: 1,
   });

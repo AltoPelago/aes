@@ -22,7 +22,7 @@
         },
         {
           "surface": "film-reader",
-          "snapshot_id": "film-cts-v1-snapshot-0.1",
+          "snapshot_id": "film-cts-v1-snapshot-0.2",
           "operations": ["decode"],
           "status": "claimed",
           "command": "npm run test:conformance:shared"
@@ -47,7 +47,7 @@
         },
         {
           "surface": "film",
-          "snapshot_id": "film-cts-v1-snapshot-0.1",
+          "snapshot_id": "film-cts-v1-snapshot-0.2",
           "operations": ["decode", "encode", "transcode"],
           "status": "claimed",
           "command": "npm run test:conformance:rust:shared"
