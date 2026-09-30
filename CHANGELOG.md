@@ -8,6 +8,8 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ### Added
 
+- Added `SymbolicLiteral` as a distinct value-bearing AES kind with decoded
+  string payload transport in Telex and typed JavaScript/Rust event APIs.
 - Added the `film.aes` v1 normative draft, table-free Rust Candidate A
   prototype, stateful address-compression comparator, safety vectors, and
   reproducible layout benchmarks while retaining the durable-writer gate.
@@ -31,6 +33,8 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ### Changed
 
+- Appended the Film mapping for `SymbolicLiteral` at kind code `0x18`, leaving
+  all existing Film kind codes unchanged.
 - Replaced the experimental Candidate B decode wrapper with a direct general
   decoder covering all Film fields, limits, prefix canonicality, diagnostics,
   and complete AES validation; retained the wrapper as an explicit benchmark

@@ -46,6 +46,7 @@ const KIND_NAMES = Object.freeze([
   'NodeHead',
   'CloneReference',
   'PointerReference',
+  'SymbolicLiteral',
 ]);
 
 const VALUELESS_KINDS = new Set([

@@ -30,7 +30,7 @@ const CORE_FIELDS: [&str; 10] = [
     "origin",
     "span",
 ];
-const VALUE_KINDS: [&str; 23] = [
+const VALUE_KINDS: [&str; 24] = [
     "StringLiteral",
     "NumberLiteral",
     "InfinityLiteral",
@@ -54,6 +54,7 @@ const VALUE_KINDS: [&str; 23] = [
     "NodeHead",
     "CloneReference",
     "PointerReference",
+    "SymbolicLiteral",
 ];
 
 pub const TELEX_VERSION: &str = "1";
@@ -265,6 +266,7 @@ pub enum AesValueKind {
     RadixLiteral,
     EncodingLiteral,
     SeparatorLiteral,
+    SymbolicLiteral,
     SansaAddressLiteral,
     DateLiteral,
     TimeLiteral,
@@ -294,6 +296,7 @@ impl AesValueKind {
             Self::RadixLiteral => "RadixLiteral",
             Self::EncodingLiteral => "EncodingLiteral",
             Self::SeparatorLiteral => "SeparatorLiteral",
+            Self::SymbolicLiteral => "SymbolicLiteral",
             Self::SansaAddressLiteral => "SansaAddressLiteral",
             Self::DateLiteral => "DateLiteral",
             Self::TimeLiteral => "TimeLiteral",
@@ -2019,6 +2022,7 @@ fn validate_scalar_transaction(
         "RadixLiteral",
         "EncodingLiteral",
         "SeparatorLiteral",
+        "SymbolicLiteral",
         "SansaAddressLiteral",
         "DateLiteral",
         "TimeLiteral",

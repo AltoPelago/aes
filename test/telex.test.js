@@ -171,6 +171,11 @@ test('keeps clone and pointer references distinct through kind', () => {
   assert.deepEqual(parseTelex(encodeTelex(records)).records, records);
 });
 
+test('round-trips symbolic literal payloads as a distinct AES kind', () => {
+  const records = [{ path: '$.stage', kind: 'SymbolicLiteral', value: 'in review' }];
+  assert.deepEqual(parseTelex(encodeTelex(records)).records, records);
+});
+
 test('keeps node containers, heads, and content as separate flat events', () => {
   const records = [
     { path: '$.a', kind: 'NodeLiteral', datatype: 'node', generics: [], clarifiers: [], identity: 'A' },

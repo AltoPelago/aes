@@ -178,6 +178,7 @@ concerns.
 | `RadixLiteral` | canonical radix payload without `%` or visual underscores |
 | `EncodingLiteral` | encoding payload without `&`; padding is preserved |
 | `SeparatorLiteral` | canonical separator payload without `^` |
+| `SymbolicLiteral` | decoded nonempty Unicode symbol payload without surrounding `|` delimiters |
 | `SansaAddressLiteral` | canonical SANSA address |
 | `DateLiteral` | canonical date text |
 | `TimeLiteral` | canonical time text |
@@ -206,6 +207,8 @@ Source spelling is normalized before the event enters AES. Quoted, backtick,
 and trimtick strings all become `kind=StringLiteral`; trimtick width and
 indentation are source mechanics. Numeric separators and the leading AEON
 sigils for hex, radix, encoding, and separator values are not transported.
+Symbol delimiters and source escapes are likewise not transported; the decoded
+symbol payload is carried as `value`.
 
 ### 4.3 References
 

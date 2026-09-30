@@ -241,12 +241,24 @@
       "tags": ["kind", "unassigned", "failure"]
     },
     {
-      "id": "film-record-012-kind-above-v1-range",
-      "description": "Codes above the 23 assigned v1 kinds are invalid",
+      "id": "film-record-012-symbolic-literal-kind",
+      "description": "Kind code 18 carries a symbolic literal payload",
       "operation": "decode",
       "input": { "film_hex": "4f5f5fff010008001803242e610178" },
-      "expected": { "ok": false, "error": { "code": "FILM_INVALID_KIND" } },
-      "tags": ["kind", "unassigned", "failure"]
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010008001803242e610178",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            { "path": "$.a", "kind": "SymbolicLiteral", "value": "x" }
+          ]
+        }
+      },
+      "tags": ["kind", "symbol", "canonical"]
     },
     {
       "id": "film-record-013-invalid-utf8",

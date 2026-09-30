@@ -302,8 +302,9 @@ Film kind codes are local to this wire version. They preserve the corresponding
 | `15` | `NodeHead` | required |
 | `16` | `CloneReference` | required |
 | `17` | `PointerReference` | required |
+| `18` | `SymbolicLiteral` | required |
 
-Code `00` and codes `18` through `FF` are unassigned and invalid in Film v1. A
+Code `00` and codes `19` through `FF` are unassigned and invalid in Film v1. A
 semantic decoder rejects them because it cannot determine the logical kind or
 value-presence contract. A framing-only relay may copy or skip the complete
 outer record opaquely but cannot expose it as AES or claim canonical record

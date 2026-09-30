@@ -2199,7 +2199,7 @@ fn uleb_width(mut value: u64) -> usize {
     width
 }
 
-const KIND_NAMES: [&str; 23] = [
+const KIND_NAMES: [&str; 24] = [
     "StringLiteral",
     "NumberLiteral",
     "InfinityLiteral",
@@ -2223,4 +2223,5 @@ const KIND_NAMES: [&str; 23] = [
     "NodeHead",
     "CloneReference",
     "PointerReference",
+    "SymbolicLiteral",
 ];

@@ -71,6 +71,36 @@ fn typed_records_match_extensible_records_for_validation_and_encoding() {
 }
 
 #[test]
+fn typed_symbolic_literal_matches_extensible_record_encoding() {
+    let limits = TelexLimits::default();
+    let path = AesCanonicalPath::parse("$.stage".to_owned()).expect("canonical test path");
+    let typed = vec![AesEventRecord {
+        address: AesEventAddress::Path(path),
+        kind: AesValueKind::SymbolicLiteral,
+        datatype: None,
+        identity: None,
+        value: Some("in review".to_owned()),
+        origin: None,
+        span: None,
+    }];
+    let telex = vec![TelexRecord::new(vec![
+        ("path".to_owned(), "$.stage".to_owned()),
+        ("kind".to_owned(), "SymbolicLiteral".to_owned()),
+        ("value".to_owned(), "in review".to_owned()),
+    ])];
+
+    assert_eq!(
+        encode_aes_event_records_with_projection_and_limits(
+            &typed,
+            Some("aes.complete.v1"),
+            None,
+            &limits,
+        ),
+        encode_telex_with_projection_and_limits(&telex, Some("aes.complete.v1"), None, &limits,),
+    );
+}
+
+#[test]
 fn typed_records_retain_semantic_and_resource_validation() {
     let record = AesEventRecord {
         address: AesEventAddress::Path(

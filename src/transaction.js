@@ -31,7 +31,7 @@ const BODY_FIELDS = new Set([
 const SCALAR_KINDS = new Set([
   'StringLiteral', 'NumberLiteral', 'InfinityLiteral', 'NaNLiteral',
   'BooleanLiteral', 'ToggleLiteral', 'NullLiteral', 'HexLiteral',
-  'RadixLiteral', 'EncodingLiteral', 'SeparatorLiteral', 'SansaAddressLiteral',
+  'RadixLiteral', 'EncodingLiteral', 'SeparatorLiteral', 'SymbolicLiteral', 'SansaAddressLiteral',
   'DateLiteral', 'TimeLiteral', 'DateTimeLiteral', 'WTCDateTimeLiteral',
 ]);
 

@@ -53,6 +53,15 @@ test('returns owned JavaScript values independent of later byte mutation', () =>
   assert.equal(stream.records[0].value, 'hello');
 });
 
+test('decodes Film kind 18 as a symbolic literal', () => {
+  const bytes = fromHex('4f5f5fff010008001803242e610178');
+  assert.deepEqual(decodeFilm(bytes).records, [{
+    path: '$.a',
+    kind: 'SymbolicLiteral',
+    value: 'x',
+  }]);
+});
+
 test('requires an exact Uint8Array byte view', () => {
   assert.throws(
     () => decodeFilm(new ArrayBuffer(6)),
