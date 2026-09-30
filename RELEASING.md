@@ -6,7 +6,7 @@ currently publish an npm package or a crates.io crate.
 ## Non-publishing boundary
 
 - the repository-root `package.json` has `private: true`
-- the Rust `aes-telex` crate has `publish = false`
+- the Rust `altopelago-aes-telex` crate has `publish = false`
 - the npm implementation package `@altopelago/aeon-aes` is released from the
   [`AltoPelago/aeon`](https://github.com/AltoPelago/aeon) workspace
 - normative specifications and immutable CTS snapshots are released from their

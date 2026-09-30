@@ -3,18 +3,18 @@
 version = 4
 
 [[package]]
-name = "aes-telex"
-version = "0.0.0"
-dependencies = [
- "sha2",
-]
-
-[[package]]
 name = "aes-telex-fuzz"
 version = "0.0.0"
 dependencies = [
- "aes-telex",
+ "altopelago-aes-telex",
  "libfuzzer-sys",
+]
+
+[[package]]
+name = "altopelago-aes-telex"
+version = "0.2.0"
+dependencies = [
+ "sha2",
 ]
 
 [[package]]

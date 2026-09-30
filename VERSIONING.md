@@ -46,9 +46,10 @@ Current public baselines include:
 
 ## Reference implementation versions
 
-The repository-root npm manifest and `aes-telex` Rust crate currently use
-`0.0.0` and are explicitly private/non-publishable. Those values identify local
-reference tooling, not the AES or Telex contract version.
+The repository-root npm manifest remains private at `0.0.0`. The Rust crate is
+staged locally as the non-publishable `altopelago-aes-telex` `0.2.0` line so
+coordinated AEON development can depend on the symbol-capable API without
+changing the AES or Telex contract version.
 
 If either implementation is later released as a package, it must receive an
 independent SemVer line, a public package name, a release workflow, and a

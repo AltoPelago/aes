@@ -33,6 +33,8 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ### Changed
 
+- Staged the non-publishable Rust reference crate as
+  `altopelago-aes-telex` `0.2.0` for coordinated symbol-capable AEON builds.
 - Appended the Film mapping for `SymbolicLiteral` at kind code `0x18`, leaving
   all existing Film kind codes unchanged.
 - Replaced the experimental Candidate B decode wrapper with a direct general
