@@ -6,8 +6,12 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-02
+
 ### Added
 
+- Added `SymbolicLiteral` as a distinct value-bearing AES kind with decoded
+  string payload transport in Telex and typed JavaScript/Rust event APIs.
 - Added the `film.aes` v1 normative draft, table-free Rust Candidate A
   prototype, stateful address-compression comparator, safety vectors, and
   reproducible layout benchmarks while retaining the durable-writer gate.
@@ -31,6 +35,25 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ### Changed
 
+- Advanced the symbol-capable Film contract and shared conformance target to
+  immutable snapshot `0.2`, preserving snapshot `0.1` unchanged.
+- Released the Rust reference crate as `altopelago-aes-telex` `0.2.0` for
+  coordinated symbol-capable AEON builds.
+- Appended the Film mapping for `SymbolicLiteral` at kind code `0x18`, leaving
+  all existing Film kind codes unchanged.
+- Replaced the experimental Candidate B decode wrapper with a direct general
+  decoder covering all Film fields, limits, prefix canonicality, diagnostics,
+  and complete AES validation; retained the wrapper as an explicit benchmark
+  baseline and added Candidate B to the bounded fuzz target.
+- Added experimental checkpointed Film Candidate C with mandatory 256-record
+  absolute addresses, checkpoint indexing and block recovery, a general compact
+  typed owned result, native portable-AES validation without `TelexRecord`
+  materialization, an opt-in cached-path evidence experiment, and a shared
+  transient path-arena validation experiment available to both Film v1 and
+  Candidate C, with diagnostic-equivalence tests, full-field round trips,
+  resource bounds, and fuzz coverage. Its direct
+  decoder reuses the active body and header address buffers during prefix
+  reconstruction instead of allocating one buffer per record.
 - Promoted the audited Film v1 wire contract and 72-vector candidate to
   immutable specification and CTS snapshot `0.1` authorities. JavaScript now
   records a scoped `decode` claim, while Rust claims all Film operations.
@@ -56,5 +79,6 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 - Kept resource-limit enforcement, provenance verification, canonical logical
   bytes, and transaction inspection in the public regression surface.
-- Kept both reference packages non-publishable pending an explicit package
-  release decision.
+- Kept the repository-root npm reference package private while publishing the
+  Rust implementation through a signed-tag, protected-environment, crates.io
+  trusted-publisher workflow.

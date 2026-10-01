@@ -49,6 +49,7 @@ const VALUE_KINDS = new Set([
   'RadixLiteral',
   'EncodingLiteral',
   'SeparatorLiteral',
+  'SymbolicLiteral',
   'SansaAddressLiteral',
   'DateLiteral',
   'TimeLiteral',

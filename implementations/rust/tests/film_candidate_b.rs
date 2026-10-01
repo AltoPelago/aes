@@ -1,10 +1,14 @@
 use aes_telex::TelexLimits;
 use aes_telex::film::{FILM_V1_PREAMBLE, FilmLimits, FilmStream, decode_film, encode_film};
 use aes_telex::film_candidate_b::{
-    FILM_CANDIDATE_B_PREAMBLE, decode_film_candidate_b, decode_film_candidate_b_with_limits,
+    FILM_CANDIDATE_B_PREAMBLE, decode_film_candidate_b,
+    decode_film_candidate_b_via_film_v1_with_limits, decode_film_candidate_b_with_limits,
     encode_film_candidate_b, encode_film_candidate_b_with_limits,
 };
-use aes_telex::{PARTIAL_AES_PROFILE, TelexRecord};
+use aes_telex::{
+    ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument, PARTIAL_AES_PROFILE,
+    TelexRecord,
+};
 
 #[test]
 fn comparator_has_distinct_identity_and_round_trips() {
@@ -106,6 +110,100 @@ fn comparator_bytes_are_canonical_for_the_same_logical_stream() {
         encode_film_candidate_b(&decoded, &[]).expect("Candidate B must re-encode"),
         encoded
     );
+}
+
+#[test]
+fn direct_decoder_rejects_a_shorter_equivalent_prefix() {
+    let stream = FilmStream {
+        profile: PARTIAL_AES_PROFILE.to_owned(),
+        profile_explicit: true,
+        projection: None,
+        projection_explicit: false,
+        records: ["$.a", "$.b"]
+            .into_iter()
+            .map(|path| {
+                TelexRecord::new(vec![
+                    ("path".to_owned(), path.to_owned()),
+                    ("kind".to_owned(), "StringLiteral".to_owned()),
+                    ("value".to_owned(), "x".to_owned()),
+                ])
+            })
+            .collect(),
+    };
+    let mut encoded = encode_film_candidate_b(&stream, &[]).expect("Candidate B must encode");
+    let first_frame = context_end(&encoded);
+    let (first_length, first_payload) = read_uleb(&encoded, first_frame);
+    let second_frame = first_payload.saturating_add(first_length);
+    let (second_length, second_payload) = read_uleb(&encoded, second_frame);
+    assert!(second_length < 0x7f, "test fixture uses a one-byte frame");
+
+    let prefix_offset = second_payload.saturating_add(2);
+    let suffix_length_offset = prefix_offset.saturating_add(1);
+    let suffix_offset = suffix_length_offset.saturating_add(1);
+    assert_eq!(encoded[prefix_offset], 2);
+    assert_eq!(encoded[suffix_length_offset], 1);
+    encoded[second_frame] = encoded[second_frame].saturating_add(1);
+    encoded[prefix_offset] = 1;
+    encoded[suffix_length_offset] = 2;
+    encoded.insert(suffix_offset, b'.');
+
+    let error = decode_film_candidate_b(&encoded, &[])
+        .expect_err("an equivalent address must use its longest prefix");
+    assert_eq!(error.code, "FILM_COMPARATOR_NONCANONICAL");
+    assert_eq!(error.component, "address-prefix");
+    assert_eq!(error.record, Some(1));
+}
+
+#[test]
+fn direct_decoder_matches_legacy_transcode_for_all_record_fields() {
+    let descriptor = DatatypeDescriptor {
+        datatype: "list".to_owned(),
+        generics: vec![GenericArgument::Datatype(DatatypeDescriptor {
+            datatype: "int".to_owned(),
+            generics: Vec::new(),
+            clarifiers: Vec::new(),
+        })],
+        clarifiers: vec![DatatypeClarifier {
+            kind: ClarifierKind::StringLiteral,
+            value: ".".to_owned(),
+        }],
+    };
+    let stream = FilmStream {
+        profile: PARTIAL_AES_PROFILE.to_owned(),
+        profile_explicit: true,
+        projection: None,
+        projection_explicit: false,
+        records: vec![TelexRecord::with_datatype(
+            vec![
+                ("path".to_owned(), "$.items[0]".to_owned()),
+                ("kind".to_owned(), "NumberLiteral".to_owned()),
+                ("datatype".to_owned(), "list".to_owned()),
+                ("identity".to_owned(), "binding-0".to_owned()),
+                ("value".to_owned(), "42".to_owned()),
+                (
+                    "origin".to_owned(),
+                    "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+                        .to_owned(),
+                ),
+                ("span".to_owned(), "10:20".to_owned()),
+                ("x.example.note".to_owned(), "café".to_owned()),
+            ],
+            descriptor,
+        )],
+    };
+    let encoded = encode_film_candidate_b(&stream, &["x.example.note"])
+        .expect("complex Candidate B must encode");
+    let direct = decode_film_candidate_b(&encoded, &["x.example.note"])
+        .expect("direct Candidate B must decode");
+    let legacy = decode_film_candidate_b_via_film_v1_with_limits(
+        &encoded,
+        &["x.example.note"],
+        &FilmLimits::default(),
+        &TelexLimits::default(),
+    )
+    .expect("legacy Candidate B path must decode");
+    assert_eq!(direct, stream);
+    assert_eq!(direct, legacy);
 }
 
 #[test]

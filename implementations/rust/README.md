@@ -3,6 +3,15 @@
 This crate independently implements the published v1 `telex.aes` parsing,
 canonicalization, and AES profile validation.
 
+Add the current release with:
+
+```bash
+cargo add altopelago-aes-telex@0.2.0
+```
+
+The package name is `altopelago-aes-telex`; Rust code imports its library as
+`aes_telex`.
+
 Its decoded records expose a base-name `datatype`, recursive ordered
 `generics`, and ordered tagged `clarifiers`. The codec combines those values
 into one compact Telex `datatype=` line; numeric argument payloads remain
@@ -14,6 +23,15 @@ value. Limits-file parsing and inheritance remain the caller's trusted
 configuration concern. Bounds cover encoded input and line bytes, fields,
 events, cumulative decoded payload bytes, paths, and all datatype dimensions;
 limits are enforced without truncation.
+
+Producers with fixed AES event fields may use `AesEventRecord`,
+`AesEventAddress`, and `AesValueKind` with
+`encode_aes_event_records_with_projection_and_limits`. This typed path avoids
+constructing extensible textual field-name pairs and emits fields in canonical
+order without a temporary sorting vector. It is not a validation bypass: the
+same semantic checks, completeness rules, reference checks, datatype checks,
+and `TelexLimits` run before encoding. `TelexRecord` remains the extensible
+surface for parsing, registered fields, and generic Telex tooling.
 
 The default stream contains body events only. The optional
 `aeon.document.v1` projection adds flat `header` records in a disjoint address
@@ -73,8 +91,8 @@ This measures steady-state document throughput. It does not claim that one
 document is parsed and semantically validated concurrently; that requires a
 separate incremental semantic-state contract.
 
-Count heap allocations for the corresponding native Film, Telex, and resident
-AES operations with:
+Count heap allocations for the corresponding native Film, checkpointed
+Candidate C, Telex, and resident AES operations with:
 
 ```bash
 npm run profile:allocations
@@ -82,7 +100,9 @@ npm run profile:allocations
 
 The profiling allocator is a development-only dependency. Each operation runs
 in an isolated child process so its count has one unambiguous lifetime; setup
-and one warm-up pass occur before profiling begins.
+and one warm-up pass occur before profiling begins. Candidate C rows separate
+checkpoint indexing, compact physical decode, compact decode plus validation,
+compatibility conversion to general owned AES records, and encoding.
 
 The Rust and JavaScript implementations intentionally do not call each other or
 share codec source. Their common authorities are the transport-neutral portable
@@ -98,18 +118,42 @@ extensions, Film-local limits, and direct Telex transcoders over the existing
 portable AES record model. The historical `film_candidate_a` module re-exports
 this surface temporarily for local prototype compatibility.
 
-This module is reference code in an unpublished crate. Its reader claims the
-immutable `film-cts-v1-snapshot-0.1` target and passes the repository-local
-mutable 72-vector Film candidate; later local additions do not alter that
-snapshot claim. The writer remains available for conformance tooling and
-experimentation, but must not be enabled for durable interchange until reader
-deployment and ecosystem compatibility review close the separate writer gate.
+This module is experimental reference code within the published crate. Its
+reader claims the immutable `film-cts-v1-snapshot-0.2` target and passes the
+repository-local mutable 73-vector Film candidate; later local additions do not
+alter that snapshot claim. The writer remains available for conformance tooling
+and experimentation, but must not be enabled for durable interchange until
+reader deployment and ecosystem compatibility review close the separate writer
+gate.
 
 `film_candidate_b` is an archived, deliberately stateful comparator. It
 replaces each address with the longest UTF-8 prefix shared with the previous
 address in the same address plane plus an inline suffix. It uses the distinct
 experimental `O_B FF 00` preamble and can never be represented as
-`film.aes=1`.
+`film.aes=1`. Its general decoder reads Candidate B directly, supports all Film
+record fields, enforces limits and prefix canonicality, and performs complete
+AES validation without constructing an intermediate Film v1 buffer. The
+historical transcode decoder remains available under an explicit
+`*_via_film_v1_*` name for benchmark comparison only.
+
+`film_candidate_c` is a separate checkpointed experiment with an `O_C FF 00`
+preamble. Every 256-record block resets both address planes and encodes the
+first body and header address used in that block absolutely. It provides a
+checkpoint directory and independently decodable provisional blocks, and
+decodes all Film fields into a compact typed result with one text slab and
+bounded side tables. Its decoder reconstructs each address in a reusable
+per-plane buffer rather than allocating an address buffer per record. Its
+complete-validation adapter feeds that representation
+directly to the portable AES validator, borrowing common fields and preparing
+only sparse datatype and formatted-provenance metadata. Candidate C remains
+research code, not a Film v1 revision. An explicit cached-path decoder variant
+retains parsed segment evidence for benchmarking; it is not the default because
+the matched experiment found no material completion win and a 2.36–3.70×
+retained-storage increase. A separate shared transient path-arena validator
+stores parsed segments in one temporary allocation family and discards them
+before returning. Explicit Film v1 and Candidate C entry points exercise it;
+normal decoding remains unchanged because tiny documents do not consistently
+amortize its setup cost.
 
 Run its focused tests and native benchmark with:
 
@@ -118,6 +162,7 @@ cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_api
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_conformance
 cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_b
+cargo test --locked --manifest-path implementations/rust/Cargo.toml --test film_candidate_c
 cargo run --release --locked --example bench_film_candidate_a --manifest-path implementations/rust/Cargo.toml
 cargo run --release --locked --example compare_film_layouts --manifest-path implementations/rust/Cargo.toml -- path/to/input.telex.aes
 ```
@@ -129,4 +174,5 @@ The fuzz-only crate under `fuzz/` sends arbitrary CTS-seeded bytes through the
 borrowed and validated Film decoders under libFuzzer and AddressSanitizer. It is
 kept outside the reference crate's runtime and test dependency graph. Run the
 bounded local gate with `npm run fuzz:film`; continuing and corpus-management
-commands are documented in [`fuzz/README.md`](./fuzz/README.md).
+commands are documented in the repository's
+[`fuzz/README.md`](https://github.com/AltoPelago/aes/blob/main/implementations/rust/fuzz/README.md).

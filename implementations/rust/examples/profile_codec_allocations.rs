@@ -3,7 +3,14 @@ use std::hint::black_box;
 use std::process::Command;
 
 use aes_telex::film::{
-    FilmLimits, FilmStream, decode_film_view, decode_film_with_limits, encode_film_with_limits,
+    FilmLimits, FilmStream, decode_film_view, decode_film_with_limits,
+    decode_film_with_limits_path_arena, encode_film_with_limits,
+};
+use aes_telex::film_candidate_c::{
+    decode_film_candidate_c_compact_with_limits,
+    decode_film_candidate_c_validated_compact_path_arena_with_limits,
+    decode_film_candidate_c_validated_compact_with_limits, decode_film_candidate_c_with_limits,
+    encode_film_candidate_c_with_limits, index_film_candidate_c,
 };
 use aes_telex::{
     TelexLimits, encode_telex_with_projection_and_limits, parse_telex_with_limits,
@@ -19,11 +26,28 @@ const OPERATIONS: &[&str] = &[
     "film-decode-syntax",
     "film-decode-owned",
     "film-decode-complete",
+    "film-decode-complete-path-arena",
     "film-encode",
+    "film-c-index",
+    "film-c-decode-compact",
+    "film-c-decode-compact-complete",
+    "film-c-decode-compact-complete-path-arena",
+    "film-c-decode-complete",
+    "film-c-encode",
     "telex-decode-syntax",
     "telex-decode-complete",
     "telex-encode",
 ];
+
+struct OperationInputs<'a> {
+    telex: &'a str,
+    film: &'a [u8],
+    film_c: &'a [u8],
+    parsed: &'a aes_telex::ParsedTelex,
+    stream: &'a FilmStream,
+    film_limits: &'a FilmLimits,
+    limits: &'a TelexLimits,
+}
 
 fn main() {
     let arguments = env::args().collect::<Vec<_>>();
@@ -77,30 +101,25 @@ fn run_child(operation: &str, events: usize) {
     let stream = FilmStream::from(&parsed);
     let film = encode_film_with_limits(&stream, &[], &film_limits, &limits)
         .expect("generated records must encode as Film");
+    let film_c = encode_film_candidate_c_with_limits(&stream, &[], &film_limits, &limits)
+        .expect("generated records must encode as Candidate C");
+    let inputs = OperationInputs {
+        telex: &telex,
+        film: &film,
+        film_c: &film_c,
+        parsed: &parsed,
+        stream: &stream,
+        film_limits: &film_limits,
+        limits: &limits,
+    };
 
     // Warm allocator, hashing, and parser code before beginning the measured
     // lifetime. DHAT deliberately cannot reset within one process, so every
     // operation runs in its own child process.
-    run_operation(
-        operation,
-        &telex,
-        &film,
-        &parsed,
-        &stream,
-        &film_limits,
-        &limits,
-    );
+    run_operation(operation, &inputs);
 
     let profiler = dhat::Profiler::builder().testing().build();
-    run_operation(
-        operation,
-        &telex,
-        &film,
-        &parsed,
-        &stream,
-        &film_limits,
-        &limits,
-    );
+    run_operation(operation, &inputs);
     let stats = dhat::HeapStats::get();
     drop(profiler);
 
@@ -115,15 +134,16 @@ fn run_child(operation: &str, events: usize) {
     );
 }
 
-fn run_operation(
-    operation: &str,
-    telex: &str,
-    film: &[u8],
-    parsed: &aes_telex::ParsedTelex,
-    stream: &FilmStream,
-    film_limits: &FilmLimits,
-    limits: &TelexLimits,
-) {
+fn run_operation(operation: &str, inputs: &OperationInputs<'_>) {
+    let OperationInputs {
+        telex,
+        film,
+        film_c,
+        parsed,
+        stream,
+        film_limits,
+        limits,
+    } = inputs;
     match operation {
         "aes-validate-resident" => {
             let result = validate_telex_records_with_projection_and_limits(
@@ -149,10 +169,62 @@ fn run_operation(
                     .expect("generated Film must decode"),
             );
         }
+        "film-decode-complete-path-arena" => {
+            black_box(
+                decode_film_with_limits_path_arena(black_box(film), &[], film_limits, limits)
+                    .expect("generated Film path arena must decode"),
+            );
+        }
         "film-encode" => {
             black_box(
                 encode_film_with_limits(black_box(stream), &[], film_limits, limits)
                     .expect("generated records must encode as Film"),
+            );
+        }
+        "film-c-index" => {
+            black_box(
+                index_film_candidate_c(black_box(film_c), film_limits)
+                    .expect("generated Candidate C must index"),
+            );
+        }
+        "film-c-decode-compact" => {
+            black_box(
+                decode_film_candidate_c_compact_with_limits(black_box(film_c), film_limits, limits)
+                    .expect("generated Candidate C must compact-decode"),
+            );
+        }
+        "film-c-decode-compact-complete" => {
+            black_box(
+                decode_film_candidate_c_validated_compact_with_limits(
+                    black_box(film_c),
+                    &[],
+                    film_limits,
+                    limits,
+                )
+                .expect("generated Candidate C must compact-decode and validate"),
+            );
+        }
+        "film-c-decode-compact-complete-path-arena" => {
+            black_box(
+                decode_film_candidate_c_validated_compact_path_arena_with_limits(
+                    black_box(film_c),
+                    &[],
+                    film_limits,
+                    limits,
+                )
+                .expect("generated Candidate C path arena must validate"),
+            );
+        }
+        "film-c-decode-complete" => {
+            black_box(
+                decode_film_candidate_c_with_limits(black_box(film_c), &[], film_limits, limits)
+                    .expect("generated Candidate C must decode and validate"),
+            );
+        }
+        "film-c-encode" => {
+            black_box(
+                encode_film_candidate_c_with_limits(black_box(stream), &[], film_limits, limits)
+                    .expect("generated records must encode as Candidate C"),
             );
         }
         "telex-decode-syntax" => {

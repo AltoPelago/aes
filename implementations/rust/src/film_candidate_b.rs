@@ -5,11 +5,11 @@
 //! inline suffix. It deliberately gives up Candidate A's record independence
 //! and therefore uses a distinct non-v1 preamble.
 
-use crate::TelexLimits;
 use crate::film::{
-    FILM_V1_PREAMBLE, FilmError, FilmLimits, FilmStream, decode_film_with_limits,
-    encode_film_with_limits,
+    FILM_V1_PREAMBLE, FilmError, FilmLimits, FilmRecordPrefix, FilmStream, decode_film_with_limits,
+    decode_record_tail_owned, encode_film_with_limits, validate_stream,
 };
+use crate::{COMPLETE_AES_PROFILE, TelexLimits};
 
 pub const FILM_CANDIDATE_B_PREAMBLE: [u8; 5] = [0x4f, 0x5f, 0x42, 0xff, 0x00];
 
@@ -50,6 +50,17 @@ pub fn decode_film_candidate_b(
 }
 
 pub fn decode_film_candidate_b_with_limits(
+    input: &[u8],
+    registered_fields: &[&str],
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+) -> Result<FilmStream, FilmError> {
+    decode_candidate_b_direct(input, registered_fields, film_limits, aes_limits)
+}
+
+/// Historical comparator path retained to quantify the cost of expanding a
+/// Candidate B stream into Film v1 before decoding it.
+pub fn decode_film_candidate_b_via_film_v1_with_limits(
     input: &[u8],
     registered_fields: &[&str],
     film_limits: &FilmLimits,
@@ -211,6 +222,262 @@ fn candidate_a_to_b(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmEr
         record_index = record_index.saturating_add(1);
     }
     Ok(output)
+}
+
+fn decode_candidate_b_direct(
+    input: &[u8],
+    registered_fields: &[&str],
+    film_limits: &FilmLimits,
+    aes_limits: &TelexLimits,
+) -> Result<FilmStream, FilmError> {
+    check_limit(
+        "max_input_bytes",
+        input.len(),
+        film_limits.max_input_bytes,
+        0,
+        None,
+        "stream",
+    )?;
+    let mut reader = Cursor::new(input);
+    reader.expect_preamble(&FILM_CANDIDATE_B_PREAMBLE, "candidate-b-preamble")?;
+    let context = reader.read_byte("stream-context")?;
+    if context & !0x03 != 0 {
+        return Err(error(
+            "FILM_COMPARATOR_NONCANONICAL",
+            reader.position.saturating_sub(1),
+            None,
+            "stream-context",
+            "Reserved context bits must be zero",
+        ));
+    }
+    let profile_explicit = context & 0x01 != 0;
+    let projection_explicit = context & 0x02 != 0;
+    let profile = if profile_explicit {
+        read_nonempty_context_string(&mut reader, film_limits, "profile")?
+    } else {
+        COMPLETE_AES_PROFILE.to_owned()
+    };
+    let projection = if projection_explicit {
+        Some(read_nonempty_context_string(
+            &mut reader,
+            film_limits,
+            "projection",
+        )?)
+    } else {
+        None
+    };
+
+    let mut records = Vec::new();
+    let mut previous_body = Vec::new();
+    let mut previous_header = Vec::new();
+    while !reader.is_empty() {
+        let record_index = records.len();
+        if record_index >= aes_limits.max_events {
+            return Err(error(
+                "FILM_LIMIT_EXCEEDED",
+                reader.absolute_position(),
+                Some(record_index),
+                "record",
+                format!(
+                    "max_events observed {}, limit {}",
+                    record_index.saturating_add(1),
+                    aes_limits.max_events
+                ),
+            ));
+        }
+        reader.record = Some(record_index);
+        let payload_length = reader.read_limited_length(
+            "max_record_bytes",
+            film_limits.max_record_bytes,
+            "record-length",
+            "record",
+        )?;
+        if payload_length == 0 {
+            return Err(error(
+                "FILM_COMPARATOR_NONCANONICAL",
+                reader.position,
+                Some(record_index),
+                "record-length",
+                "Candidate B record length must be positive",
+            ));
+        }
+        let payload_offset = reader.position;
+        let payload = reader.read_exact(payload_length, "record")?;
+        let mut record = Cursor::with_base(payload, payload_offset, Some(record_index));
+        let control_offset = record.absolute_position();
+        let control = record.read_byte("record-control")?;
+        let kind_offset = record.absolute_position();
+        let kind = record.read_byte("kind")?;
+        let prefix_offset = record.absolute_position();
+        let previous = if control & HEADER_PLANE == 0 {
+            &mut previous_body
+        } else {
+            &mut previous_header
+        };
+        let prefix_value = record.read_uleb("address-prefix")?;
+        let suffix = record.read_string_bytes(film_limits, "address-suffix")?;
+        if prefix_value > u64::try_from(previous.len()).unwrap_or(u64::MAX) {
+            return Err(error(
+                "FILM_COMPARATOR_INVALID_PREFIX",
+                prefix_offset,
+                Some(record_index),
+                "address-prefix",
+                "Address prefix exceeds the previous address or splits UTF-8",
+            ));
+        }
+        let prefix_length = usize::try_from(prefix_value).map_err(|_| {
+            error(
+                "FILM_INTEGER_OVERFLOW",
+                prefix_offset,
+                Some(record_index),
+                "address-prefix",
+                "Address prefix length exceeds the host address space",
+            )
+        })?;
+        if !is_char_boundary(previous, prefix_length) {
+            return Err(error(
+                "FILM_COMPARATOR_INVALID_PREFIX",
+                prefix_offset,
+                Some(record_index),
+                "address-prefix",
+                "Address prefix exceeds the previous address or splits UTF-8",
+            ));
+        }
+        let address_length = prefix_length.checked_add(suffix.len()).ok_or_else(|| {
+            error(
+                "FILM_INTEGER_OVERFLOW",
+                prefix_offset,
+                Some(record_index),
+                "address",
+                "Reconstructed address length overflow",
+            )
+        })?;
+        check_limit(
+            "max_field_bytes",
+            address_length,
+            film_limits.max_field_bytes,
+            prefix_offset,
+            Some(record_index),
+            "address",
+        )?;
+        check_limit(
+            "max_buffered_bytes",
+            address_length,
+            film_limits.max_buffered_bytes,
+            prefix_offset,
+            Some(record_index),
+            "previous-address",
+        )?;
+        let expanded_size = checked_size(
+            checked_size(
+                2,
+                encoded_string_size(address_length, payload_offset, Some(record_index))?,
+                payload_offset,
+                Some(record_index),
+                "expanded-record",
+            )?,
+            record.remaining().len(),
+            payload_offset,
+            Some(record_index),
+            "expanded-record",
+        )?;
+        check_limit(
+            "max_record_bytes",
+            expanded_size,
+            film_limits.max_record_bytes,
+            payload_offset,
+            Some(record_index),
+            "expanded-record",
+        )?;
+        check_limit(
+            "max_buffered_bytes",
+            expanded_size,
+            film_limits.max_buffered_bytes,
+            payload_offset,
+            Some(record_index),
+            "expanded-record",
+        )?;
+
+        let mut address = buffer_with_capacity(address_length, Some(record_index), "address")?;
+        address.extend_from_slice(&previous[..prefix_length]);
+        address.extend_from_slice(suffix);
+        let address_text = std::str::from_utf8(&address).map_err(|invalid| {
+            error(
+                "FILM_INVALID_UTF8",
+                prefix_offset.saturating_add(invalid.valid_up_to()),
+                Some(record_index),
+                "address",
+                "Reconstructed address is not UTF-8",
+            )
+        })?;
+        let canonical_prefix = common_utf8_prefix_bytes(previous, &address)?;
+        if prefix_length != canonical_prefix {
+            return Err(error(
+                "FILM_COMPARATOR_NONCANONICAL",
+                prefix_offset,
+                Some(record_index),
+                "address-prefix",
+                "Candidate B requires the longest shared UTF-8 address prefix",
+            ));
+        }
+
+        let tail_offset = record.absolute_position();
+        let decoded = decode_record_tail_owned(
+            FilmRecordPrefix {
+                control,
+                control_offset,
+                kind_code: kind,
+                kind_offset,
+                address_value: address_text,
+                tail_offset,
+            },
+            record.remaining(),
+            record_index,
+            film_limits,
+            aes_limits,
+        )?;
+        records.push(decoded);
+        *previous = address;
+    }
+
+    let stream = FilmStream {
+        profile,
+        profile_explicit,
+        projection,
+        projection_explicit,
+        records,
+    };
+    validate_stream(&stream, registered_fields, aes_limits, input.len())?;
+    Ok(stream)
+}
+
+fn read_nonempty_context_string(
+    reader: &mut Cursor<'_>,
+    limits: &FilmLimits,
+    component: &'static str,
+) -> Result<String, FilmError> {
+    let offset = reader.absolute_position();
+    let bytes = reader.read_string_bytes(limits, component)?;
+    if bytes.is_empty() {
+        return Err(error(
+            "FILM_INVALID_CONTEXT",
+            offset,
+            None,
+            component,
+            "Film context strings must be non-empty",
+        ));
+    }
+    Ok(std::str::from_utf8(bytes)
+        .map_err(|invalid| {
+            error(
+                "FILM_INVALID_UTF8",
+                offset.saturating_add(invalid.valid_up_to()),
+                None,
+                component,
+                "Film context string is not UTF-8",
+            )
+        })?
+        .to_owned())
 }
 
 fn candidate_b_to_a(input: &[u8], limits: &FilmLimits) -> Result<Vec<u8>, FilmError> {

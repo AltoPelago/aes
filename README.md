@@ -58,8 +58,8 @@ canonical sources.
   canonical bytes, and syntax diagnostics.
 - [Film v1](specifications/film.aes.md) is the normative binary-encoding draft.
   Its table-free wire layout is resolved and fixed by
-  `film-specs-v1-snapshot-0.1` and the 72-vector
-  `film-cts-v1-snapshot-0.1`. Reader conformance is available; durable writers
+  `film-specs-v1-snapshot-0.2` and the 73-vector
+  `film-cts-v1-snapshot-0.2`. Reader conformance is available; durable writers
   remain behind the reader-before-writer deployment gate.
 - [AltoPelago Aeonic Limits v1](notes/altopelago-aeonic-limits-v1.md) defines
   the informative, consumer-owned configuration shape used to align structural
@@ -102,15 +102,18 @@ canonical sources.
 - [`conformance/`](conformance/README.md) contains language-neutral v1
   vectors for syntax, canonicalization, AES profile validation, exact-source
   provenance, resource-limit boundaries, the optional AEON document
-  projection, and the mutable 72-vector Film candidate. Stable external
+  projection, and the mutable 73-vector Film candidate. Stable external
   targets are published separately as `aes-events-cts-v1-snapshot-0.1`,
-  `telex-cts-v1-snapshot-0.1`, and `film-cts-v1-snapshot-0.1` in the shared
+  `telex-cts-v1-snapshot-0.1`, and `film-cts-v1-snapshot-0.2` in the shared
   `aeonite-cts` repository.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
   Rust implementation of the same v1 event, Telex, integrity, provenance, and
   transaction contracts, plus the selected Film draft reference and an
-  archived layout comparator. Its Telex codec has no runtime
-  dependencies; portable SHA-256 integrity uses the audited `sha2` crate.
+  archived layout comparator. Experimental Candidate C also exercises a
+  checkpointed prefix-delta codec, compact typed ownership, and native
+  portable-AES validation over that representation. Its Telex codec has no
+  runtime dependencies; portable SHA-256 integrity uses the audited `sha2`
+  crate.
 
 Run the syntax tests with:
 
@@ -148,9 +151,10 @@ Run the complete public-repository preflight with:
 npm run public:check
 ```
 
-The repository-root npm manifest and the Rust crate are reference tooling and
-remain explicitly non-publishable. The public npm implementation package,
-`@altopelago/aeon-aes`, is released from the
+The repository-root npm manifest remains private reference tooling. The Rust
+implementation is published as
+[`altopelago-aes-telex`](https://crates.io/crates/altopelago-aes-telex). The
+public npm implementation package, `@altopelago/aeon-aes`, is released from the
 [`AltoPelago/aeon`](https://github.com/AltoPelago/aeon) workspace.
 
 ## Boundaries
@@ -185,8 +189,8 @@ maintained in the separate AEON family roadmap. Material is promoted into this
 repository when it becomes an AES-owned specification, policy, conformance
 asset, release procedure, or implementation reference.
 
-The selected Rust Film reference passes the complete immutable 72-operation
-snapshot; the independent JavaScript reader claims its 68 decode operations.
+The selected Rust Film reference passes the complete immutable 73-operation
+snapshot; the independent JavaScript reader claims its 69 decode operations.
 Incremental chunk-state coverage, deterministic mutation testing, a
 coverage-guided Rust target, and a scheduled fuzz workflow are also in place.
 The next Film stage is reader deployment and ecosystem compatibility review;

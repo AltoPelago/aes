@@ -1,8 +1,9 @@
 # Film fuzzing
 
-The `film_decode` target sends arbitrary bytes through both the borrowed
-physical decoder and the validated owned decoder. Neither result is assumed to
-succeed; any panic, sanitizer finding, or process failure is a defect.
+The `film_decode` target sends arbitrary bytes through the borrowed Film v1
+decoder, its normal and shared-path-arena validated decoders, and the
+experimental Candidate B and C routes. Neither result is assumed to succeed;
+any panic, sanitizer finding, or process failure is a defect.
 
 Seed the corpus from every canonical Film byte fixture in the mutable CTS:
 

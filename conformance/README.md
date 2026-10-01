@@ -70,17 +70,17 @@ the source-backed preparation contract. It is not a published immutable CTS
 snapshot.
 
 The [`film.aes` v1 specification](../specifications/film.aes.md) is a normative
-draft. Its mutable `0.1.0-dev` CTS contains 72 language-neutral vectors across
+draft. Its mutable `0.1.0-dev` CTS contains 73 language-neutral vectors across
 framing and canonicalization, records and Telex transcoding, and resource
 limits. Exact Film bytes use contiguous lowercase hexadecimal inside the JSON
-test envelope. The lane fixes all 23 kind-code mappings and keeps Film syntax
+test envelope. The lane fixes all 24 kind-code mappings and keeps Film syntax
 and canonicality failures separate from transport-neutral AES diagnostics.
 
 The local Film candidate carries no `snapshot_id` or `spec_snapshot_id` and
 remains the mutable development target. The immutable shared
-`film-cts-v1-snapshot-0.1` publishes the exact audited 72-vector state. The
+`film-cts-v1-snapshot-0.2` publishes the exact audited 73-vector state. The
 selected Rust reference passes all operations in that snapshot. The independent
-JavaScript implementation claims only its 68 `decode` operations; it also reads
+JavaScript implementation claims only its 69 `decode` operations; it also reads
 the three canonical Film byte fixtures supplied by positive encode/transcode
 vectors, while the remaining buffered-encoder rejection stays outside the
 decoder-only claim.
@@ -167,7 +167,7 @@ pass independently in the JavaScript and Rust implementations. Later candidate
 changes stay here or enter a newer shared snapshot; the published identifiers
 and their suite bytes are not changed.
 
-Film adds the parallel immutable `film-cts-v1-snapshot-0.1` target. A claim may
+Film adds the parallel immutable `film-cts-v1-snapshot-0.2` target. A claim may
 carry an `operations` list to narrow its scope; omitting that field claims the
 entire snapshot. This repository therefore records JavaScript as a Film reader
 for `decode`, while Rust claims `decode`, `encode`, and `transcode`. The shared

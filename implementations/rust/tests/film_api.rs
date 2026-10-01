@@ -1,6 +1,7 @@
 use aes_telex::film::{
     FilmAddressView, FilmGenericView, FilmLimits, FilmStream, decode_film, decode_film_view,
-    decode_film_view_with_limits, encode_film,
+    decode_film_view_with_limits, decode_film_with_limits, decode_film_with_limits_path_arena,
+    encode_film,
 };
 use aes_telex::{
     ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument, PARTIAL_AES_PROFILE,
@@ -87,9 +88,39 @@ fn borrowed_view_reuses_input_storage_and_materializes_explicitly() {
         .expect("materialized stream must validate");
     assert_eq!(owned, stream);
     assert_eq!(
+        decode_film_with_limits_path_arena(
+            &encoded,
+            &["x.example.note"],
+            &FilmLimits::default(),
+            &TelexLimits::default(),
+        )
+        .expect("path-arena Film must decode"),
+        stream
+    );
+    assert_eq!(
         decode_film(&encoded, &["x.example.note"]).expect("owned Film must decode"),
         stream
     );
+
+    let shallow_limits = TelexLimits {
+        max_path_depth: 0,
+        ..TelexLimits::default()
+    };
+    let ordinary_error = decode_film_with_limits(
+        &encoded,
+        &["x.example.note"],
+        &FilmLimits::default(),
+        &shallow_limits,
+    )
+    .expect_err("ordinary validation must enforce path depth");
+    let arena_error = decode_film_with_limits_path_arena(
+        &encoded,
+        &["x.example.note"],
+        &FilmLimits::default(),
+        &shallow_limits,
+    )
+    .expect_err("arena validation must enforce path depth");
+    assert_eq!(arena_error.diagnostics, ordinary_error.diagnostics);
 }
 
 #[test]
@@ -103,6 +134,14 @@ fn borrowed_film_validity_remains_provisional_until_aes_validation() {
         .expect_err("invalid AES path must prevent completed materialization");
     assert_eq!(error.code, "FILM_AES_INVALID");
     assert_eq!(error.diagnostics[0].code, "AES_INVALID_PATH");
+    let arena_error = decode_film_with_limits_path_arena(
+        &bytes,
+        &[],
+        &FilmLimits::default(),
+        &TelexLimits::default(),
+    )
+    .expect_err("the shared arena must preserve invalid-path rejection");
+    assert_eq!(arena_error.diagnostics, error.diagnostics);
 }
 
 #[test]

@@ -1,8 +1,11 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
+use std::collections::hash_map::RandomState;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::fmt;
+use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::sync::{Arc, OnceLock};
 
 use sha2::{Digest, Sha256};
 
@@ -11,6 +14,7 @@ pub mod film_candidate_a {
     pub use crate::film::*;
 }
 pub mod film_candidate_b;
+pub mod film_candidate_c;
 mod telex_incremental;
 
 const VERSION_LINE: &str = "telex.aes=1";
@@ -26,7 +30,7 @@ const CORE_FIELDS: [&str; 10] = [
     "origin",
     "span",
 ];
-const VALUE_KINDS: [&str; 23] = [
+const VALUE_KINDS: [&str; 24] = [
     "StringLiteral",
     "NumberLiteral",
     "InfinityLiteral",
@@ -50,6 +54,7 @@ const VALUE_KINDS: [&str; 23] = [
     "NodeHead",
     "CloneReference",
     "PointerReference",
+    "SymbolicLiteral",
 ];
 
 pub const TELEX_VERSION: &str = "1";
@@ -135,6 +140,220 @@ pub struct TelexRecord {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AesEventAddress {
+    Header(AesCanonicalPath),
+    Path(AesCanonicalPath),
+}
+
+/// An absolute canonical AES event path with reusable structural evidence.
+///
+/// Values can only be created by validating a rendered path or by appending
+/// canonical segments. Typed producers can therefore carry path structure
+/// into AES validation without asking the validator to parse the same path a
+/// second time.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesCanonicalPath {
+    rendered: String,
+    tail: Option<Arc<PathNode>>,
+    depth: usize,
+    fingerprint: u64,
+}
+
+impl AesCanonicalPath {
+    /// Validate and retain an already-rendered absolute canonical path.
+    pub fn parse(rendered: String) -> Result<Self, String> {
+        let details = parse_canonical_data_path(&rendered)?;
+        let depth = details.segments.len();
+        let mut tail = None;
+        for segment in details.segments {
+            tail = Some(Arc::new(PathNode::new(tail, segment)));
+        }
+        let fingerprint = canonical_path_fingerprint(&rendered);
+        Ok(Self {
+            rendered,
+            tail,
+            depth,
+            fingerprint,
+        })
+    }
+
+    /// Start a path at the absolute root. The root itself is not a valid event
+    /// address, but it is the base for segment-oriented construction.
+    #[must_use]
+    pub fn root() -> Self {
+        Self::root_with_capacity(1)
+    }
+
+    /// Start a path at the absolute root with space reserved for its rendered
+    /// representation.
+    #[must_use]
+    pub fn root_with_capacity(capacity: usize) -> Self {
+        let mut rendered = String::with_capacity(capacity.max(1));
+        rendered.push('$');
+        Self {
+            rendered,
+            tail: None,
+            depth: 0,
+            fingerprint: canonical_path_fingerprint("$"),
+        }
+    }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.rendered
+    }
+
+    pub fn push_member(&mut self, member: &str) -> Result<(), String> {
+        self.push_named_segment(Segment::Member, member)
+    }
+
+    pub fn push_attribute(&mut self, member: &str) -> Result<(), String> {
+        self.push_named_segment(Segment::Attribute, member)
+    }
+
+    pub fn push_index(&mut self, index: usize) {
+        let suffix_start = self.rendered.len();
+        self.rendered.push('[');
+        self.rendered.push_str(&index.to_string());
+        self.rendered.push(']');
+        self.fingerprint = extend_canonical_path_fingerprint(
+            self.fingerprint,
+            &self.rendered.as_bytes()[suffix_start..],
+        );
+        self.push_segment(ParsedSegment {
+            kind: Segment::Index,
+            prefix_end: self.rendered.len(),
+            member_codepoints: None,
+        });
+    }
+
+    fn push_named_segment(&mut self, segment: Segment, member: &str) -> Result<(), String> {
+        if member.is_empty() {
+            return Err("Canonical path members must not be empty".to_owned());
+        }
+        let suffix_start = self.rendered.len();
+        match segment {
+            Segment::Member => self.rendered.push('.'),
+            Segment::Attribute => self.rendered.push_str(".@."),
+            Segment::Index => unreachable!("named path segments cannot be indices"),
+        }
+        if valid_bare_member(member) {
+            self.rendered.push_str(member);
+        } else {
+            self.rendered.push('[');
+            self.rendered.push_str(&canonical_json_string(member));
+            self.rendered.push(']');
+        }
+        self.fingerprint = extend_canonical_path_fingerprint(
+            self.fingerprint,
+            &self.rendered.as_bytes()[suffix_start..],
+        );
+        self.push_segment(ParsedSegment {
+            kind: segment,
+            prefix_end: self.rendered.len(),
+            member_codepoints: Some(member.chars().count()),
+        });
+        Ok(())
+    }
+
+    fn push_segment(&mut self, segment: ParsedSegment) {
+        self.tail = Some(Arc::new(PathNode::new(self.tail.take(), segment)));
+        self.depth = self.depth.saturating_add(1);
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AesValueKind {
+    StringLiteral,
+    NumberLiteral,
+    InfinityLiteral,
+    NaNLiteral,
+    NullLiteral,
+    BooleanLiteral,
+    ToggleLiteral,
+    HexLiteral,
+    RadixLiteral,
+    EncodingLiteral,
+    SeparatorLiteral,
+    SymbolicLiteral,
+    SansaAddressLiteral,
+    DateLiteral,
+    TimeLiteral,
+    DateTimeLiteral,
+    WtcDateTimeLiteral,
+    ObjectNode,
+    ListNode,
+    TupleLiteral,
+    NodeLiteral,
+    NodeHead,
+    CloneReference,
+    PointerReference,
+}
+
+impl AesValueKind {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::StringLiteral => "StringLiteral",
+            Self::NumberLiteral => "NumberLiteral",
+            Self::InfinityLiteral => "InfinityLiteral",
+            Self::NaNLiteral => "NaNLiteral",
+            Self::NullLiteral => "NullLiteral",
+            Self::BooleanLiteral => "BooleanLiteral",
+            Self::ToggleLiteral => "ToggleLiteral",
+            Self::HexLiteral => "HexLiteral",
+            Self::RadixLiteral => "RadixLiteral",
+            Self::EncodingLiteral => "EncodingLiteral",
+            Self::SeparatorLiteral => "SeparatorLiteral",
+            Self::SymbolicLiteral => "SymbolicLiteral",
+            Self::SansaAddressLiteral => "SansaAddressLiteral",
+            Self::DateLiteral => "DateLiteral",
+            Self::TimeLiteral => "TimeLiteral",
+            Self::DateTimeLiteral => "DateTimeLiteral",
+            Self::WtcDateTimeLiteral => "WTCDateTimeLiteral",
+            Self::ObjectNode => "ObjectNode",
+            Self::ListNode => "ListNode",
+            Self::TupleLiteral => "TupleLiteral",
+            Self::NodeLiteral => "NodeLiteral",
+            Self::NodeHead => "NodeHead",
+            Self::CloneReference => "CloneReference",
+            Self::PointerReference => "PointerReference",
+        }
+    }
+}
+
+/// A typed AES event for producers that already hold canonical event
+/// components and do not need Telex's extensible name/value record model.
+///
+/// Typed records still pass through the complete AES semantic validator and
+/// every configured limit before canonical wire encoding.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AesEventRecord {
+    pub address: AesEventAddress,
+    pub kind: AesValueKind,
+    pub datatype: Option<DatatypeDescriptor>,
+    pub identity: Option<String>,
+    pub value: Option<String>,
+    pub origin: Option<String>,
+    pub span: Option<String>,
+}
+
+impl AesEventRecord {
+    #[must_use]
+    pub const fn new(address: AesEventAddress, kind: AesValueKind) -> Self {
+        Self {
+            address,
+            kind,
+            datatype: None,
+            identity: None,
+            value: None,
+            origin: None,
+            span: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DatatypeDescriptor {
     pub datatype: String,
     pub generics: Vec<GenericArgument>,
@@ -207,6 +426,173 @@ impl TelexRecord {
     #[must_use]
     pub fn contains(&self, field: &str) -> bool {
         self.get(field).is_some()
+    }
+}
+
+pub(crate) trait RecordView {
+    const FIXED_CORE_FIELDS: bool;
+
+    fn field_count(&self) -> usize;
+    fn get(&self, field: &str) -> Option<&str>;
+    fn datatype(&self) -> Option<&DatatypeDescriptor>;
+    fn visit_fields<'a>(&'a self, visitor: &mut dyn FnMut(&'a str, &'a str));
+
+    fn fixed_core_fields<'a>(
+        &'a self,
+        datatype: Option<&'a str>,
+    ) -> [(&'static str, Option<&'a str>); 8] {
+        [
+            ("header", self.get("header")),
+            ("path", self.get("path")),
+            ("kind", self.get("kind")),
+            ("datatype", datatype),
+            ("identity", self.get("identity")),
+            ("value", self.get("value")),
+            ("origin", self.get("origin")),
+            ("span", self.get("span")),
+        ]
+    }
+
+    fn canonical_path(&self) -> Option<&AesCanonicalPath> {
+        None
+    }
+
+    fn canonical_path_evidence(&self) -> Option<CanonicalPathEvidence<'_>> {
+        None
+    }
+
+    fn contains(&self, field: &str) -> bool {
+        self.get(field).is_some()
+    }
+
+    fn validate_encode_field_structure(&self) -> Result<(), TelexEncodeError> {
+        Ok(())
+    }
+}
+
+impl RecordView for TelexRecord {
+    const FIXED_CORE_FIELDS: bool = false;
+
+    fn field_count(&self) -> usize {
+        self.fields.len()
+    }
+
+    fn get(&self, field: &str) -> Option<&str> {
+        Self::get(self, field)
+    }
+
+    fn datatype(&self) -> Option<&DatatypeDescriptor> {
+        Self::datatype(self)
+    }
+
+    fn visit_fields<'a>(&'a self, visitor: &mut dyn FnMut(&'a str, &'a str)) {
+        for (field, value) in &self.fields {
+            visitor(field, value);
+        }
+    }
+
+    fn validate_encode_field_structure(&self) -> Result<(), TelexEncodeError> {
+        for (field_index, (field, _)) in self.fields.iter().enumerate() {
+            if !valid_field_name(field) {
+                return Err(TelexEncodeError::new(format!(
+                    "Invalid Telex field name: {field}"
+                )));
+            }
+            if self.fields[..field_index]
+                .iter()
+                .any(|(existing, _)| existing == field)
+            {
+                return Err(TelexEncodeError::new(format!(
+                    "Duplicate Telex field: {field}"
+                )));
+            }
+        }
+        Ok(())
+    }
+}
+
+impl RecordView for AesEventRecord {
+    const FIXED_CORE_FIELDS: bool = true;
+
+    fn field_count(&self) -> usize {
+        2 + usize::from(self.datatype.is_some())
+            + usize::from(self.identity.is_some())
+            + usize::from(self.value.is_some())
+            + usize::from(self.origin.is_some())
+            + usize::from(self.span.is_some())
+    }
+
+    fn get(&self, field: &str) -> Option<&str> {
+        match field {
+            "header" => match &self.address {
+                AesEventAddress::Header(address) => Some(address.as_str()),
+                AesEventAddress::Path(_) => None,
+            },
+            "path" => match &self.address {
+                AesEventAddress::Path(address) => Some(address.as_str()),
+                AesEventAddress::Header(_) => None,
+            },
+            "kind" => Some(self.kind.as_str()),
+            "datatype" => self.datatype.as_ref().map(|value| value.datatype.as_str()),
+            "identity" => self.identity.as_deref(),
+            "value" => self.value.as_deref(),
+            "origin" => self.origin.as_deref(),
+            "span" => self.span.as_deref(),
+            _ => None,
+        }
+    }
+
+    fn datatype(&self) -> Option<&DatatypeDescriptor> {
+        self.datatype.as_ref()
+    }
+
+    fn canonical_path(&self) -> Option<&AesCanonicalPath> {
+        match &self.address {
+            AesEventAddress::Header(path) | AesEventAddress::Path(path) => Some(path),
+        }
+    }
+
+    fn visit_fields<'a>(&'a self, visitor: &mut dyn FnMut(&'a str, &'a str)) {
+        match &self.address {
+            AesEventAddress::Header(address) => visitor("header", address.as_str()),
+            AesEventAddress::Path(address) => visitor("path", address.as_str()),
+        }
+        visitor("kind", self.kind.as_str());
+        if let Some(datatype) = &self.datatype {
+            visitor("datatype", datatype.datatype.as_str());
+        }
+        if let Some(identity) = &self.identity {
+            visitor("identity", identity);
+        }
+        if let Some(value) = &self.value {
+            visitor("value", value);
+        }
+        if let Some(origin) = &self.origin {
+            visitor("origin", origin);
+        }
+        if let Some(span) = &self.span {
+            visitor("span", span);
+        }
+    }
+
+    fn fixed_core_fields<'a>(
+        &'a self,
+        datatype: Option<&'a str>,
+    ) -> [(&'static str, Option<&'a str>); 8] {
+        let (header, path) = match &self.address {
+            AesEventAddress::Header(address) => (Some(address.as_str()), None),
+            AesEventAddress::Path(address) => (None, Some(address.as_str())),
+        };
+        [
+            ("header", header),
+            ("path", path),
+            ("kind", Some(self.kind.as_str())),
+            ("datatype", datatype),
+            ("identity", self.identity.as_deref()),
+            ("value", self.value.as_deref()),
+            ("origin", self.origin.as_deref()),
+            ("span", self.span.as_deref()),
+        ]
     }
 }
 
@@ -1645,6 +2031,7 @@ fn validate_scalar_transaction(
         "RadixLiteral",
         "EncodingLiteral",
         "SeparatorLiteral",
+        "SymbolicLiteral",
         "SansaAddressLiteral",
         "DateLiteral",
         "TimeLiteral",
@@ -2188,18 +2575,19 @@ pub fn check_prefix_completeness(
             AddressField::Path => &body_paths,
             AddressField::Header => &header_paths,
         };
-        for prefix in details
-            .prefixes
+        for segment in details
+            .segments
             .iter()
-            .take(details.prefixes.len().saturating_sub(1))
+            .take(details.segments.len().saturating_sub(1))
         {
-            let report_key = (address_field, prefix.clone());
-            if available.contains(prefix.as_str()) || !reported.insert(report_key) {
+            let prefix = &address[..segment.prefix_end];
+            let report_key = (address_field, prefix.to_owned());
+            if available.contains(prefix) || !reported.insert(report_key) {
                 continue;
             }
             missing.push(MissingPath {
                 field: (address_field == AddressField::Header).then_some("header"),
-                path: prefix.clone(),
+                path: prefix.to_owned(),
                 required_by: address.to_owned(),
             });
         }
@@ -2494,6 +2882,24 @@ pub fn encode_telex_with_projection_and_limits(
     projection: Option<&str>,
     limits: &TelexLimits,
 ) -> Result<String, TelexEncodeError> {
+    encode_record_views_with_projection_and_limits(records, profile, projection, limits)
+}
+
+pub fn encode_aes_event_records_with_projection_and_limits(
+    records: &[AesEventRecord],
+    profile: Option<&str>,
+    projection: Option<&str>,
+    limits: &TelexLimits,
+) -> Result<String, TelexEncodeError> {
+    encode_record_views_with_projection_and_limits(records, profile, projection, limits)
+}
+
+fn encode_record_views_with_projection_and_limits<R: RecordView>(
+    records: &[R],
+    profile: Option<&str>,
+    projection: Option<&str>,
+    limits: &TelexLimits,
+) -> Result<String, TelexEncodeError> {
     enforce_encode_limit("max_events", records.len(), limits.max_events)?;
     if profile == Some("") {
         return Err(TelexEncodeError::new(
@@ -2505,7 +2911,7 @@ pub fn encode_telex_with_projection_and_limits(
             "Telex projection must be a non-empty string",
         ));
     }
-    let validation = validate_telex_records_with_projection_and_limits(
+    let validation = validate_record_views_with_projection_and_limits(
         records,
         profile.unwrap_or(COMPLETE_AES_PROFILE),
         projection,
@@ -2542,7 +2948,7 @@ pub fn encode_telex_with_projection_and_limits(
 
     encoded.push_str("\n\n");
     for (record_index, record) in records.iter().enumerate() {
-        if record.fields.is_empty() {
+        if record.field_count() == 0 {
             return Err(TelexEncodeError::new(format!(
                 "Telex record {} must not be empty",
                 record_index + 1
@@ -2550,36 +2956,28 @@ pub fn encode_telex_with_projection_and_limits(
         }
         enforce_encode_limit(
             "max_fields_per_event",
-            record.fields.len(),
+            record.field_count(),
             limits.max_fields_per_event,
         )?;
-        for (field_index, (field, _)) in record.fields.iter().enumerate() {
-            if !valid_field_name(field) {
-                return Err(TelexEncodeError::new(format!(
-                    "Invalid Telex field name: {field}"
-                )));
-            }
-            if record.fields[..field_index]
-                .iter()
-                .any(|(existing, _)| existing == field)
-            {
-                return Err(TelexEncodeError::new(format!(
-                    "Duplicate Telex field: {field}"
-                )));
-            }
+        if !R::FIXED_CORE_FIELDS {
+            record.validate_encode_field_structure()?;
         }
-        let mut fields = wire_fields(record, limits).map_err(TelexEncodeError::new)?;
-        for (_, value) in &fields {
-            add_encoded_payload_bytes(value, limits, &mut decoded_payload_bytes)?;
-        }
-        if !has_canonical_wire_field_order(&fields) {
-            fields.sort_by(|left, right| compare_fields(left.0, right.0));
-        }
-        for (field_index, (field, value)) in fields.iter().enumerate() {
-            if field_index > 0 {
-                encoded.push('\n');
+        if R::FIXED_CORE_FIELDS {
+            push_typed_wire_record(record, &mut encoded, limits, &mut decoded_payload_bytes)?;
+        } else {
+            let mut fields = wire_fields(record, limits).map_err(TelexEncodeError::new)?;
+            for (_, value) in &fields {
+                add_encoded_payload_bytes(value, limits, &mut decoded_payload_bytes)?;
             }
-            push_wire_line(&mut encoded, field, value, limits)?;
+            if !has_canonical_wire_field_order(&fields) {
+                fields.sort_by(|left, right| compare_fields(left.0, right.0));
+            }
+            for (field_index, (field, value)) in fields.iter().enumerate() {
+                if field_index > 0 {
+                    encoded.push('\n');
+                }
+                push_wire_line(&mut encoded, field, value, limits)?;
+            }
         }
         if record_index + 1 < records.len() {
             encoded.push_str("\n\n");
@@ -2589,6 +2987,40 @@ pub fn encode_telex_with_projection_and_limits(
     encoded.push('\n');
     enforce_encode_limit("max_input_bytes", encoded.len(), limits.max_input_bytes)?;
     Ok(encoded)
+}
+
+fn push_typed_wire_record<R: RecordView>(
+    record: &R,
+    encoded: &mut String,
+    limits: &TelexLimits,
+    decoded_payload_bytes: &mut usize,
+) -> Result<(), TelexEncodeError> {
+    let formatted_datatype = if let Some(descriptor) = record.datatype() {
+        validate_datatype_descriptor(descriptor, limits)
+            .map_err(|(_, detail)| TelexEncodeError::new(detail))?;
+        (!descriptor.generics.is_empty() || !descriptor.clarifiers.is_empty())
+            .then(|| format_datatype_descriptor(descriptor))
+    } else {
+        None
+    };
+    let datatype = formatted_datatype.as_deref().or_else(|| {
+        record
+            .datatype()
+            .map(|descriptor| descriptor.datatype.as_str())
+    });
+    let mut field_index = 0_usize;
+    for (field, value) in record.fixed_core_fields(datatype) {
+        let Some(value) = value else {
+            continue;
+        };
+        add_encoded_payload_bytes(value, limits, decoded_payload_bytes)?;
+        if field_index > 0 {
+            encoded.push('\n');
+        }
+        push_wire_line(encoded, field, value, limits)?;
+        field_index += 1;
+    }
+    Ok(())
 }
 
 pub fn canonicalize_telex(input: &str) -> Result<String, TelexSyntaxError> {
@@ -2693,6 +3125,32 @@ pub fn validate_telex_records_with_projection_and_limits(
     registered_fields: &[&str],
     limits: &TelexLimits,
 ) -> ValidationResult {
+    validate_record_views_with_projection_and_limits(
+        records,
+        profile,
+        projection,
+        registered_fields,
+        limits,
+    )
+}
+
+#[must_use]
+pub fn validate_aes_event_records_with_projection_and_limits(
+    records: &[AesEventRecord],
+    profile: &str,
+    projection: Option<&str>,
+    limits: &TelexLimits,
+) -> ValidationResult {
+    validate_record_views_with_projection_and_limits(records, profile, projection, &[], limits)
+}
+
+pub(crate) fn validate_record_views_with_projection_and_limits<R: RecordView>(
+    records: &[R],
+    profile: &str,
+    projection: Option<&str>,
+    registered_fields: &[&str],
+    limits: &TelexLimits,
+) -> ValidationResult {
     let mut diagnostics = Vec::new();
 
     if records.len() > limits.max_events {
@@ -2743,8 +3201,57 @@ pub fn validate_telex_records_with_projection_and_limits(
     }
 }
 
-fn prepare_event_candidates(
-    records: &[TelexRecord],
+/// Experimental shared validator entry point that supplies canonical path
+/// evidence from one transient segment arena. The wrapped records and arena
+/// are discarded before this function returns.
+pub(crate) fn validate_record_views_with_projection_and_limits_path_arena<R: RecordView>(
+    records: &[R],
+    profile: &str,
+    projection: Option<&str>,
+    registered_fields: &[&str],
+    limits: &TelexLimits,
+) -> ValidationResult {
+    let mut evidence = Vec::with_capacity(records.len());
+    let mut segments = Vec::with_capacity(records.len().saturating_mul(2));
+    let mut scratch = Vec::new();
+    for record in records {
+        let parsed = record_address(record)
+            .filter(|path| parse_canonical_data_path_into(path, &mut scratch).is_ok())
+            .and_then(|path| {
+                let start = u32::try_from(segments.len()).ok()?;
+                let len = u32::try_from(scratch.len()).ok()?;
+                start.checked_add(len)?;
+                segments.extend_from_slice(&scratch);
+                Some(PathArenaEvidence {
+                    start,
+                    len,
+                    fingerprint: canonical_path_fingerprint(path),
+                })
+            })
+            .unwrap_or(PathArenaEvidence::ABSENT);
+        evidence.push(parsed);
+    }
+    let arena = PathArena { segments };
+    let wrapped = records
+        .iter()
+        .zip(evidence)
+        .map(|(record, evidence)| PathArenaRecord {
+            record,
+            evidence,
+            arena: &arena,
+        })
+        .collect::<Vec<_>>();
+    validate_record_views_with_projection_and_limits(
+        &wrapped,
+        profile,
+        projection,
+        registered_fields,
+        limits,
+    )
+}
+
+fn prepare_event_candidates<R: RecordView>(
+    records: &[R],
     profile: &str,
     projection: Option<&str>,
     registered_fields: &[&str],
@@ -2769,8 +3276,8 @@ fn prepare_event_candidates(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn prepare_event_candidates_into(
-    records: &[TelexRecord],
+fn prepare_event_candidates_into<R: RecordView>(
+    records: &[R],
     start_index: usize,
     profile: &str,
     projection: Option<&str>,
@@ -2784,8 +3291,8 @@ fn prepare_event_candidates_into(
         let index = start_index + offset;
         let address_field = record_address_field(event);
         let address = address_field.and_then(|field| event.get(field.name()));
-        for (field, _) in event.fields() {
-            if !CORE_FIELDS.contains(&field.as_str()) && !registered.contains(field.as_str()) {
+        event.visit_fields(&mut |field, _| {
+            if !CORE_FIELDS.contains(&field) && !registered.contains(field) {
                 diagnostics.push(
                     Diagnostic::new(
                         "AES_UNKNOWN_FIELD",
@@ -2795,7 +3302,7 @@ fn prepare_event_candidates_into(
                     .with_field(field),
                 );
             }
-        }
+        });
         if let Some(datatype) = event.datatype()
             && let Err((code, message)) = validate_datatype_descriptor(datatype, limits)
         {
@@ -2836,12 +3343,30 @@ fn prepare_event_candidates_into(
             );
         }
 
+        let cached_evidence = event.canonical_path_evidence();
+        let cached_details = cached_evidence.map(|evidence| evidence.details);
+        let mut cached_path_details = address != Some("$") && cached_evidence.is_some();
         let (mut path_details, path_error) = match address {
             Some("$") => (None, Some("The root is not an event path".to_owned())),
-            Some(path) => match parse_canonical_data_path(path) {
-                Ok(details) => (Some(details), None),
-                Err(message) => (None, Some(message)),
-            },
+            Some(path) => {
+                if cached_evidence.is_some() {
+                    (None, None)
+                } else if let Some(canonical) = event.canonical_path() {
+                    (
+                        Some(PathDetailsStorage::Shared {
+                            tail: canonical.tail.clone(),
+                            depth: canonical.depth,
+                            fingerprint: canonical.fingerprint,
+                        }),
+                        None,
+                    )
+                } else {
+                    match parse_canonical_data_path(path) {
+                        Ok(details) => (Some(PathDetailsStorage::Owned(details)), None),
+                        Err(message) => (None, Some(message)),
+                    }
+                }
+            }
             None => (None, None),
         };
         if path_error.is_none()
@@ -2849,7 +3374,14 @@ fn prepare_event_candidates_into(
         {
             validate_path_limits(
                 path,
-                path_details.as_ref(),
+                cached_details
+                    .as_ref()
+                    .map(|details| details as &dyn PathDetailsView)
+                    .or_else(|| {
+                        path_details
+                            .as_ref()
+                            .map(|details| details as &dyn PathDetailsView)
+                    }),
                 index,
                 address_field,
                 limits,
@@ -2893,7 +3425,15 @@ fn prepare_event_candidates_into(
                         .with_field("header"),
                     );
                 }
-                if let (Some(path), Some(details)) = (address, &path_details)
+                let details = cached_details
+                    .as_ref()
+                    .map(|details| details as &dyn PathDetailsView)
+                    .or_else(|| {
+                        path_details
+                            .as_ref()
+                            .map(|details| details as &dyn PathDetailsView)
+                    });
+                if let (Some(path), Some(details)) = (address, details)
                     && !is_aeon_header_path(path, details)
                 {
                     diagnostics.push(
@@ -2905,6 +3445,7 @@ fn prepare_event_candidates_into(
                         .with_field("header"),
                     );
                     path_details = None;
+                    cached_path_details = false;
                 }
             }
             Some(AddressField::Path) => *body_seen = true,
@@ -2927,17 +3468,28 @@ fn prepare_event_candidates_into(
             .then(|| validate_event_value(event, index, limits, diagnostics))
             .flatten();
         validate_optional_fields(event, index, diagnostics);
+        let path_fingerprint = cached_path_details
+            .then(|| cached_evidence.map(|evidence| evidence.fingerprint))
+            .flatten()
+            .or_else(|| {
+                path_details
+                    .as_ref()
+                    .zip(address)
+                    .map(|(details, path)| details.path_fingerprint(path))
+            });
         events.push(EventCandidate {
             index,
             address_field,
             path_details,
+            cached_path_details,
+            path_fingerprint,
             has_valid_reference_target: reference_target.is_some(),
         });
     }
 }
 
-fn finalize_event_candidates(
-    records: &[TelexRecord],
+fn finalize_event_candidates<R: RecordView>(
+    records: &[R],
     events: &[EventCandidate],
     profile: &str,
     projection: Option<&str>,
@@ -2952,20 +3504,28 @@ fn finalize_event_candidates(
         .iter()
         .filter(|candidate| candidate.address_field == Some(AddressField::Header))
         .collect::<Vec<_>>();
-    validate_represented_structural_limits(records, &body_events, limits, diagnostics);
-    validate_represented_structural_limits(records, &header_events, limits, diagnostics);
+    let body_index = index_event_paths(records, &body_events);
+    let header_index = index_event_paths(records, &header_events);
+    validate_represented_structural_limits(records, &body_events, &body_index, limits, diagnostics);
+    validate_represented_structural_limits(
+        records,
+        &header_events,
+        &header_index,
+        limits,
+        diagnostics,
+    );
     if profile == COMPLETE_AES_PROFILE {
-        validate_complete_stream(records, &body_events, diagnostics);
+        validate_complete_stream(records, &body_events, &body_index, diagnostics);
         validate_reference_targets(
             records,
             &body_events,
             (projection == Some(AEON_DOCUMENT_PROJECTION)).then_some(&header_events),
-            &body_events,
+            &body_index.by_path,
             diagnostics,
         );
     }
     if projection == Some(AEON_DOCUMENT_PROJECTION) {
-        validate_complete_stream(records, &header_events, diagnostics);
+        validate_complete_stream(records, &header_events, &header_index, diagnostics);
     }
     if profile == COMPLETE_AES_PROFILE {
         validate_identity_uniqueness(
@@ -2979,8 +3539,39 @@ fn finalize_event_candidates(
     }
 }
 
-fn validate_event_value<'a>(
-    event: &'a TelexRecord,
+fn index_event_paths<'records, 'events, R: RecordView>(
+    records: &'records [R],
+    events: &[&'events EventCandidate],
+) -> EventPathIndex<'records, 'events> {
+    let mut by_path =
+        PathIndex::with_capacity_and_hasher(events.len(), BuildHasherDefault::default());
+    let mut duplicates = Vec::new();
+    for &candidate in events {
+        if candidate_path_details(records, candidate).is_some()
+            && let Some(path) = candidate_address(records, candidate)
+            && let Some(fingerprint) = candidate.path_fingerprint
+        {
+            match by_path.entry(IndexedPath {
+                rendered: path,
+                fingerprint,
+            }) {
+                std::collections::hash_map::Entry::Occupied(entry) => {
+                    duplicates.push((candidate, *entry.get()));
+                }
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    entry.insert(candidate);
+                }
+            }
+        }
+    }
+    EventPathIndex {
+        by_path,
+        duplicates,
+    }
+}
+
+fn validate_event_value<'a, R: RecordView>(
+    event: &'a R,
     index: usize,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
@@ -3105,7 +3696,10 @@ fn validate_event_value<'a>(
         } else {
             validate_path_limits(
                 value,
-                parsed.as_ref().ok(),
+                parsed
+                    .as_ref()
+                    .ok()
+                    .map(|details| details as &dyn PathDetailsView),
                 index,
                 Some(AddressField::Path),
                 limits,
@@ -3117,7 +3711,11 @@ fn validate_event_value<'a>(
     reference_target
 }
 
-fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut Vec<Diagnostic>) {
+fn validate_optional_fields<R: RecordView>(
+    event: &R,
+    index: usize,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     let path = record_address(event);
     for field in ["datatype", "identity"] {
         if event.get(field) == Some("") {
@@ -3167,9 +3765,9 @@ fn validate_optional_fields(event: &TelexRecord, index: usize, diagnostics: &mut
     }
 }
 
-fn validate_datatype_string_limits(
+fn validate_datatype_string_limits<R: RecordView>(
     descriptor: &DatatypeDescriptor,
-    event: &TelexRecord,
+    event: &R,
     index: usize,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
@@ -3198,14 +3796,18 @@ fn validate_datatype_string_limits(
 
 fn validate_path_limits(
     path: &str,
-    details: Option<&PathDetails>,
+    details: Option<&dyn PathDetailsView>,
     index: usize,
     address_field: Option<AddressField>,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let field = address_field.map_or("path", AddressField::name);
-    let characters = path.chars().count();
+    let characters = if path.is_ascii() {
+        path.len()
+    } else {
+        path.chars().count()
+    };
     if characters > limits.max_path_characters {
         diagnostics.push(
             limit_diagnostic(
@@ -3218,27 +3820,14 @@ fn validate_path_limits(
         );
     }
     if let Some(details) = details {
-        if details.segments.len() > limits.max_path_depth {
+        if details.len() > limits.max_path_depth {
             diagnostics.push(
-                limit_diagnostic(
-                    "max_path_depth",
-                    details.segments.len(),
-                    limits.max_path_depth,
-                )
-                .at_record(index, Some(path))
-                .with_field(field),
+                limit_diagnostic("max_path_depth", details.len(), limits.max_path_depth)
+                    .at_record(index, Some(path))
+                    .with_field(field),
             );
         }
-        let mut attribute_depth = 0_usize;
-        let mut current_attribute_depth = 0_usize;
-        for segment in &details.segments {
-            current_attribute_depth = if *segment == Segment::Attribute {
-                current_attribute_depth.saturating_add(1)
-            } else {
-                0
-            };
-            attribute_depth = attribute_depth.max(current_attribute_depth);
-        }
+        let attribute_depth = details.max_attribute_depth();
         if attribute_depth > limits.max_attribute_depth {
             diagnostics.push(
                 limit_diagnostic(
@@ -3250,50 +3839,60 @@ fn validate_path_limits(
                 .with_field(field),
             );
         }
-        for value in details.members.iter().flatten() {
-            let observed = value.chars().count();
-            if observed > limits.max_key_segment_codepoints {
-                diagnostics.push(
-                    limit_diagnostic(
-                        "max_key_segment_codepoints",
-                        observed,
-                        limits.max_key_segment_codepoints,
-                    )
-                    .at_record(index, Some(path))
-                    .with_field(field),
-                );
-            }
+        if details.max_member_codepoints() > limits.max_key_segment_codepoints {
+            details.visit_segments(&mut |segment| {
+                if let Some(observed) = segment.member_codepoints
+                    && observed > limits.max_key_segment_codepoints
+                {
+                    diagnostics.push(
+                        limit_diagnostic(
+                            "max_key_segment_codepoints",
+                            observed,
+                            limits.max_key_segment_codepoints,
+                        )
+                        .at_record(index, Some(path))
+                        .with_field(field),
+                    );
+                }
+            });
         }
     }
 }
 
-fn validate_represented_structural_limits(
-    records: &[TelexRecord],
+fn validate_represented_structural_limits<R: RecordView>(
+    records: &[R],
     events: &[&EventCandidate],
+    index: &EventPathIndex<'_, '_>,
     limits: &TelexLimits,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let mut by_path: HashMap<&str, &EventCandidate> = HashMap::new();
-    for &candidate in events {
-        if candidate.path_details.is_some()
-            && let Some(path) = candidate_address(records, candidate)
-        {
-            by_path.entry(path).or_insert(candidate);
-        }
-    }
-    let mut direct_items: HashMap<&str, usize> = HashMap::new();
+    let has_duplicates = !index.duplicates.is_empty();
+    let mut direct_items: HashMap<
+        IndexedPath<'_>,
+        usize,
+        BuildHasherDefault<PathFingerprintHasher>,
+    > = HashMap::with_capacity_and_hasher(events.len(), BuildHasherDefault::default());
     for &candidate in events {
         let Some(path) = candidate_address(records, candidate) else {
             continue;
         };
-        if candidate.path_details.is_none()
-            || !by_path
-                .get(path)
-                .is_some_and(|first| std::ptr::eq(*first, candidate))
+        let Some(path_fingerprint) = candidate.path_fingerprint else {
+            continue;
+        };
+        let path_key = IndexedPath {
+            rendered: path,
+            fingerprint: path_fingerprint,
+        };
+        if candidate_path_details(records, candidate).is_none()
+            || has_duplicates
+                && !index
+                    .by_path
+                    .get(&path_key)
+                    .is_some_and(|first| std::ptr::eq(*first, candidate))
         {
             continue;
         }
-        let Some(details) = &candidate.path_details else {
+        let Some(details) = candidate_path_details(records, candidate) else {
             continue;
         };
         if matches!(
@@ -3301,20 +3900,21 @@ fn validate_represented_structural_limits(
             Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
         ) {
             let mut depth = 1_usize;
-            for prefix in details
-                .prefixes
-                .iter()
-                .take(details.prefixes.len().saturating_sub(1))
-            {
+            details.visit_ancestor_prefixes(path, &mut |prefix_end, fingerprint| {
+                let prefix = &path[..prefix_end];
                 if matches!(
-                    by_path
-                        .get(prefix.as_str())
+                    index
+                        .by_path
+                        .get(&IndexedPath {
+                            rendered: prefix,
+                            fingerprint,
+                        })
                         .and_then(|parent| records[parent.index].get("kind")),
                     Some("ObjectNode" | "ListNode" | "TupleLiteral" | "NodeLiteral")
                 ) {
                     depth = depth.saturating_add(1);
                 }
-            }
+            });
             if depth > limits.max_value_nesting_depth {
                 diagnostics.push(
                     limit_diagnostic(
@@ -3327,23 +3927,44 @@ fn validate_represented_structural_limits(
                 );
             }
         }
-        if details.segments.last() == Some(&Segment::Index) && details.prefixes.len() >= 2 {
-            let parent_path = details.prefixes[details.prefixes.len() - 2].as_str();
-            *direct_items.entry(parent_path).or_default() += 1;
+        if details.last().map(|segment| segment.kind) == Some(Segment::Index) && details.len() >= 2
+        {
+            let parent_prefix_end = details
+                .parent_prefix_end()
+                .expect("a depth-two path has a parent prefix");
+            let parent_path = &path[..parent_prefix_end];
+            let parent_fingerprint = details
+                .parent_fingerprint(path)
+                .expect("a depth-two path has a parent fingerprint");
+            *direct_items
+                .entry(IndexedPath {
+                    rendered: parent_path,
+                    fingerprint: parent_fingerprint,
+                })
+                .or_default() += 1;
         }
     }
     for &parent in events {
         let Some(path) = candidate_address(records, parent) else {
             continue;
         };
-        if parent.path_details.is_none()
-            || !by_path
-                .get(path)
-                .is_some_and(|first| std::ptr::eq(*first, parent))
+        let Some(path_fingerprint) = parent.path_fingerprint else {
+            continue;
+        };
+        let path_key = IndexedPath {
+            rendered: path,
+            fingerprint: path_fingerprint,
+        };
+        if candidate_path_details(records, parent).is_none()
+            || has_duplicates
+                && !index
+                    .by_path
+                    .get(&path_key)
+                    .is_some_and(|first| std::ptr::eq(*first, parent))
         {
             continue;
         }
-        let Some(&observed) = direct_items.get(path) else {
+        let Some(&observed) = direct_items.get(&path_key) else {
             continue;
         };
         let selected = match records[parent.index].get("kind") {
@@ -3363,15 +3984,368 @@ fn validate_represented_structural_limits(
     }
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct CanonicalPathEvidence<'a> {
+    pub(crate) details: PathDetailsSlice<'a>,
+    pub(crate) fingerprint: u64,
+}
+
+struct PathArena {
+    segments: Vec<ParsedSegment>,
+}
+
+#[derive(Clone, Copy)]
+struct PathArenaEvidence {
+    start: u32,
+    len: u32,
+    fingerprint: u64,
+}
+
+impl PathArenaEvidence {
+    const ABSENT: Self = Self {
+        start: u32::MAX,
+        len: 0,
+        fingerprint: 0,
+    };
+}
+
+struct PathArenaRecord<'a, R> {
+    record: &'a R,
+    evidence: PathArenaEvidence,
+    arena: &'a PathArena,
+}
+
+impl<R: RecordView> RecordView for PathArenaRecord<'_, R> {
+    const FIXED_CORE_FIELDS: bool = R::FIXED_CORE_FIELDS;
+
+    fn field_count(&self) -> usize {
+        self.record.field_count()
+    }
+
+    fn get(&self, field: &str) -> Option<&str> {
+        self.record.get(field)
+    }
+
+    fn datatype(&self) -> Option<&DatatypeDescriptor> {
+        self.record.datatype()
+    }
+
+    fn canonical_path(&self) -> Option<&AesCanonicalPath> {
+        self.record.canonical_path()
+    }
+
+    fn canonical_path_evidence(&self) -> Option<CanonicalPathEvidence<'_>> {
+        if self.evidence.start == u32::MAX {
+            return self.record.canonical_path_evidence();
+        }
+        let start = self.evidence.start as usize;
+        let end = start + self.evidence.len as usize;
+        Some(CanonicalPathEvidence {
+            details: PathDetailsSlice::new(&self.arena.segments[start..end]),
+            fingerprint: self.evidence.fingerprint,
+        })
+    }
+
+    fn visit_fields<'a>(&'a self, visitor: &mut dyn FnMut(&'a str, &'a str)) {
+        self.record.visit_fields(visitor);
+    }
+
+    fn validate_encode_field_structure(&self) -> Result<(), TelexEncodeError> {
+        self.record.validate_encode_field_structure()
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct PathDetailsSlice<'a>(&'a [ParsedSegment]);
+
+impl<'a> PathDetailsSlice<'a> {
+    pub(crate) fn new(segments: &'a [ParsedSegment]) -> Self {
+        Self(segments)
+    }
+}
+
+enum PathDetailsStorage {
+    Owned(PathDetails),
+    Shared {
+        tail: Option<Arc<PathNode>>,
+        depth: usize,
+        fingerprint: u64,
+    },
+}
+
+impl PathDetailsStorage {
+    fn path_fingerprint(&self, path: &str) -> u64 {
+        match self {
+            Self::Owned(_) => canonical_path_fingerprint(path),
+            Self::Shared { fingerprint, .. } => *fingerprint,
+        }
+    }
+
+    fn parent_fingerprint(&self, path: &str) -> Option<u64> {
+        match self {
+            Self::Owned(details) => details
+                .parent_prefix_end()
+                .map(|prefix_end| canonical_path_fingerprint(&path[..prefix_end])),
+            Self::Shared { tail, .. } => tail
+                .as_deref()
+                .and_then(|node| node.parent.as_deref())
+                .map(|node| canonical_path_fingerprint(&path[..node.segment.prefix_end])),
+        }
+    }
+
+    fn visit_ancestor_prefixes(&self, path: &str, visitor: &mut dyn FnMut(usize, u64)) {
+        match self {
+            Self::Owned(details) => details.visit_ancestor_prefix_ends(&mut |prefix_end| {
+                visitor(prefix_end, canonical_path_fingerprint(&path[..prefix_end]));
+            }),
+            Self::Shared { tail, .. } => {
+                let mut cursor = tail.as_deref().and_then(|node| node.parent.as_deref());
+                while let Some(node) = cursor {
+                    visitor(
+                        node.segment.prefix_end,
+                        canonical_path_fingerprint(&path[..node.segment.prefix_end]),
+                    );
+                    cursor = node.parent.as_deref();
+                }
+            }
+        }
+    }
+}
+
+impl PathDetailsView for PathDetailsStorage {
+    fn len(&self) -> usize {
+        match self {
+            Self::Owned(details) => details.len(),
+            Self::Shared { depth, .. } => *depth,
+        }
+    }
+
+    fn first(&self) -> Option<ParsedSegment> {
+        match self {
+            Self::Owned(details) => details.first(),
+            Self::Shared { tail, .. } => {
+                let mut cursor = tail.as_deref();
+                let mut first = None;
+                while let Some(node) = cursor {
+                    first = Some(node.segment);
+                    cursor = node.parent.as_deref();
+                }
+                first
+            }
+        }
+    }
+
+    fn last(&self) -> Option<ParsedSegment> {
+        match self {
+            Self::Owned(details) => details.last(),
+            Self::Shared { tail, .. } => tail.as_deref().map(|node| node.segment),
+        }
+    }
+
+    fn parent_prefix_end(&self) -> Option<usize> {
+        match self {
+            Self::Owned(details) => details.parent_prefix_end(),
+            Self::Shared { tail, .. } => tail
+                .as_deref()
+                .and_then(|node| node.parent.as_deref())
+                .map(|parent| parent.segment.prefix_end),
+        }
+    }
+
+    fn max_attribute_depth(&self) -> usize {
+        match self {
+            Self::Owned(details) => details.max_attribute_depth(),
+            Self::Shared { tail, .. } => tail.as_deref().map_or(0, |node| node.max_attribute_depth),
+        }
+    }
+
+    fn max_member_codepoints(&self) -> usize {
+        match self {
+            Self::Owned(details) => details.max_member_codepoints(),
+            Self::Shared { tail, .. } => {
+                tail.as_deref().map_or(0, |node| node.max_member_codepoints)
+            }
+        }
+    }
+
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment)) {
+        match self {
+            Self::Owned(details) => details.visit_segments(visitor),
+            Self::Shared { tail, .. } => {
+                let mut cursor = tail.as_deref();
+                while let Some(node) = cursor {
+                    visitor(node.segment);
+                    cursor = node.parent.as_deref();
+                }
+            }
+        }
+    }
+
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize)) {
+        match self {
+            Self::Owned(details) => details.visit_ancestor_prefix_ends(visitor),
+            Self::Shared { tail, .. } => {
+                let mut cursor = tail.as_deref().and_then(|node| node.parent.as_deref());
+                while let Some(node) = cursor {
+                    visitor(node.segment.prefix_end);
+                    cursor = node.parent.as_deref();
+                }
+            }
+        }
+    }
+}
+
+enum CandidatePathDetails<'a> {
+    Prepared(&'a PathDetailsStorage),
+    Cached(PathDetailsSlice<'a>),
+}
+
+impl CandidatePathDetails<'_> {
+    fn parent_fingerprint(&self, path: &str) -> Option<u64> {
+        match self {
+            Self::Prepared(details) => details.parent_fingerprint(path),
+            Self::Cached(details) => details
+                .parent_prefix_end()
+                .map(|prefix_end| canonical_path_fingerprint(&path[..prefix_end])),
+        }
+    }
+
+    fn visit_ancestor_prefixes(&self, path: &str, visitor: &mut dyn FnMut(usize, u64)) {
+        match self {
+            Self::Prepared(details) => details.visit_ancestor_prefixes(path, visitor),
+            Self::Cached(details) => {
+                details.visit_ancestor_prefix_ends(&mut |prefix_end| {
+                    visitor(prefix_end, canonical_path_fingerprint(&path[..prefix_end]));
+                });
+            }
+        }
+    }
+}
+
+impl PathDetailsView for CandidatePathDetails<'_> {
+    fn len(&self) -> usize {
+        match self {
+            Self::Prepared(details) => details.len(),
+            Self::Cached(details) => details.len(),
+        }
+    }
+
+    fn first(&self) -> Option<ParsedSegment> {
+        match self {
+            Self::Prepared(details) => details.first(),
+            Self::Cached(details) => details.first(),
+        }
+    }
+
+    fn last(&self) -> Option<ParsedSegment> {
+        match self {
+            Self::Prepared(details) => details.last(),
+            Self::Cached(details) => details.last(),
+        }
+    }
+
+    fn parent_prefix_end(&self) -> Option<usize> {
+        match self {
+            Self::Prepared(details) => details.parent_prefix_end(),
+            Self::Cached(details) => details.parent_prefix_end(),
+        }
+    }
+
+    fn max_attribute_depth(&self) -> usize {
+        match self {
+            Self::Prepared(details) => details.max_attribute_depth(),
+            Self::Cached(details) => details.max_attribute_depth(),
+        }
+    }
+
+    fn max_member_codepoints(&self) -> usize {
+        match self {
+            Self::Prepared(details) => details.max_member_codepoints(),
+            Self::Cached(details) => details.max_member_codepoints(),
+        }
+    }
+
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment)) {
+        match self {
+            Self::Prepared(details) => details.visit_segments(visitor),
+            Self::Cached(details) => details.visit_segments(visitor),
+        }
+    }
+
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize)) {
+        match self {
+            Self::Prepared(details) => details.visit_ancestor_prefix_ends(visitor),
+            Self::Cached(details) => details.visit_ancestor_prefix_ends(visitor),
+        }
+    }
+}
+
+impl PathDetailsView for PathDetailsSlice<'_> {
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn first(&self) -> Option<ParsedSegment> {
+        self.0.first().copied()
+    }
+
+    fn last(&self) -> Option<ParsedSegment> {
+        self.0.last().copied()
+    }
+
+    fn parent_prefix_end(&self) -> Option<usize> {
+        self.0
+            .len()
+            .checked_sub(2)
+            .map(|index| self.0[index].prefix_end)
+    }
+
+    fn max_attribute_depth(&self) -> usize {
+        let mut maximum = 0_usize;
+        let mut current = 0_usize;
+        for segment in self.0 {
+            current = if segment.kind == Segment::Attribute {
+                current.saturating_add(1)
+            } else {
+                0
+            };
+            maximum = maximum.max(current);
+        }
+        maximum
+    }
+
+    fn max_member_codepoints(&self) -> usize {
+        self.0
+            .iter()
+            .filter_map(|segment| segment.member_codepoints)
+            .max()
+            .unwrap_or_default()
+    }
+
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment)) {
+        for &segment in self.0 {
+            visitor(segment);
+        }
+    }
+
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize)) {
+        for segment in self.0.iter().take(self.0.len().saturating_sub(1)) {
+            visitor(segment.prefix_end);
+        }
+    }
+}
+
 struct EventCandidate {
     index: usize,
     address_field: Option<AddressField>,
-    path_details: Option<PathDetails>,
+    path_details: Option<PathDetailsStorage>,
+    cached_path_details: bool,
+    path_fingerprint: Option<u64>,
     has_valid_reference_target: bool,
 }
 
-fn candidate_address<'a>(
-    records: &'a [TelexRecord],
+fn candidate_address<'a, R: RecordView>(
+    records: &'a [R],
     candidate: &EventCandidate,
 ) -> Option<&'a str> {
     candidate
@@ -3379,40 +4353,52 @@ fn candidate_address<'a>(
         .and_then(|field| records[candidate.index].get(field.name()))
 }
 
-fn validate_complete_stream(
-    records: &[TelexRecord],
+fn candidate_path_details<'a, R: RecordView>(
+    records: &'a [R],
+    candidate: &'a EventCandidate,
+) -> Option<CandidatePathDetails<'a>> {
+    candidate
+        .path_details
+        .as_ref()
+        .map(CandidatePathDetails::Prepared)
+        .or_else(|| {
+            if candidate.cached_path_details {
+                records[candidate.index]
+                    .canonical_path_evidence()
+                    .map(|evidence| CandidatePathDetails::Cached(evidence.details))
+            } else {
+                None
+            }
+        })
+}
+
+fn validate_complete_stream<R: RecordView>(
+    records: &[R],
     events: &[&EventCandidate],
+    index: &EventPathIndex<'_, '_>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let mut by_path: HashMap<&str, &EventCandidate> = HashMap::new();
-
-    for candidate in events {
-        if candidate.path_details.is_some()
-            && let Some(path) = candidate_address(records, candidate)
-        {
-            if let Some(first) = by_path.get(path) {
-                diagnostics.push(
-                    Diagnostic::new(
-                        "AES_DUPLICATE_PATH",
-                        format!("Duplicate event path '{path}'"),
-                    )
-                    .at_record(candidate.index, Some(path))
-                    .with_first_record(first.index),
-                );
-            } else {
-                by_path.insert(path, candidate);
-            }
-        }
+    for &(candidate, first) in &index.duplicates {
+        let path = candidate_address(records, candidate)
+            .expect("an indexed duplicate candidate has an address");
+        diagnostics.push(
+            Diagnostic::new(
+                "AES_DUPLICATE_PATH",
+                format!("Duplicate event path '{path}'"),
+            )
+            .at_record(candidate.index, Some(path))
+            .with_first_record(first.index),
+        );
     }
 
     for candidate in events {
-        let Some(details) = &candidate.path_details else {
+        let Some(details) = candidate_path_details(records, candidate) else {
             continue;
         };
         let path = candidate_address(records, candidate);
         let kind = records[candidate.index].get("kind");
-        if details.segments.len() == 1 {
-            if details.segments[0] != Segment::Member {
+        if details.len() == 1 {
+            if details.first().map(|segment| segment.kind) != Some(Segment::Member) {
                 diagnostics.push(
                     Diagnostic::new(
                         "AES_MISSING_PARENT",
@@ -3428,17 +4414,28 @@ fn validate_complete_stream(
             continue;
         }
 
-        let Some(segment) = details.segments.last() else {
+        let Some(segment) = details.last().map(|segment| segment.kind) else {
             continue;
         };
-        let parent_path = &details.prefixes[details.prefixes.len() - 2];
-        let Some(parent) = by_path.get(parent_path.as_str()) else {
+        let Some(path) = path else {
+            continue;
+        };
+        let parent_path = &path[..details
+            .parent_prefix_end()
+            .expect("a non-root child has a parent prefix")];
+        let parent_fingerprint = details
+            .parent_fingerprint(path)
+            .expect("a non-root child has a parent fingerprint");
+        let Some(parent) = index.by_path.get(&IndexedPath {
+            rendered: parent_path,
+            fingerprint: parent_fingerprint,
+        }) else {
             diagnostics.push(
                 Diagnostic::new(
                     "AES_MISSING_PARENT",
                     format!("Missing parent event '{parent_path}'"),
                 )
-                .at_record(candidate.index, path)
+                .at_record(candidate.index, Some(path))
                 .with_required_path(parent_path),
             );
             continue;
@@ -3477,25 +4474,32 @@ fn validate_complete_stream(
             Segment::Attribute | Segment::Member | Segment::Index => {}
         }
         if kind == Some("NodeHead")
-            && (*segment != Segment::Index || parent_kind != Some("NodeLiteral"))
+            && (segment != Segment::Index || parent_kind != Some("NodeLiteral"))
         {
             diagnostics.push(invalid_node_head(records, candidate));
         }
     }
 }
 
-fn validate_reference_targets(
-    records: &[TelexRecord],
+fn validate_reference_targets<R: RecordView>(
+    records: &[R],
     reference_events: &[&EventCandidate],
     additional_reference_events: Option<&[&EventCandidate]>,
-    body_events: &[&EventCandidate],
+    body_by_path: &PathIndex<'_, '_>,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let body_paths = body_events
+    if !reference_events
         .iter()
-        .filter(|candidate| candidate.path_details.is_some())
-        .filter_map(|candidate| candidate_address(records, candidate))
-        .collect::<HashSet<_>>();
+        .chain(
+            additional_reference_events
+                .into_iter()
+                .flat_map(|events| events.iter()),
+        )
+        .any(|candidate| candidate.has_valid_reference_target)
+    {
+        return;
+    }
+
     for candidate in reference_events.iter().chain(
         additional_reference_events
             .into_iter()
@@ -3507,7 +4511,10 @@ fn validate_reference_targets(
         let target = records[candidate.index]
             .get("value")
             .expect("a prepared reference target retains its value");
-        if !body_paths.contains(target) {
+        if !body_by_path.contains_key(&IndexedPath {
+            rendered: target,
+            fingerprint: canonical_path_fingerprint(target),
+        }) {
             diagnostics.push(
                 Diagnostic::new(
                     "AES_MISSING_REFERENCE_TARGET",
@@ -3521,8 +4528,8 @@ fn validate_reference_targets(
     }
 }
 
-fn validate_identity_uniqueness(
-    records: &[TelexRecord],
+fn validate_identity_uniqueness<R: RecordView>(
+    records: &[R],
     events: &[&EventCandidate],
     additional_events: Option<&[&EventCandidate]>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -3555,8 +4562,8 @@ fn validate_identity_uniqueness(
     }
 }
 
-fn incompatible_parent(
-    records: &[TelexRecord],
+fn incompatible_parent<R: RecordView>(
+    records: &[R],
     candidate: &EventCandidate,
     parent_path: &str,
     actual: Option<&str>,
@@ -3573,7 +4580,7 @@ fn incompatible_parent(
     .with_required_path(parent_path)
 }
 
-fn invalid_node_head(records: &[TelexRecord], candidate: &EventCandidate) -> Diagnostic {
+fn invalid_node_head<R: RecordView>(records: &[R], candidate: &EventCandidate) -> Diagnostic {
     Diagnostic::new(
         "AES_INVALID_NODE_HEAD",
         "A 'NodeHead' must be an indexed direct child of a 'NodeLiteral'",
@@ -3596,7 +4603,7 @@ impl AddressField {
     }
 }
 
-fn record_address_field(record: &TelexRecord) -> Option<AddressField> {
+fn record_address_field<R: RecordView>(record: &R) -> Option<AddressField> {
     match (record.contains("path"), record.contains("header")) {
         (true, false) => Some(AddressField::Path),
         (false, true) => Some(AddressField::Header),
@@ -3604,24 +4611,23 @@ fn record_address_field(record: &TelexRecord) -> Option<AddressField> {
     }
 }
 
-fn record_address(record: &TelexRecord) -> Option<&str> {
+fn record_address<R: RecordView>(record: &R) -> Option<&str> {
     record_address_field(record).and_then(|field| record.get(field.name()))
 }
 
-fn is_aeon_header_path(path: &str, details: &PathDetails) -> bool {
-    if details.segments.first() != Some(&Segment::Member) {
+fn is_aeon_header_path(path: &str, details: &dyn PathDetailsView) -> bool {
+    if details.first().map(|segment| segment.kind) != Some(Segment::Member) {
         return false;
     }
-    let Some(first) = details
-        .prefixes
-        .first()
-        .filter(|prefix| prefix.starts_with("$.["))
-    else {
+    let Some(first_end) = details.first().map(|segment| segment.prefix_end) else {
         return false;
     };
+    let first = &path[..first_end];
+    if !first.starts_with("$.[") {
+        return false;
+    }
     decode_json_string(first, 3)
         .is_ok_and(|(member, _)| member.starts_with("aeon:") && member.len() > 5)
-        && path.starts_with(first)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -3631,34 +4637,257 @@ enum Segment {
     Attribute,
 }
 
-#[derive(Debug, Clone)]
-struct PathDetails {
-    prefixes: Vec<String>,
-    segments: Vec<Segment>,
-    members: Vec<Option<String>>,
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct PathDetails {
+    segments: Vec<ParsedSegment>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct PathNode {
+    parent: Option<Arc<PathNode>>,
+    segment: ParsedSegment,
+    max_attribute_depth: usize,
+    current_attribute_depth: usize,
+    max_member_codepoints: usize,
+}
+
+impl PathNode {
+    fn new(parent: Option<Arc<Self>>, segment: ParsedSegment) -> Self {
+        let current_attribute_depth = if segment.kind == Segment::Attribute {
+            parent
+                .as_deref()
+                .map_or(1, |node| node.current_attribute_depth.saturating_add(1))
+        } else {
+            0
+        };
+        let max_attribute_depth = parent.as_deref().map_or(current_attribute_depth, |node| {
+            node.max_attribute_depth.max(current_attribute_depth)
+        });
+        let max_member_codepoints = parent.as_deref().map_or_else(
+            || segment.member_codepoints.unwrap_or_default(),
+            |node| {
+                node.max_member_codepoints
+                    .max(segment.member_codepoints.unwrap_or_default())
+            },
+        );
+        Self {
+            parent,
+            segment,
+            max_attribute_depth,
+            current_attribute_depth,
+            max_member_codepoints,
+        }
+    }
+}
+
+const CANONICAL_PATH_FINGERPRINT_PRIME: u64 = 0x0000_0100_0000_01b3;
+static CANONICAL_PATH_FINGERPRINT_OFFSET: OnceLock<u64> = OnceLock::new();
+
+fn canonical_path_fingerprint_offset() -> u64 {
+    *CANONICAL_PATH_FINGERPRINT_OFFSET
+        .get_or_init(|| RandomState::new().hash_one(b"aes.canonical-path-fingerprint.v1"))
+}
+
+fn canonical_path_fingerprint(path: &str) -> u64 {
+    extend_canonical_path_fingerprint(canonical_path_fingerprint_offset(), path.as_bytes())
+}
+
+fn extend_canonical_path_fingerprint(mut fingerprint: u64, bytes: &[u8]) -> u64 {
+    for &byte in bytes {
+        fingerprint ^= u64::from(byte);
+        fingerprint = fingerprint.wrapping_mul(CANONICAL_PATH_FINGERPRINT_PRIME);
+    }
+    fingerprint
+}
+
+#[derive(Clone, Copy)]
+struct IndexedPath<'a> {
+    rendered: &'a str,
+    fingerprint: u64,
+}
+
+impl PartialEq for IndexedPath<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.rendered == other.rendered
+    }
+}
+
+impl Eq for IndexedPath<'_> {}
+
+impl Hash for IndexedPath<'_> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u64(self.fingerprint);
+    }
+}
+
+/// The path fingerprint is already process-seeded and incrementally computed.
+/// Feeding it through `RandomState` again only repeats keyed hashing on every
+/// validation lookup. This hasher preserves the cached value as the table hash;
+/// `IndexedPath::eq` still compares complete rendered paths, so collisions do
+/// not affect identity or validation semantics.
+#[derive(Default)]
+struct PathFingerprintHasher(u64);
+
+impl Hasher for PathFingerprintHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    fn write(&mut self, bytes: &[u8]) {
+        self.0 = extend_canonical_path_fingerprint(canonical_path_fingerprint_offset(), bytes);
+    }
+
+    fn write_u64(&mut self, fingerprint: u64) {
+        self.0 = fingerprint;
+    }
+}
+
+type PathIndex<'path, 'event> =
+    HashMap<IndexedPath<'path>, &'event EventCandidate, BuildHasherDefault<PathFingerprintHasher>>;
+
+struct EventPathIndex<'path, 'event> {
+    by_path: PathIndex<'path, 'event>,
+    duplicates: Vec<(&'event EventCandidate, &'event EventCandidate)>,
+}
+
+#[cfg(test)]
+mod path_fingerprint_tests {
+    use super::{
+        AesCanonicalPath, BuildHasherDefault, HashMap, IndexedPath, PathFingerprintHasher,
+    };
+
+    #[test]
+    fn reserved_root_builds_the_same_canonical_path() {
+        let mut reserved = AesCanonicalPath::root_with_capacity(32);
+        reserved.push_member("items").expect("member");
+        reserved.push_index(12);
+        reserved.push_attribute("metadata").expect("attribute");
+
+        let parsed = AesCanonicalPath::parse("$.items[12].@.metadata".to_owned()).expect("path");
+        assert_eq!(reserved, parsed);
+    }
+
+    #[test]
+    fn indexed_paths_keep_rendered_equality_when_fingerprints_collide() {
+        let mut paths: HashMap<IndexedPath<'_>, usize, BuildHasherDefault<PathFingerprintHasher>> =
+            HashMap::default();
+        let first = IndexedPath {
+            rendered: "$.first",
+            fingerprint: 7,
+        };
+        let second = IndexedPath {
+            rendered: "$.second",
+            fingerprint: 7,
+        };
+
+        paths.insert(first, 1);
+        paths.insert(second, 2);
+
+        assert_eq!(paths.len(), 2);
+        assert_eq!(paths.get(&first), Some(&1));
+        assert_eq!(paths.get(&second), Some(&2));
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ParsedSegment {
+    kind: Segment,
+    prefix_end: usize,
+    member_codepoints: Option<usize>,
+}
+
+trait PathDetailsView {
+    fn len(&self) -> usize;
+    fn first(&self) -> Option<ParsedSegment>;
+    fn last(&self) -> Option<ParsedSegment>;
+    fn parent_prefix_end(&self) -> Option<usize>;
+    fn max_attribute_depth(&self) -> usize;
+    fn max_member_codepoints(&self) -> usize;
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment));
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize));
+}
+
+impl PathDetailsView for PathDetails {
+    fn len(&self) -> usize {
+        self.segments.len()
+    }
+
+    fn first(&self) -> Option<ParsedSegment> {
+        self.segments.first().copied()
+    }
+
+    fn last(&self) -> Option<ParsedSegment> {
+        self.segments.last().copied()
+    }
+
+    fn parent_prefix_end(&self) -> Option<usize> {
+        self.segments
+            .len()
+            .checked_sub(2)
+            .map(|index| self.segments[index].prefix_end)
+    }
+
+    fn max_attribute_depth(&self) -> usize {
+        let mut maximum = 0_usize;
+        let mut current = 0_usize;
+        for segment in &self.segments {
+            current = if segment.kind == Segment::Attribute {
+                current.saturating_add(1)
+            } else {
+                0
+            };
+            maximum = maximum.max(current);
+        }
+        maximum
+    }
+
+    fn max_member_codepoints(&self) -> usize {
+        self.segments
+            .iter()
+            .filter_map(|segment| segment.member_codepoints)
+            .max()
+            .unwrap_or_default()
+    }
+
+    fn visit_segments(&self, visitor: &mut dyn FnMut(ParsedSegment)) {
+        for &segment in &self.segments {
+            visitor(segment);
+        }
+    }
+
+    fn visit_ancestor_prefix_ends(&self, visitor: &mut dyn FnMut(usize)) {
+        for segment in self
+            .segments
+            .iter()
+            .take(self.segments.len().saturating_sub(1))
+        {
+            visitor(segment.prefix_end);
+        }
+    }
 }
 
 fn parse_canonical_data_path(path: &str) -> Result<PathDetails, String> {
+    let mut segments = Vec::new();
+    parse_canonical_data_path_into(path, &mut segments)?;
+    Ok(PathDetails { segments })
+}
+
+pub(crate) fn parse_canonical_data_path_into(
+    path: &str,
+    segments: &mut Vec<ParsedSegment>,
+) -> Result<(), String> {
+    segments.clear();
     if !path.starts_with('$') {
         return Err(format!("Expected an absolute canonical path: {path}"));
     }
     if path == "$" {
-        return Ok(PathDetails {
-            prefixes: Vec::new(),
-            segments: Vec::new(),
-            members: Vec::new(),
-        });
+        return Ok(());
     }
 
     let bytes = path.as_bytes();
     let mut cursor = 1_usize;
-    let mut current = "$".to_owned();
-    let mut prefixes = Vec::new();
-    let mut segments = Vec::new();
-    let mut members = Vec::new();
     while cursor < bytes.len() {
-        let start = cursor;
-        let (segment, member) = if path[cursor..].starts_with(".@.") {
+        let (segment, codepoints) = if path[cursor..].starts_with(".@.") {
             cursor += 3;
             let parsed = read_member(path, cursor)?;
             cursor = parsed.0;
@@ -3674,19 +4903,16 @@ fn parse_canonical_data_path(path: &str) -> Result<PathDetails, String> {
         } else {
             return Err(format!("Invalid canonical path segment in: {path}"));
         };
-        current.push_str(&path[start..cursor]);
-        prefixes.push(current.clone());
-        segments.push(segment);
-        members.push(member);
+        segments.push(ParsedSegment {
+            kind: segment,
+            prefix_end: cursor,
+            member_codepoints: codepoints,
+        });
     }
-    Ok(PathDetails {
-        prefixes,
-        segments,
-        members,
-    })
+    Ok(())
 }
 
-fn read_member(path: &str, cursor: usize) -> Result<(usize, String), String> {
+fn read_member(path: &str, cursor: usize) -> Result<(usize, usize), String> {
     let bytes = path.as_bytes();
     if bytes.get(cursor) == Some(&b'[') {
         if bytes.get(cursor + 1) != Some(&b'"') {
@@ -3707,7 +4933,7 @@ fn read_member(path: &str, cursor: usize) -> Result<(usize, String), String> {
         {
             return Err(format!("Non-canonical quoted member in path: {path}"));
         }
-        return Ok((quote_end + 2, decoded));
+        return Ok((quote_end + 2, decoded.chars().count()));
     }
 
     let Some(first) = bytes.get(cursor).copied() else {
@@ -3723,7 +4949,7 @@ fn read_member(path: &str, cursor: usize) -> Result<(usize, String), String> {
     {
         end += 1;
     }
-    Ok((end, path[cursor..end].to_owned()))
+    Ok((end, end - cursor))
 }
 
 fn valid_bare_member(member: &str) -> bool {
@@ -3898,11 +5124,11 @@ fn decode_wire_record(
     ))
 }
 
-fn wire_fields<'a>(
-    record: &'a TelexRecord,
+fn wire_fields<'a, R: RecordView>(
+    record: &'a R,
     limits: &TelexLimits,
 ) -> Result<Vec<(&'a str, Cow<'a, str>)>, String> {
-    let mut wire_datatype = if let Some(descriptor) = &record.datatype {
+    let mut wire_datatype = if let Some(descriptor) = record.datatype() {
         validate_datatype_descriptor(descriptor, limits).map_err(|(_, detail)| detail)?;
         Some(
             if descriptor.generics.is_empty() && descriptor.clarifiers.is_empty() {
@@ -3914,18 +5140,18 @@ fn wire_fields<'a>(
     } else {
         None
     };
-    let mut fields = Vec::with_capacity(record.fields.len());
-    for (field, value) in &record.fields {
+    let mut fields = Vec::with_capacity(record.field_count());
+    record.visit_fields(&mut |field, value| {
         if field == "datatype" {
             let Some(datatype) = wire_datatype.take() else {
-                fields.push((field.as_str(), Cow::Borrowed(value.as_str())));
-                continue;
+                fields.push((field, Cow::Borrowed(value)));
+                return;
             };
-            fields.push((field.as_str(), datatype));
+            fields.push((field, datatype));
         } else {
-            fields.push((field.as_str(), Cow::Borrowed(value.as_str())));
+            fields.push((field, Cow::Borrowed(value)));
         }
-    }
+    });
     if wire_datatype.is_some() {
         return Err("A structured datatype requires the logical datatype field".to_owned());
     }
