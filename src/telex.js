@@ -613,6 +613,13 @@ function validateEventValue(event, index, diagnostics, limits) {
       { ...context, field: 'value' },
     ));
   }
+  if (event.kind === 'SymbolicLiteral' && event.value.length === 0) {
+    diagnostics.push(diagnostic(
+      'AES_INVALID_VALUE',
+      'Symbol payloads must not be empty',
+      { ...context, field: 'value' },
+    ));
+  }
   if (event.kind === 'NodeHead') {
     validateCodepointLimit('max_key_segment_codepoints', event.value, limits.maxKeySegmentCodepoints, diagnostics, context, 'value');
   }

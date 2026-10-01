@@ -1,6 +1,6 @@
 use aes_telex::{
     AesCanonicalPath, AesEventAddress, AesEventRecord, AesValueKind, ClarifierKind,
-    DatatypeClarifier, DatatypeDescriptor, TelexLimits, TelexRecord,
+    DatatypeClarifier, DatatypeDescriptor, PARTIAL_AES_PROFILE, TelexLimits, TelexRecord,
     encode_aes_event_records_with_projection_and_limits, encode_telex_with_projection_and_limits,
     validate_aes_event_records_with_projection_and_limits,
     validate_telex_records_with_projection_and_limits,
@@ -98,6 +98,46 @@ fn typed_symbolic_literal_matches_extensible_record_encoding() {
         ),
         encode_telex_with_projection_and_limits(&telex, Some("aes.complete.v1"), None, &limits,),
     );
+}
+
+#[test]
+fn empty_symbolic_literals_fail_typed_and_extensible_validation() {
+    let limits = TelexLimits::default();
+    let path = AesCanonicalPath::parse("$.stage".to_owned()).expect("canonical test path");
+    let typed = AesEventRecord {
+        address: AesEventAddress::Path(path),
+        kind: AesValueKind::SymbolicLiteral,
+        datatype: None,
+        identity: None,
+        value: Some(String::new()),
+        origin: None,
+        span: None,
+    };
+    let extensible = TelexRecord::new(vec![
+        ("path".to_owned(), "$.stage".to_owned()),
+        ("kind".to_owned(), "SymbolicLiteral".to_owned()),
+        ("value".to_owned(), String::new()),
+    ]);
+
+    let typed_validation = validate_aes_event_records_with_projection_and_limits(
+        &[typed],
+        PARTIAL_AES_PROFILE,
+        None,
+        &limits,
+    );
+    let extensible_validation = validate_telex_records_with_projection_and_limits(
+        &[extensible],
+        PARTIAL_AES_PROFILE,
+        None,
+        &[],
+        &limits,
+    );
+    assert!(!typed_validation.valid);
+    assert_eq!(
+        typed_validation.diagnostics,
+        extensible_validation.diagnostics
+    );
+    assert_eq!(typed_validation.diagnostics[0].code, "AES_INVALID_VALUE");
 }
 
 #[test]

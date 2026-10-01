@@ -819,10 +819,16 @@ fn decode_film_candidate_c_compact_internal(
         let checkpoint = token & 1 == 1;
         let prefix_value = token >> 1;
         let suffix = record.read_string_bytes(film_limits, "address-suffix")?;
-        let (previous, plane_initialized) = if control & HEADER_PLANE == 0 {
-            (&mut previous_body, &mut body_initialized)
+        let header_plane = control & HEADER_PLANE != 0;
+        let other_capacity = if header_plane {
+            previous_body.capacity()
         } else {
+            previous_header.capacity()
+        };
+        let (previous, plane_initialized) = if header_plane {
             (&mut previous_header, &mut header_initialized)
+        } else {
+            (&mut previous_body, &mut body_initialized)
         };
         if checkpoint == *plane_initialized {
             return Err(error(
@@ -880,13 +886,20 @@ fn decode_film_candidate_c_compact_internal(
             Some(record_index),
             "address",
         )?;
+        let retained_address_bytes = checked_size(
+            other_capacity,
+            previous.capacity().max(address_length),
+            token_offset,
+            Some(record_index),
+            "previous-addresses",
+        )?;
         check_limit(
             "max_buffered_bytes",
-            address_length,
+            retained_address_bytes,
             film_limits.max_buffered_bytes,
             token_offset,
             Some(record_index),
-            "previous-address",
+            "previous-addresses",
         )?;
         let expanded_size = checked_size(
             checked_size(
@@ -931,7 +944,7 @@ fn decode_film_candidate_c_compact_internal(
             }
         }
         previous.truncate(prefix_length);
-        previous.try_reserve(suffix.len()).map_err(|_| {
+        previous.try_reserve_exact(suffix.len()).map_err(|_| {
             error(
                 "FILM_INTEGER_OVERFLOW",
                 token_offset,
