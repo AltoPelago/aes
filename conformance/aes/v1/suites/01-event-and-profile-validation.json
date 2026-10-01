@@ -1306,6 +1306,36 @@
         "value",
         "failure"
       ]
+    },
+    {
+      "id": "aes-events-039-empty-symbolic-value",
+      "description": "A symbolic literal requires a nonempty decoded symbol payload",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.stage",
+            "kind": "SymbolicLiteral",
+            "value": ""
+          }
+        ],
+        "profile": "aes.partial.v1"
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.partial.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_VALUE"
+        ]
+      },
+      "tags": [
+        "validation",
+        "partial",
+        "symbolic",
+        "value",
+        "empty",
+        "failure"
+      ]
     }
   ]
 }

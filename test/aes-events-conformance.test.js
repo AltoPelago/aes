@@ -41,8 +41,8 @@ for (const suiteRef of manifest.suites) {
   }
 }
 
-test('selected portable AES event set contains 38 vectors', () => {
-  assert.equal(vectorCount, 38);
+test('selected portable AES event set has the expected vector count', () => {
+  assert.equal(vectorCount, released ? 38 : 39);
 });
 
 function runVector(vector) {

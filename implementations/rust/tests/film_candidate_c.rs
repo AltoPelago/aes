@@ -307,6 +307,22 @@ fn compact_text_slab_obeys_the_decoded_payload_limit() {
 }
 
 #[test]
+fn compact_decoder_bounds_retained_addresses_across_both_planes() {
+    let stream = two_plane_long_address_stream();
+    let encoded = encode_film_candidate_c(&stream, &[]).expect("fixture must encode");
+    let limits = FilmLimits {
+        max_buffered_bytes: 120,
+        ..FilmLimits::default()
+    };
+    let error =
+        decode_film_candidate_c_compact_with_limits(&encoded, &limits, &TelexLimits::default())
+            .expect_err("retained body and header addresses must share one buffer limit");
+    assert_eq!(error.code, "FILM_LIMIT_EXCEEDED");
+    assert_eq!(error.component, "previous-addresses");
+    assert_eq!(error.record, Some(1));
+}
+
+#[test]
 fn retained_directory_recovers_after_an_earlier_block_is_damaged() {
     let stream = hierarchical_stream(600);
     let mut encoded = encode_film_candidate_c(&stream, &[]).expect("Candidate C must encode");
@@ -396,6 +412,30 @@ fn hierarchical_stream(count: usize) -> FilmStream {
                 ])
             })
             .collect(),
+    }
+}
+
+fn two_plane_long_address_stream() -> FilmStream {
+    FilmStream {
+        profile: PARTIAL_AES_PROFILE.to_owned(),
+        profile_explicit: true,
+        projection: Some(AEON_DOCUMENT_PROJECTION.to_owned()),
+        projection_explicit: true,
+        records: vec![
+            TelexRecord::new(vec![
+                (
+                    "header".to_owned(),
+                    format!("$.[\"aeon:{}\"]", "h".repeat(72)),
+                ),
+                ("kind".to_owned(), "StringLiteral".to_owned()),
+                ("value".to_owned(), "header".to_owned()),
+            ]),
+            TelexRecord::new(vec![
+                ("path".to_owned(), format!("$.{}", "b".repeat(80))),
+                ("kind".to_owned(), "StringLiteral".to_owned()),
+                ("value".to_owned(), "body".to_owned()),
+            ]),
+        ],
     }
 }
 

@@ -309,10 +309,16 @@ fn decode_candidate_b_direct(
         let kind_offset = record.absolute_position();
         let kind = record.read_byte("kind")?;
         let prefix_offset = record.absolute_position();
-        let previous = if control & HEADER_PLANE == 0 {
-            &mut previous_body
+        let header_plane = control & HEADER_PLANE != 0;
+        let other_capacity = if header_plane {
+            previous_body.capacity()
         } else {
+            previous_header.capacity()
+        };
+        let previous = if header_plane {
             &mut previous_header
+        } else {
+            &mut previous_body
         };
         let prefix_value = record.read_uleb("address-prefix")?;
         let suffix = record.read_string_bytes(film_limits, "address-suffix")?;
@@ -360,13 +366,20 @@ fn decode_candidate_b_direct(
             Some(record_index),
             "address",
         )?;
+        let retained_address_bytes = checked_size(
+            other_capacity,
+            previous.capacity().max(address_length),
+            prefix_offset,
+            Some(record_index),
+            "previous-addresses",
+        )?;
         check_limit(
             "max_buffered_bytes",
-            address_length,
+            retained_address_bytes,
             film_limits.max_buffered_bytes,
             prefix_offset,
             Some(record_index),
-            "previous-address",
+            "previous-addresses",
         )?;
         let expanded_size = checked_size(
             checked_size(
@@ -398,20 +411,8 @@ fn decode_candidate_b_direct(
             "expanded-record",
         )?;
 
-        let mut address = buffer_with_capacity(address_length, Some(record_index), "address")?;
-        address.extend_from_slice(&previous[..prefix_length]);
-        address.extend_from_slice(suffix);
-        let address_text = std::str::from_utf8(&address).map_err(|invalid| {
-            error(
-                "FILM_INVALID_UTF8",
-                prefix_offset.saturating_add(invalid.valid_up_to()),
-                Some(record_index),
-                "address",
-                "Reconstructed address is not UTF-8",
-            )
-        })?;
-        let canonical_prefix = common_utf8_prefix_bytes(previous, &address)?;
-        if prefix_length != canonical_prefix {
+        let additional_prefix = common_utf8_prefix_bytes(&previous[prefix_length..], suffix)?;
+        if additional_prefix != 0 {
             return Err(error(
                 "FILM_COMPARATOR_NONCANONICAL",
                 prefix_offset,
@@ -420,7 +421,27 @@ fn decode_candidate_b_direct(
                 "Candidate B requires the longest shared UTF-8 address prefix",
             ));
         }
-
+        previous.truncate(prefix_length);
+        previous.try_reserve_exact(suffix.len()).map_err(|_| {
+            error(
+                "FILM_INTEGER_OVERFLOW",
+                prefix_offset,
+                Some(record_index),
+                "address",
+                "Reusable address buffer cannot grow in the host size domain",
+            )
+        })?;
+        previous.extend_from_slice(suffix);
+        debug_assert_eq!(previous.len(), address_length);
+        let address_text = std::str::from_utf8(previous).map_err(|invalid| {
+            error(
+                "FILM_INVALID_UTF8",
+                prefix_offset.saturating_add(invalid.valid_up_to()),
+                Some(record_index),
+                "address",
+                "Reconstructed address is not UTF-8",
+            )
+        })?;
         let tail_offset = record.absolute_position();
         let decoded = decode_record_tail_owned(
             FilmRecordPrefix {
@@ -437,7 +458,6 @@ fn decode_candidate_b_direct(
             aes_limits,
         )?;
         records.push(decoded);
-        *previous = address;
     }
 
     let stream = FilmStream {
