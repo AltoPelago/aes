@@ -6,6 +6,8 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ## Unreleased
 
+## 0.2.0 - 2026-10-02
+
 ### Added
 
 - Added `SymbolicLiteral` as a distinct value-bearing AES kind with decoded
@@ -35,8 +37,8 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 - Advanced the symbol-capable Film contract and shared conformance target to
   immutable snapshot `0.2`, preserving snapshot `0.1` unchanged.
-- Staged the non-publishable Rust reference crate as
-  `altopelago-aes-telex` `0.2.0` for coordinated symbol-capable AEON builds.
+- Released the Rust reference crate as `altopelago-aes-telex` `0.2.0` for
+  coordinated symbol-capable AEON builds.
 - Appended the Film mapping for `SymbolicLiteral` at kind code `0x18`, leaving
   all existing Film kind codes unchanged.
 - Replaced the experimental Candidate B decode wrapper with a direct general
@@ -77,5 +79,6 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 - Kept resource-limit enforcement, provenance verification, canonical logical
   bytes, and transaction inspection in the public regression surface.
-- Kept both reference packages non-publishable pending an explicit package
-  release decision.
+- Kept the repository-root npm reference package private while publishing the
+  Rust implementation through a signed-tag, protected-environment, crates.io
+  trusted-publisher workflow.

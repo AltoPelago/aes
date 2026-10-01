@@ -151,9 +151,10 @@ Run the complete public-repository preflight with:
 npm run public:check
 ```
 
-The repository-root npm manifest and the Rust crate are reference tooling and
-remain explicitly non-publishable. The public npm implementation package,
-`@altopelago/aeon-aes`, is released from the
+The repository-root npm manifest remains private reference tooling. The Rust
+implementation is published as
+[`altopelago-aes-telex`](https://crates.io/crates/altopelago-aes-telex). The
+public npm implementation package, `@altopelago/aeon-aes`, is released from the
 [`AltoPelago/aeon`](https://github.com/AltoPelago/aeon) workspace.
 
 ## Boundaries

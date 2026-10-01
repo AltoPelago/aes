@@ -21,6 +21,7 @@ const requiredFiles = [
   '.github/workflows/ci.yml',
   '.github/workflows/dependency-security.yml',
   '.github/workflows/repo-hygiene.yml',
+  '.github/workflows/rust-publish.yml',
   'conformance/cts-claims.json',
 ];
 
@@ -35,7 +36,16 @@ if (packageJson.private !== true) errors.push('root reference package must remai
 if (packageJson.publishConfig !== undefined) errors.push('root reference package must not define publishConfig');
 
 const cargo = readFileSync(resolve(root, 'implementations/rust/Cargo.toml'), 'utf8');
-if (!/^publish = false$/mu.test(cargo)) errors.push('Rust reference crate must remain non-publishable');
+if (!/^name = "altopelago-aes-telex"$/mu.test(cargo)) errors.push('unexpected Rust package name');
+if (!/^publish = \["crates-io"\]$/mu.test(cargo)) errors.push('Rust package must publish only to crates.io');
+const cargoVersion = cargo.match(/^version = "([^"]+)"$/mu)?.[1];
+if (!cargoVersion || cargoVersion === '0.0.0') errors.push('Rust package must have a public SemVer version');
+
+const claimSets = JSON.parse(readFileSync(resolve(root, 'conformance/cts-claims.json'), 'utf8')).claim_sets;
+const rustClaims = claimSets?.find((claimSet) => claimSet.implementation === 'aes-telex-rust-reference');
+if (rustClaims?.implementation_version !== cargoVersion) {
+  errors.push('Rust CTS claim-set version must match the Rust package version');
+}
 
 const license = readFileSync(resolve(root, 'LICENSE'), 'utf8');
 if (!license.includes('Copyright (c) 2026 AltoPelago')) {
@@ -48,4 +58,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log('Public surface check passed; package publication remains disabled.');
+console.log('Public surface check passed; npm publication remains disabled and Rust publication is crates.io-only.');

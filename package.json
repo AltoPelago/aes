@@ -26,6 +26,7 @@
     "test": "node --test",
     "test:rust": "cargo test --locked --manifest-path implementations/rust/Cargo.toml",
     "check:rust": "cargo fmt --check --manifest-path implementations/rust/Cargo.toml && cargo clippy --all-targets --all-features --manifest-path implementations/rust/Cargo.toml -- -D warnings",
+    "package:rust": "cargo package --locked --manifest-path implementations/rust/Cargo.toml",
     "bench:scalar": "cargo run --release --locked --example bench_codec_phases --manifest-path implementations/rust/Cargo.toml",
     "bench:pipeline": "cargo run --release --locked --example bench_telex_pipeline --manifest-path implementations/rust/Cargo.toml",
     "bench:pipeline:incremental": "cargo test --release --locked --manifest-path implementations/rust/Cargo.toml --lib benchmark_capacity_one_within_document_pipeline -- --ignored --nocapture",

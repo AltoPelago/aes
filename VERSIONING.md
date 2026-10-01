@@ -46,12 +46,17 @@ Current public baselines include:
 
 ## Reference implementation versions
 
-The repository-root npm manifest remains private at `0.0.0`. The Rust crate is
-staged locally as the non-publishable `altopelago-aes-telex` `0.2.0` line so
-coordinated AEON development can depend on the symbol-capable API without
-changing the AES or Telex contract version.
+The repository-root npm manifest remains private at `0.0.0`; that value
+identifies local JavaScript reference tooling rather than a released package.
 
-If either implementation is later released as a package, it must receive an
-independent SemVer line, a public package name, a release workflow, and a
-documented compatibility declaration. Publishing a package must not reuse the
-AES event or Telex wire version as its package version by implication.
+The Rust implementation is published as `altopelago-aes-telex` on an
+independent SemVer line. Version `0.2.x` implements `aes.events.v1` and
+`telex.aes=1`, and carries explicit CTS snapshot claims in
+`conformance/cts-claims.json`. Its package version does not imply or replace an
+AES event-contract, Telex wire-format, Film wire-format, or CTS snapshot
+version.
+
+Breaking Rust API changes advance the crate's package version according to
+SemVer. Incompatible contract or encoding changes independently require the
+new contract or wire-format version described above, even when the Rust API
+could represent the change without a SemVer-major release.

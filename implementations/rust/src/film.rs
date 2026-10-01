@@ -632,9 +632,9 @@ pub fn film_to_telex(film: &[u8], registered_fields: &[&str]) -> Result<String, 
         .map_err(|error| film_error(error.code, 0, None, "telex-target", error.detail))
 }
 
-// Temporary compatibility names for the pre-selection prototype API. The
-// crate is unpublished, but retaining these wrappers keeps local experiments
-// reproducible while callers move to the specification-shaped names above.
+// Temporary compatibility names for the pre-selection prototype API. Retaining
+// these wrappers keeps existing experiments reproducible while callers move to
+// the specification-shaped names above.
 pub fn encode_film_candidate_a(
     stream: &FilmStream,
     registered_fields: &[&str],

@@ -3,6 +3,15 @@
 This crate independently implements the published v1 `telex.aes` parsing,
 canonicalization, and AES profile validation.
 
+Add the current release with:
+
+```bash
+cargo add altopelago-aes-telex@0.2.0
+```
+
+The package name is `altopelago-aes-telex`; Rust code imports its library as
+`aes_telex`.
+
 Its decoded records expose a base-name `datatype`, recursive ordered
 `generics`, and ordered tagged `clarifiers`. The codec combines those values
 into one compact Telex `datatype=` line; numeric argument payloads remain
@@ -109,12 +118,13 @@ extensions, Film-local limits, and direct Telex transcoders over the existing
 portable AES record model. The historical `film_candidate_a` module re-exports
 this surface temporarily for local prototype compatibility.
 
-This module is reference code in an unpublished crate. Its reader claims the
-immutable `film-cts-v1-snapshot-0.2` target and passes the repository-local
-mutable 73-vector Film candidate; later local additions do not alter that
-snapshot claim. The writer remains available for conformance tooling and
-experimentation, but must not be enabled for durable interchange until reader
-deployment and ecosystem compatibility review close the separate writer gate.
+This module is experimental reference code within the published crate. Its
+reader claims the immutable `film-cts-v1-snapshot-0.2` target and passes the
+repository-local mutable 73-vector Film candidate; later local additions do not
+alter that snapshot claim. The writer remains available for conformance tooling
+and experimentation, but must not be enabled for durable interchange until
+reader deployment and ecosystem compatibility review close the separate writer
+gate.
 
 `film_candidate_b` is an archived, deliberately stateful comparator. It
 replaces each address with the longest UTF-8 prefix shared with the previous
@@ -164,4 +174,5 @@ The fuzz-only crate under `fuzz/` sends arbitrary CTS-seeded bytes through the
 borrowed and validated Film decoders under libFuzzer and AddressSanitizer. It is
 kept outside the reference crate's runtime and test dependency graph. Run the
 bounded local gate with `npm run fuzz:film`; continuing and corpus-management
-commands are documented in [`fuzz/README.md`](./fuzz/README.md).
+commands are documented in the repository's
+[`fuzz/README.md`](https://github.com/AltoPelago/aes/blob/main/implementations/rust/fuzz/README.md).
