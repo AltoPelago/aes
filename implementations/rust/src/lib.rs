@@ -3655,6 +3655,13 @@ fn validate_event_value<'a, R: RecordView>(
                 .with_field("value"),
         );
     }
+    if kind == "SymbolicLiteral" && value.is_empty() {
+        diagnostics.push(
+            Diagnostic::new("AES_INVALID_VALUE", "Symbol payloads must not be empty")
+                .at_record(index, path)
+                .with_field("value"),
+        );
+    }
     if kind == "NodeHead" && value.chars().count() > limits.max_key_segment_codepoints {
         diagnostics.push(
             limit_diagnostic(

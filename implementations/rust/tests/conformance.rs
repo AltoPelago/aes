@@ -117,7 +117,11 @@ fn passes_selected_portable_aes_event_vectors() {
             count += 1;
         }
     }
-    assert_eq!(count, 38, "unexpected portable AES event vector count");
+    assert_eq!(
+        count,
+        if released { 38 } else { 39 },
+        "unexpected portable AES event vector count"
+    );
 }
 
 fn run_aes_event_vector(id: &str, vector: &Value) {

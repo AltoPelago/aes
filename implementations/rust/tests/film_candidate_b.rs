@@ -6,8 +6,8 @@ use aes_telex::film_candidate_b::{
     encode_film_candidate_b, encode_film_candidate_b_with_limits,
 };
 use aes_telex::{
-    ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument, PARTIAL_AES_PROFILE,
-    TelexRecord,
+    AEON_DOCUMENT_PROJECTION, ClarifierKind, DatatypeClarifier, DatatypeDescriptor,
+    GenericArgument, PARTIAL_AES_PROFILE, TelexRecord,
 };
 
 #[test]
@@ -260,6 +260,22 @@ fn expanded_record_limits_are_checked_before_reconstruction() {
 }
 
 #[test]
+fn direct_decoder_bounds_retained_addresses_across_both_planes() {
+    let stream = two_plane_long_address_stream();
+    let encoded = encode_film_candidate_b(&stream, &[]).expect("fixture must encode");
+    let limits = FilmLimits {
+        max_buffered_bytes: 120,
+        ..FilmLimits::default()
+    };
+    let error =
+        decode_film_candidate_b_with_limits(&encoded, &[], &limits, &TelexLimits::default())
+            .expect_err("retained body and header addresses must share one buffer limit");
+    assert_eq!(error.code, "FILM_LIMIT_EXCEEDED");
+    assert_eq!(error.component, "previous-addresses");
+    assert_eq!(error.record, Some(1));
+}
+
+#[test]
 fn declared_lengths_are_limited_before_host_conversion() {
     let input = [
         FILM_CANDIDATE_B_PREAMBLE.as_slice(),
@@ -317,6 +333,30 @@ fn hierarchical_stream() -> FilmStream {
                 ])
             })
             .collect(),
+    }
+}
+
+fn two_plane_long_address_stream() -> FilmStream {
+    FilmStream {
+        profile: PARTIAL_AES_PROFILE.to_owned(),
+        profile_explicit: true,
+        projection: Some(AEON_DOCUMENT_PROJECTION.to_owned()),
+        projection_explicit: true,
+        records: vec![
+            TelexRecord::new(vec![
+                (
+                    "header".to_owned(),
+                    format!("$.[\"aeon:{}\"]", "h".repeat(72)),
+                ),
+                ("kind".to_owned(), "StringLiteral".to_owned()),
+                ("value".to_owned(), "header".to_owned()),
+            ]),
+            TelexRecord::new(vec![
+                ("path".to_owned(), format!("$.{}", "b".repeat(80))),
+                ("kind".to_owned(), "StringLiteral".to_owned()),
+                ("value".to_owned(), "body".to_owned()),
+            ]),
+        ],
     }
 }
 
