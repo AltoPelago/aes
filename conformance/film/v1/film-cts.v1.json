@@ -19,7 +19,6 @@
       "id": "records-and-transcoding",
       "file": "suites/02-records-and-transcoding.json",
       "exclude_tests": [
-        "film-record-026-all-assigned-kind-codes",
         "film-record-005-complete-optional-fields"
       ]
     },

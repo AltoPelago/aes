@@ -70,7 +70,7 @@ the source-backed preparation contract. It is not a published immutable CTS
 snapshot.
 
 The [`film.aes` v1 specification](../specifications/film.aes.md) is a normative
-draft working copy. Its mutable `0.1.0-dev` CTS contains 91 language-neutral vectors across
+draft working copy. Its mutable `0.1.0-dev` CTS contains 92 language-neutral vectors across
 framing and canonicalization, records and Telex transcoding, and resource
 limits. Exact Film bytes use contiguous lowercase hexadecimal inside the JSON
 test envelope. The lane fixes all 24 kind-code mappings and keeps Film syntax
@@ -82,8 +82,9 @@ remains the mutable development target. The immutable shared
 all operations. The JavaScript implementation claims its 78 `decode`
 operations and also reads five canonical producer fixtures; the nine
 encoder-only cases remain outside its decoder-only claim. The local candidate
-has 77 decode cases because it does not include the separate shared symbolic
-kind suite. AES events 0.2 (48 vectors) and Telex 0.2 (61) accompany Film 0.3.
+also has 78 decode cases: it retains its all-24-kind mapping fixture, while the
+shared snapshot carries equivalent coverage in a separate symbolic kind suite.
+AES events 0.2 (48 vectors) and Telex 0.2 (61) accompany Film 0.3.
 Historical snapshots retain numeric-generic expectations unchanged. The new
 targets require datatype descriptors as generics; numeric clarifiers remain
 strings. Existing Film physical generic-depth accounting is not changed here.

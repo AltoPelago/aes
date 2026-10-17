@@ -53,7 +53,7 @@ test('selected Film manifest has resolvable suites and unique language-neutral v
       count += 1;
     }
   }
-  assert.equal(count, manifest.meta.status === 'released' ? (manifest.meta.version === '0.3.0' ? 92 : 73) : 91);
+  assert.equal(count, manifest.meta.status === 'released' ? (manifest.meta.version === '0.3.0' ? 92 : 73) : 92);
 });
 
 test('selected Film candidate vectors reference existing specification headings', () => {

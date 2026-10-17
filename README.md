@@ -103,7 +103,7 @@ canonical sources.
 - [`conformance/`](conformance/README.md) contains language-neutral v1
   vectors for syntax, canonicalization, AES profile validation, exact-source
   provenance, resource-limit boundaries, the optional AEON document
-  projection, and the mutable 91-vector Film candidate. The prepared external
+  projection, and the mutable 92-vector Film candidate. The prepared external
   targets are `aes-events-cts-v1-snapshot-0.2` (48 vectors),
   `telex-cts-v1-snapshot-0.2` (61), and `film-cts-v1-snapshot-0.3` (92) in the shared
   `aeonite-cts` repository.

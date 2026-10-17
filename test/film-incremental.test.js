@@ -31,6 +31,14 @@ const LIMIT_NAMES = Object.freeze({
 });
 const fixtures = positiveFilmFixtures();
 
+test('all 24 assigned kind mappings remain in incremental fixture coverage', () => {
+  const fixture = fixtures.find(({ id }) => id === 'film-record-026-all-assigned-kind-codes');
+  assert.notEqual(fixture, undefined);
+  const { records } = decodeFilm(fromHex(fixture.hex), fixture.options);
+  assert.equal(records.length, 24);
+  assert.equal(new Set(records.map(({ kind }) => kind)).size, 24);
+});
+
 test('incremental decoding matches one-shot decoding at every two-chunk boundary', () => {
   let divisions = 0;
   for (const fixture of fixtures) {

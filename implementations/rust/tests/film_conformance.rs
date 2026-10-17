@@ -104,7 +104,7 @@ fn passes_selected_film_v1_vectors() {
                 73
             }
         } else {
-            91
+            92
         },
         "unexpected selected Film vector count"
     );
