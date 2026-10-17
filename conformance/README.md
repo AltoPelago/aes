@@ -70,7 +70,7 @@ the source-backed preparation contract. It is not a published immutable CTS
 snapshot.
 
 The [`film.aes` v1 specification](../specifications/film.aes.md) is a normative
-draft working copy. Its mutable `0.1.0-dev` CTS contains 92 language-neutral vectors across
+draft working copy. Its mutable `0.1.0-dev` CTS contains 128 language-neutral vectors across
 framing and canonicalization, records and Telex transcoding, and resource
 limits. Exact Film bytes use contiguous lowercase hexadecimal inside the JSON
 test envelope. The lane fixes all 24 kind-code mappings and keeps Film syntax
@@ -78,16 +78,19 @@ and canonicality failures separate from transport-neutral AES diagnostics.
 
 The local Film candidate carries no `snapshot_id` or `spec_snapshot_id` and
 remains the mutable development target. The immutable shared
-`film-cts-v1-snapshot-0.3` has 92 vectors. The selected Rust reference claims
-all operations. The JavaScript implementation claims its 78 `decode`
-operations and also reads five canonical producer fixtures; the nine
+`film-cts-v1-snapshot-0.4` has 128 vectors. The selected Rust reference claims
+all operations. The JavaScript implementation claims its 103 `decode`
+operations and also reads 13 canonical producer fixtures; the 12
 encoder-only cases remain outside its decoder-only claim. The local candidate
-also has 78 decode cases: it retains its all-24-kind mapping fixture, while the
+also has 103 decode cases: it retains its all-24-kind mapping fixture, while the
 shared snapshot carries equivalent coverage in a separate symbolic kind suite.
-AES events 0.2 (48 vectors) and Telex 0.2 (61) accompany Film 0.3.
+AES events 0.2 (48 vectors) and Telex 0.2 (61) accompany Film 0.4.
 Historical snapshots retain numeric-generic expectations unchanged. The new
 targets require datatype descriptors as generics; numeric clarifiers remain
-strings. Existing Film physical generic-depth accounting is not changed here.
+strings. Film 0.4 uses the shared AES logical generic-depth measurement, not
+descriptor-frame recursion: `list<int>` fits a maximum of zero. It selects 37
+new logical-depth vectors and excludes one superseded physical-depth negative;
+the earlier snapshots and suite bytes remain unchanged.
 
 The manifest separates:
 
@@ -141,7 +144,8 @@ npm run test:film
 ```
 
 The JavaScript incremental suite exercises every split point for each positive
-Film fixture, byte-at-a-time delivery, incomplete-versus-final transitions,
+Film fixture and each new logical-depth negative, byte-at-a-time delivery,
+incomplete-versus-final transitions, exact resource-counter observations,
 and deterministic arbitrary-byte and nested-datatype mutations. The Rust
 coverage-guided target seeds itself from all Film byte fixtures in this mutable
 CTS and exercises both borrowed physical and validated owned decoding:
@@ -171,7 +175,7 @@ were passed by the historical JavaScript and Rust implementations. Later candida
 changes stay here or enter a newer shared snapshot; the published identifiers
 and their suite bytes are not changed.
 
-The prepared adoption targets are AES events 0.2, Telex 0.2, and Film 0.3. A claim may
+The current adoption targets are AES events 0.2, Telex 0.2, and Film 0.4. A claim may
 carry an `operations` list to narrow its scope; omitting that field claims the
 entire snapshot. This repository therefore records JavaScript as a Film reader
 for `decode`, while Rust claims `decode`, `encode`, and `transcode`. The shared

@@ -19,12 +19,16 @@ into one compact Telex `datatype=` line. Generic arguments must be recursive
 datatype descriptors; numeric values belong in clarifiers and remain exact
 strings. `custom<1.0>` is invalid, while `list<custom[1.0]>` is valid.
 
-The prepared compatibility targets are AES events 0.2, Telex 0.2, and Film
-0.3 snapshots. Historical Film numeric-generic tag `02` can still appear in
+The current source compatibility targets are AES events 0.2, Telex 0.2, and Film
+0.4 snapshots. Historical Film numeric-generic tag `02` can still appear in
 unvalidated physical views, but completed validation and validated writers
 reject it. `GenericArgument::NumberLiteral` and the structural descriptor
-renderer do not establish acceptance of a record. Film's existing physical
-generic-depth accounting is unchanged by this correction.
+renderer do not establish acceptance of a record. Film now uses shared AES
+logical generic depth, so `list<int>` fits a maximum of zero; leaf descriptor
+frames and clarifiers add no generic-bearing level. Readers reject an
+over-limit generic-bearing level before allocating or traversing its arguments.
+This source correction requires a new provider release before registry
+consumers can adopt it; the manifest version has not yet been advanced.
 `TelexLimits::default()` exposes the published AltoPelago Telex limits. The
 existing parse, encode, canonicalize, and validate functions use those defaults;
 their `*_with_limits` variants accept an already normalized `TelexLimits`
@@ -128,12 +132,12 @@ portable AES record model. The historical `film_candidate_a` module re-exports
 this surface temporarily for local prototype compatibility.
 
 This module is experimental reference code within the published crate. Its
-reader claims the immutable `film-cts-v1-snapshot-0.2` target and passes the
-repository-local mutable 73-vector Film candidate; later local additions do not
-alter that snapshot claim. The writer remains available for conformance tooling
-and experimentation, but must not be enabled for durable interchange until
-reader deployment and ecosystem compatibility review close the separate writer
-gate.
+source claims all 128 operations in immutable `film-cts-v1-snapshot-0.4` and
+passes the repository-local mutable 128-vector Film candidate; later local
+additions do not alter that snapshot claim. The writer remains available for
+conformance tooling and experimentation, but must not be enabled for durable
+interchange until reader deployment and ecosystem compatibility review close
+the separate writer gate.
 
 `film_candidate_b` is an archived, deliberately stateful comparator. It
 replaces each address with the longest UTF-8 prefix shared with the previous

@@ -44,11 +44,12 @@ Current public baselines include:
 - `aes-events-cts-v1-snapshot-0.1`
 - `telex-cts-v1-snapshot-0.1`
 
-The prepared type-only generic correction uses new immutable targets:
-`aes-events-cts-v1-snapshot-0.2`, `telex-cts-v1-snapshot-0.2`, and
-`film-cts-v1-snapshot-0.3`. Superseded numeric-generic expectations remain
-intact in historical snapshots. This tightens logical acceptance; it does
-not reassign Film tags or change either wire framing version.
+The type-only generic correction uses `aes-events-cts-v1-snapshot-0.2`,
+`telex-cts-v1-snapshot-0.2`, and `film-cts-v1-snapshot-0.3`. The current Film
+claim advances to `film-cts-v1-snapshot-0.4` for shared AES logical generic-depth
+accounting. Superseded numeric-generic and physical-depth expectations remain
+intact in historical snapshots. Neither correction reassigns Film tags or
+changes either wire framing version.
 
 ## Reference implementation versions
 
@@ -64,6 +65,11 @@ version.
 
 The prepared 0.3.0 package adopts the type-only generic correction and new
 snapshot claims. It must not be published under the existing 0.2.0 version.
+
+The subsequent Film logical-depth correction is staged in source without a
+package-version bump. Its provider release version must be selected in a
+separate release-preparation PR; source CTS claims do not change previously
+published artifacts or permit republishing their version.
 
 Breaking Rust API changes advance the crate's package version according to
 SemVer. Incompatible contract or encoding changes independently require the
