@@ -33,9 +33,9 @@ for (const suiteRef of manifest.suites) {
 
 test('independent JavaScript decoder coverage has an explicit decoder-only boundary', () => {
   assert.deepEqual({ directDecodeVectors, producerFixtures, encoderOnlyVectors }, {
-    directDecodeVectors: 78,
-    producerFixtures: 5,
-    encoderOnlyVectors: 9,
+    directDecodeVectors: manifest.meta.version === '0.3.0' ? 78 : 103,
+    producerFixtures: manifest.meta.version === '0.3.0' ? 5 : 13,
+    encoderOnlyVectors: manifest.meta.version === '0.3.0' ? 9 : 12,
   });
 });
 
