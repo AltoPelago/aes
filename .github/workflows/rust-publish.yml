@@ -119,7 +119,24 @@ jobs:
           altopelago-aes-telex = "=${VERSION}"
           EOF
           cat > src/main.rs <<'EOF'
-          use aes_telex::{AES_EVENT_CONTRACT, TELEX_VERSION, parse_telex};
+          use aes_telex::film::{
+              FilmLimits, FilmStream, decode_film_with_limits, encode_film_with_limits,
+          };
+          use aes_telex::{AES_EVENT_CONTRACT, TELEX_VERSION, TelexLimits, parse_telex};
+
+          fn typed_stream(datatype: &str) -> FilmStream {
+              let parsed = parse_telex(&format!(
+                  "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.item\nkind=NumberLiteral\ndatatype={datatype}\nvalue=1\n\n",
+              ))
+              .expect("published crate should parse datatype metadata");
+              FilmStream {
+                  profile: parsed.profile,
+                  profile_explicit: parsed.profile_explicit,
+                  projection: parsed.projection,
+                  projection_explicit: parsed.projection_explicit,
+                  records: parsed.records,
+              }
+          }
 
           fn main() {
               assert_eq!(TELEX_VERSION, "1");
@@ -129,6 +146,36 @@ jobs:
               )
               .expect("published crate should parse canonical Telex");
               assert_eq!(parsed.records.len(), 1);
+
+              let film_limits = FilmLimits::default();
+              let depth_zero = TelexLimits {
+                  max_generic_depth: 0,
+                  ..TelexLimits::default()
+              };
+              for datatype in ["list<int>", "list<custom[2]>"] {
+                  let stream = typed_stream(datatype);
+                  let bytes = encode_film_with_limits(&stream, &[], &film_limits, &depth_zero)
+                      .expect("leaf generic must encode at logical depth zero");
+                  let decoded = decode_film_with_limits(&bytes, &[], &film_limits, &depth_zero)
+                      .expect("leaf generic must decode at logical depth zero");
+                  assert_eq!(decoded, stream);
+              }
+
+              let nested = typed_stream("list<list<int>>");
+              assert!(encode_film_with_limits(&nested, &[], &film_limits, &depth_zero).is_err());
+              let bytes = encode_film_with_limits(
+                  &nested, &[], &film_limits, &TelexLimits::default(),
+              )
+              .expect("nested generics must encode with the default limit");
+              let error = decode_film_with_limits(&bytes, &[], &film_limits, &depth_zero)
+                  .expect_err("logical depth one must be rejected at a maximum of zero");
+              assert_eq!(error.code, "FILM_AES_INVALID");
+              assert_eq!(error.diagnostics.len(), 1);
+              let diagnostic = &error.diagnostics[0];
+              assert_eq!(diagnostic.code, "AES_LIMIT_EXCEEDED");
+              assert_eq!(diagnostic.counter, Some("max_generic_depth"));
+              assert_eq!(diagnostic.observed, Some(1));
+              assert_eq!(diagnostic.limit, Some(0));
           }
           EOF
           for attempt in $(seq 1 12); do

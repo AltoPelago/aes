@@ -3,11 +3,11 @@
 This crate independently implements the published v1 `telex.aes` parsing,
 canonicalization, and AES profile validation.
 
-The prepared package line is 0.3.0; publication is a separate signed-tag
+The prepared package version is 0.3.1; publication is a separate signed-tag
 workflow. After that release is published, add it with:
 
 ```bash
-cargo add altopelago-aes-telex@0.3.0
+cargo add altopelago-aes-telex@0.3.1
 ```
 
 The package name is `altopelago-aes-telex`; Rust code imports its library as
@@ -27,8 +27,9 @@ renderer do not establish acceptance of a record. Film now uses shared AES
 logical generic depth, so `list<int>` fits a maximum of zero; leaf descriptor
 frames and clarifiers add no generic-bearing level. Readers reject an
 over-limit generic-bearing level before allocating or traversing its arguments.
-This source correction requires a new provider release before registry
-consumers can adopt it; the manifest version has not yet been advanced.
+This correction is prepared for provider version 0.3.1; published 0.3.0 retains
+the earlier physical-depth behaviour. Registry consumers must wait for 0.3.1
+publication before adopting the correction.
 `TelexLimits::default()` exposes the published AltoPelago Telex limits. The
 existing parse, encode, canonicalize, and validate functions use those defaults;
 their `*_with_limits` variants accept an already normalized `TelexLimits`
