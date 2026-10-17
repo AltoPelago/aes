@@ -70,7 +70,7 @@ the source-backed preparation contract. It is not a published immutable CTS
 snapshot.
 
 The [`film.aes` v1 specification](../specifications/film.aes.md) is a normative
-draft. Its mutable `0.1.0-dev` CTS contains 73 language-neutral vectors across
+draft working copy. Its mutable `0.1.0-dev` CTS contains 92 language-neutral vectors across
 framing and canonicalization, records and Telex transcoding, and resource
 limits. Exact Film bytes use contiguous lowercase hexadecimal inside the JSON
 test envelope. The lane fixes all 24 kind-code mappings and keeps Film syntax
@@ -78,12 +78,16 @@ and canonicality failures separate from transport-neutral AES diagnostics.
 
 The local Film candidate carries no `snapshot_id` or `spec_snapshot_id` and
 remains the mutable development target. The immutable shared
-`film-cts-v1-snapshot-0.2` publishes the exact audited 73-vector state. The
-selected Rust reference passes all operations in that snapshot. The independent
-JavaScript implementation claims only its 69 `decode` operations; it also reads
-the three canonical Film byte fixtures supplied by positive encode/transcode
-vectors, while the remaining buffered-encoder rejection stays outside the
-decoder-only claim.
+`film-cts-v1-snapshot-0.3` has 92 vectors. The selected Rust reference claims
+all operations. The JavaScript implementation claims its 78 `decode`
+operations and also reads five canonical producer fixtures; the nine
+encoder-only cases remain outside its decoder-only claim. The local candidate
+also has 78 decode cases: it retains its all-24-kind mapping fixture, while the
+shared snapshot carries equivalent coverage in a separate symbolic kind suite.
+AES events 0.2 (48 vectors) and Telex 0.2 (61) accompany Film 0.3.
+Historical snapshots retain numeric-generic expectations unchanged. The new
+targets require datatype descriptors as generics; numeric clarifiers remain
+strings. Existing Film physical generic-depth accounting is not changed here.
 
 The manifest separates:
 
@@ -150,7 +154,7 @@ Generated corpora and artifacts remain implementation-local. Any minimized
 input that establishes a protocol defect should be promoted into this
 language-neutral candidate before a snapshot is frozen.
 
-The 100 integrated Telex vectors remain their mutable development candidate. The
+The 111 integrated Telex vectors remain their mutable development candidate. The
 candidate uses a `-dev` version and carries no `snapshot_id` or
 `spec_snapshot_id`. A repository commit identifies an exact development state,
 but external conformance claims must not treat this working path as stable.
@@ -163,11 +167,11 @@ The first stable shared publication separates the owning contracts:
   format-limit vectors.
 
 Both manifests live in `aeonite-cts`, pin a SHA-256 digest for every suite, and
-pass independently in the JavaScript and Rust implementations. Later candidate
+were passed by the historical JavaScript and Rust implementations. Later candidate
 changes stay here or enter a newer shared snapshot; the published identifiers
 and their suite bytes are not changed.
 
-Film adds the parallel immutable `film-cts-v1-snapshot-0.2` target. A claim may
+The prepared adoption targets are AES events 0.2, Telex 0.2, and Film 0.3. A claim may
 carry an `operations` list to narrow its scope; omitting that field claims the
 entire snapshot. This repository therefore records JavaScript as a Film reader
 for `decode`, while Rust claims `decode`, `encode`, and `transcode`. The shared

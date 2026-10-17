@@ -57,9 +57,10 @@ canonical sources.
 - [Telex v1](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
 - [Film v1](specifications/film.aes.md) is the normative binary-encoding draft.
-  Its table-free wire layout is resolved and fixed by
+  Its table-free wire layout was resolved and fixed by the historical
   `film-specs-v1-snapshot-0.2` and the 73-vector
-  `film-cts-v1-snapshot-0.2`. Reader conformance is available; durable writers
+  `film-cts-v1-snapshot-0.2`. The prepared 0.3 CTS target tightens logical
+  generic acceptance without changing that layout. Reader conformance is available; durable writers
   remain behind the reader-before-writer deployment gate.
 - [AltoPelago Aeonic Limits v1](notes/altopelago-aeonic-limits-v1.md) defines
   the informative, consumer-owned configuration shape used to align structural
@@ -102,10 +103,12 @@ canonical sources.
 - [`conformance/`](conformance/README.md) contains language-neutral v1
   vectors for syntax, canonicalization, AES profile validation, exact-source
   provenance, resource-limit boundaries, the optional AEON document
-  projection, and the mutable 73-vector Film candidate. Stable external
-  targets are published separately as `aes-events-cts-v1-snapshot-0.1`,
-  `telex-cts-v1-snapshot-0.1`, and `film-cts-v1-snapshot-0.2` in the shared
+  projection, and the mutable 92-vector Film candidate. The prepared external
+  targets are `aes-events-cts-v1-snapshot-0.2` (48 vectors),
+  `telex-cts-v1-snapshot-0.2` (61), and `film-cts-v1-snapshot-0.3` (92) in the shared
   `aeonite-cts` repository.
+  These require type-only generic arguments while retaining exact numeric
+  clarifiers. Earlier snapshots retain their historical expectations.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
   Rust implementation of the same v1 event, Telex, integrity, provenance, and
   transaction contracts, plus the selected Film draft reference and an

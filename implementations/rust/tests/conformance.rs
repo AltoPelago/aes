@@ -17,11 +17,24 @@ fn passes_selected_v1_telex_vectors() {
     let manifest = read_json(&manifest_path);
     let released = manifest["meta"]["status"] == "released";
     if released {
-        assert_eq!(manifest["meta"]["snapshot_id"], "telex-cts-v1-snapshot-0.1");
-        assert_eq!(
-            manifest["meta"]["spec_snapshot_id"],
-            "telex-specs-v1-snapshot-0.1"
-        );
+        assert!(matches!(
+            manifest["meta"]["snapshot_id"].as_str(),
+            Some("telex-cts-v1-snapshot-0.1" | "telex-cts-v1-snapshot-0.2")
+        ));
+        if manifest["meta"]["spec_snapshot_id"].is_null() {
+            assert_eq!(
+                manifest["meta"]["specification_revision"]
+                    .as_str()
+                    .expect("specification revision")
+                    .len(),
+                40
+            );
+        } else {
+            assert_eq!(
+                manifest["meta"]["spec_snapshot_id"],
+                "telex-specs-v1-snapshot-0.1"
+            );
+        }
     } else {
         assert_eq!(manifest["meta"]["status"], "draft");
         assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
@@ -53,6 +66,9 @@ fn passes_selected_v1_telex_vectors() {
             .expect("suite tests must be an array")
         {
             let id = vector["id"].as_str().expect("vector id must be a string");
+            if excluded_test(suite_ref, id) {
+                continue;
+            }
             assert!(seen.insert(id.to_owned()), "duplicate vector id: {id}");
             run_vector(id, vector);
             count += 1;
@@ -61,7 +77,15 @@ fn passes_selected_v1_telex_vectors() {
 
     assert_eq!(
         count,
-        if released { 50 } else { 100 },
+        if released {
+            if manifest["meta"]["version"] == "0.2.0" {
+                61
+            } else {
+                50
+            }
+        } else {
+            111
+        },
         "unexpected v1 vector count"
     );
 }
@@ -76,10 +100,10 @@ fn passes_selected_portable_aes_event_vectors() {
     let released = manifest["meta"]["status"] == "released";
     assert_eq!(manifest["meta"]["lane"], "aes-events");
     if released {
-        assert_eq!(
-            manifest["meta"]["snapshot_id"],
-            "aes-events-cts-v1-snapshot-0.1"
-        );
+        assert!(matches!(
+            manifest["meta"]["snapshot_id"].as_str(),
+            Some("aes-events-cts-v1-snapshot-0.1" | "aes-events-cts-v1-snapshot-0.2")
+        ));
     } else {
         assert_eq!(manifest["meta"]["status"], "draft");
         assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
@@ -112,6 +136,9 @@ fn passes_selected_portable_aes_event_vectors() {
             .expect("suite tests must be an array")
         {
             let id = vector["id"].as_str().expect("vector id must be a string");
+            if excluded_test(suite_ref, id) {
+                continue;
+            }
             assert!(seen.insert(id.to_owned()), "duplicate vector id: {id}");
             run_aes_event_vector(id, vector);
             count += 1;
@@ -119,7 +146,15 @@ fn passes_selected_portable_aes_event_vectors() {
     }
     assert_eq!(
         count,
-        if released { 38 } else { 39 },
+        if released {
+            if manifest["meta"]["version"] == "0.2.0" {
+                48
+            } else {
+                38
+            }
+        } else {
+            49
+        },
         "unexpected portable AES event vector count"
     );
 }
@@ -169,6 +204,12 @@ fn run_aes_event_vector(id: &str, vector: &Value) {
     assert_eq!(result.valid, vector["expected"]["valid"], "{id}");
     assert_eq!(result.profile, vector["expected"]["profile"], "{id}");
     assert_eq!(actual_codes, expected_codes, "{id}");
+}
+
+fn excluded_test(suite_ref: &Value, id: &str) -> bool {
+    suite_ref["exclude_tests"]
+        .as_array()
+        .is_some_and(|excluded| excluded.iter().any(|item| item.as_str() == Some(id)))
 }
 
 fn run_vector(id: &str, vector: &Value) {
@@ -415,7 +456,9 @@ fn datatype_from_json(value: &Value) -> DatatypeDescriptor {
     DatatypeDescriptor {
         datatype: value["datatype"]
             .as_str()
-            .expect("nested datatype name must be a string")
+            // Rust cannot represent a tagged string generic. Preserve its
+            // invalidity at the validator boundary with an invalid empty name.
+            .unwrap_or_default()
             .to_owned(),
         generics: value["generics"]
             .as_array()

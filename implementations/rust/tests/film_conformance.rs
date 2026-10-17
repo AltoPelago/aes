@@ -20,12 +20,28 @@ fn passes_selected_film_v1_vectors() {
     let manifest = read_json(&manifest_path);
     let released = manifest["meta"]["status"] == "released";
     if released {
-        assert_eq!(manifest["meta"]["version"], "0.2.0");
-        assert_eq!(manifest["meta"]["snapshot_id"], "film-cts-v1-snapshot-0.2");
-        assert_eq!(
-            manifest["meta"]["spec_snapshot_id"],
-            "film-specs-v1-snapshot-0.2"
-        );
+        assert!(matches!(
+            manifest["meta"]["version"].as_str(),
+            Some("0.2.0" | "0.3.0")
+        ));
+        assert!(matches!(
+            manifest["meta"]["snapshot_id"].as_str(),
+            Some("film-cts-v1-snapshot-0.2" | "film-cts-v1-snapshot-0.3")
+        ));
+        if manifest["meta"]["spec_snapshot_id"].is_null() {
+            assert_eq!(
+                manifest["meta"]["specification_revision"]
+                    .as_str()
+                    .expect("specification revision")
+                    .len(),
+                40
+            );
+        } else {
+            assert_eq!(
+                manifest["meta"]["spec_snapshot_id"],
+                "film-specs-v1-snapshot-0.2"
+            );
+        }
     } else {
         assert_eq!(manifest["meta"]["version"], "0.1.0-dev");
         assert_eq!(manifest["meta"]["status"], "draft");
@@ -79,7 +95,19 @@ fn passes_selected_film_v1_vectors() {
             count += 1;
         }
     }
-    assert_eq!(count, 73, "unexpected selected Film vector count");
+    assert_eq!(
+        count,
+        if released {
+            if manifest["meta"]["version"] == "0.3.0" {
+                92
+            } else {
+                73
+            }
+        } else {
+            92
+        },
+        "unexpected selected Film vector count"
+    );
 }
 
 fn run_vector(id: &str, vector: &Value) {
@@ -302,7 +330,9 @@ fn generic_from_json(value: &Value) -> GenericArgument {
 
 fn datatype_from_json(value: &Value) -> DatatypeDescriptor {
     DatatypeDescriptor {
-        datatype: required_string(value, "datatype").to_owned(),
+        // Tagged string generics have no Rust enum variant. An empty name
+        // keeps this malformed input invalid rather than dropping the argument.
+        datatype: value["datatype"].as_str().unwrap_or_default().to_owned(),
         generics: value["generics"]
             .as_array()
             .expect("nested datatype generics must be an array")

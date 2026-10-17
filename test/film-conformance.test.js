@@ -12,9 +12,13 @@ const specification = readFileSync(new URL('../specifications/film.aes.md', impo
 
 test('selected Film manifest has resolvable suites and unique language-neutral vectors', () => {
   if (manifest.meta.status === 'released') {
-    assert.equal(manifest.meta.version, '0.2.0');
-    assert.equal(manifest.meta.snapshot_id, 'film-cts-v1-snapshot-0.2');
-    assert.equal(manifest.meta.spec_snapshot_id, 'film-specs-v1-snapshot-0.2');
+    assert.ok(['0.2.0', '0.3.0'].includes(manifest.meta.version));
+    assert.equal(manifest.meta.snapshot_id, `film-cts-v1-snapshot-${manifest.meta.version.slice(0, -2)}`);
+    if (manifest.meta.spec_snapshot_id !== undefined) {
+      assert.equal(manifest.meta.spec_snapshot_id, 'film-specs-v1-snapshot-0.2');
+    } else {
+      assert.match(manifest.meta.specification_revision, /^[0-9a-f]{40}$/u);
+    }
   } else {
     assert.equal(manifest.meta.version, '0.1.0-dev');
     assert.equal(manifest.meta.status, 'draft');
@@ -49,7 +53,7 @@ test('selected Film manifest has resolvable suites and unique language-neutral v
       count += 1;
     }
   }
-  assert.equal(count, 73);
+  assert.equal(count, manifest.meta.status === 'released' ? (manifest.meta.version === '0.3.0' ? 92 : 73) : 92);
 });
 
 test('selected Film candidate vectors reference existing specification headings', () => {

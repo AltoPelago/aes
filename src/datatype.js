@@ -103,8 +103,7 @@ function assertGenericArgument(argument, limits, state, depth) {
     assertDatatypeDescriptorAtDepth(argument, limits, state, depth + 1);
     return;
   }
-  countLogicalItem(state, limits);
-  assertTaggedLiteral(argument, 'generic argument', new Set(['NumberLiteral']));
+  throw new TypeError('Datatype generic argument must be a datatype descriptor');
 }
 
 function assertTaggedLiteral(literal, label, allowedKinds = new Set(['StringLiteral', 'NumberLiteral'])) {
@@ -126,9 +125,7 @@ function assertTaggedLiteral(literal, label, allowedKinds = new Set(['StringLite
 }
 
 function formatGenericArgument(argument) {
-  return Object.hasOwn(argument, 'datatype')
-    ? formatCheckedDatatypeDescriptor(argument)
-    : formatNumberLiteral(argument, 'generic argument');
+  return formatCheckedDatatypeDescriptor(argument);
 }
 
 function formatClarifier(clarifier) {
@@ -196,9 +193,7 @@ class DatatypeParser {
 
   parseGenericArgument(depth) {
     this.skipWhitespace();
-    if (/[A-Za-z_]/u.test(this.peek() ?? '')) return this.parseDescriptor(depth + 1);
-    this.countItem();
-    return { kind: 'NumberLiteral', value: this.parseNumber(',>') };
+    return this.parseDescriptor(depth + 1);
   }
 
   parseClarifiers() {

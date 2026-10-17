@@ -120,19 +120,27 @@ These AEON declarations therefore project as follows:
 :null<string>   -> datatype="null", generics=[{datatype="string", generics=[], clarifiers=[]}], clarifiers=[]
 ```
 
-A datatype generic argument is either a recursively structured datatype
-descriptor or a tagged `NumberLiteral`. A recursive descriptor has exactly the
+Every datatype generic argument must be a recursively structured datatype
+descriptor. Bare numeric or string literals are invalid generic arguments,
+including inside nested descriptors. A recursive descriptor has exactly the
 same three fields: non-empty `datatype`, ordered `generics`, and ordered
 `clarifiers`. A tagged value has exactly `kind` and `value`. A clarifier is a
 tagged `StringLiteral` or `NumberLiteral`.
 Tagged literal values are canonical strings, including numeric values; an AES
 boundary never converts them to host numeric types.
 
+Each base datatype name is an ASCII identifier, not a numeric string. This is
+a shared syntax constraint, not profile-specific datatype interpretation.
+Numeric parameters belong in clarifiers: `custom<number>[1.0]` and
+`list<custom[1.0]>` are structurally valid; `custom<1.0>` is not. Telex and Film
+must reject literal generic arguments; provisional physical decoding is not
+acceptance of a logical AES record.
+
 ```text
 datatype = "tuple"
 generics = [
   { datatype = "int", generics = [], clarifiers = [] },
-  { kind = "NumberLiteral", value = "9007199254740993" }
+  { datatype = "custom", generics = [], clarifiers = [{ kind = "NumberLiteral", value = "9007199254740993" }] }
 ]
 clarifiers = [
   { kind = "StringLiteral", value = "x" },

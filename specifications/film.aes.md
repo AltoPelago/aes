@@ -345,9 +345,18 @@ literal entry counts. The decoder reads exactly those counts and rejects an
 unknown tag, missing entry, or trailing descriptor byte.
 
 Generic tag `00` carries a recursive datatype descriptor. Generic tag `02`
-carries a `NumberLiteral` string. Clarifier tag `01` carries a `StringLiteral`
+retains its historical `NumberLiteral` string framing but cannot produce a
+valid AES generic argument. Completed validation rejects any occurrence,
+including nested descriptors, with `FILM_AES_INVALID` and
+`AES_INVALID_DATATYPE`. Provisional syntax decoding may expose it only as
+unvalidated data; a validated writer must not publish that record. The tag is
+not reassigned or interpreted as a clarifier. Clarifier tag `01` carries a `StringLiteral`
 string and tag `02` carries a `NumberLiteral` string. Numeric payloads remain
 strings and are validated by AES rather than converted to host numbers.
+
+This tightens logical AES acceptance without changing Film binary grammar,
+framing, or tag assignments. Historical snapshots keep their earlier rules;
+adoption uses a new conformance snapshot, not a rewritten historical target.
 
 Order and duplicates are preserved in both arrays. An absent datatype control
 bit means logical `datatype`, `generics`, and `clarifiers` are absent. A present

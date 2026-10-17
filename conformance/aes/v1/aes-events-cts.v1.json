@@ -12,6 +12,10 @@
     {
       "id": "event-and-profile-validation",
       "file": "suites/01-event-and-profile-validation.json"
+    },
+    {
+      "id": "next-aes-events-type-only-generics",
+      "file": "suites/06-next-type-only-generics.json"
     }
   ]
 }

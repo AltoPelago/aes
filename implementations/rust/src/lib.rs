@@ -363,6 +363,8 @@ pub struct DatatypeDescriptor {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GenericArgument {
     Datatype(DatatypeDescriptor),
+    /// Historical Film tag 02 payload retained for provisional physical
+    /// decoding. Invalid at every completed AES/Telex/Film validation boundary.
     NumberLiteral(String),
 }
 
@@ -5187,7 +5189,11 @@ pub fn parse_datatype_descriptor(
     Ok(descriptor)
 }
 
-/// Render an encoding-neutral datatype descriptor in Telex's single-line form.
+/// Structurally render a descriptor without semantic validation.
+///
+/// This also renders historical provisional Film data for inspection. It does
+/// not accept an AES record: validated Telex and Film writers reject literal
+/// generic arguments before emitting any stream bytes.
 #[must_use]
 pub fn format_datatype_descriptor(descriptor: &DatatypeDescriptor) -> String {
     let mut output = descriptor.datatype.clone();
@@ -5276,13 +5282,12 @@ fn validate_datatype_descriptor_at_depth(
             GenericArgument::Datatype(nested) => {
                 validate_datatype_descriptor_at_depth(nested, depth + 1, items, limits)?;
             }
-            GenericArgument::NumberLiteral(value) if !valid_number_syntax(value) => {
+            GenericArgument::NumberLiteral(_) => {
                 return Err((
                     "AES_INVALID_DATATYPE",
-                    "Invalid numeric datatype generic argument".to_owned(),
+                    "Datatype generic argument must be a datatype descriptor".to_owned(),
                 ));
             }
-            GenericArgument::NumberLiteral(_) => count_datatype_item(items, limits)?,
         }
     }
     for clarifier in &descriptor.clarifiers {
@@ -5426,15 +5431,7 @@ impl DatatypeParser<'_> {
         let mut values = Vec::new();
         loop {
             self.skip_whitespace();
-            let argument = if self
-                .peek()
-                .is_some_and(|byte| byte.is_ascii_alphabetic() || byte == b'_')
-            {
-                GenericArgument::Datatype(self.parse_descriptor(depth + 1)?)
-            } else {
-                self.count_item()?;
-                GenericArgument::NumberLiteral(self.parse_number(b",>")?)
-            };
+            let argument = GenericArgument::Datatype(self.parse_descriptor(depth + 1)?);
             values.push(argument);
             if values.len() > self.limits.max_generic_arguments {
                 return self.fail(&limit_message(
