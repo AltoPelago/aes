@@ -1,0 +1,330 @@
+{
+  "meta": {
+    "suite_id": "next-telex-type-only-generics",
+    "lane": "aes-telex",
+    "event_contract": "aes.events.v1",
+    "format_version": "1",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/telex.aes.md"
+    ]
+  },
+  "id": "next-telex-type-only-generics",
+  "title": "Telex Type-only Generics",
+  "tests": [
+    {
+      "id": "telex-type-generics-001-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<1>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-002-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<1.0>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-003-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<-1>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-004-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<+1>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-005-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<.5>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-006-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<1e3>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-007-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<9007199254740993>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-008-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<\"name\">\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-009-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<int, 2>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-010-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<list<2>>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-011-reject",
+      "description": "Telex does not extend the shared generic grammar",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<custom[1.0], 2>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_INVALID_DATATYPE",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "telex-type-generics-012-clarifiers",
+      "description": "Numeric clarifiers remain exact in recursive type descriptors",
+      "operation": "parse",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<custom[9007199254740993]>[1.0]\nvalue=0\n"
+      },
+      "expected": {
+        "ok": true,
+        "version": "1",
+        "profile": "aes.complete.v1",
+        "profile_explicit": false,
+        "projection": null,
+        "projection_explicit": false,
+        "canonical": true,
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "datatype": "custom",
+                "generics": [],
+                "clarifiers": [
+                  {
+                    "kind": "NumberLiteral",
+                    "value": "9007199254740993"
+                  }
+                ]
+              }
+            ],
+            "clarifiers": [
+              {
+                "kind": "NumberLiteral",
+                "value": "1.0"
+              }
+            ],
+            "value": "0"
+          }
+        ]
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "clarifiers",
+        "accept"
+      ]
+    },
+    {
+      "id": "telex-type-generics-components-3",
+      "description": "Type-only generic descriptors retain datatype-component accounting",
+      "operation": "canonicalize",
+      "input": {
+        "limits": {
+          "max_datatype_components": 3
+        },
+        "telex": "telex.aes=1\n\npath=$.a\nkind=TupleLiteral\ndatatype=tuple<int, string>\n"
+      },
+      "expected": {
+        "ok": true,
+        "telex": "telex.aes=1\n\npath=$.a\nkind=TupleLiteral\ndatatype=tuple<int, string>\n"
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "limits",
+        "accept"
+      ]
+    },
+    {
+      "id": "telex-type-generics-components-2",
+      "description": "Type-only generic descriptors retain datatype-component accounting",
+      "operation": "canonicalize",
+      "input": {
+        "limits": {
+          "max_datatype_components": 2
+        },
+        "telex": "telex.aes=1\n\npath=$.a\nkind=TupleLiteral\ndatatype=tuple<int, string>\n"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "TELEX_DATATYPE_LIMIT",
+          "line": 5
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "limits",
+        "reject"
+      ]
+    }
+  ]
+}

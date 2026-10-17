@@ -17,11 +17,29 @@
     },
     {
       "id": "records-and-transcoding",
-      "file": "suites/02-records-and-transcoding.json"
+      "file": "suites/02-records-and-transcoding.json",
+      "exclude_tests": [
+        "film-record-026-all-assigned-kind-codes",
+        "film-record-005-complete-optional-fields"
+      ]
     },
     {
       "id": "resource-limits",
-      "file": "suites/03-resource-limits.json"
+      "file": "suites/03-resource-limits.json",
+      "exclude_tests": [
+        "film-limit-007-descriptor-bytes-at-limit",
+        "film-limit-008-descriptor-bytes-one-over",
+        "film-limit-013-generic-depth-at-limit",
+        "film-limit-014-generic-depth-one-over",
+        "film-limit-015-generic-arguments-at-limit",
+        "film-limit-016-generic-arguments-one-over",
+        "film-limit-017-clarifiers-at-limit",
+        "film-limit-018-clarifiers-one-over"
+      ]
+    },
+    {
+      "id": "next-film-type-only-generics",
+      "file": "suites/05-next-type-only-generics.json"
     }
   ]
 }

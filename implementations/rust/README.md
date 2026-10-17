@@ -3,10 +3,11 @@
 This crate independently implements the published v1 `telex.aes` parsing,
 canonicalization, and AES profile validation.
 
-Add the current release with:
+The prepared package line is 0.3.0; publication is a separate signed-tag
+workflow. After that release is published, add it with:
 
 ```bash
-cargo add altopelago-aes-telex@0.2.0
+cargo add altopelago-aes-telex@0.3.0
 ```
 
 The package name is `altopelago-aes-telex`; Rust code imports its library as
@@ -14,8 +15,16 @@ The package name is `altopelago-aes-telex`; Rust code imports its library as
 
 Its decoded records expose a base-name `datatype`, recursive ordered
 `generics`, and ordered tagged `clarifiers`. The codec combines those values
-into one compact Telex `datatype=` line; numeric argument payloads remain
-strings.
+into one compact Telex `datatype=` line. Generic arguments must be recursive
+datatype descriptors; numeric values belong in clarifiers and remain exact
+strings. `custom<1.0>` is invalid, while `list<custom[1.0]>` is valid.
+
+The prepared compatibility targets are AES events 0.2, Telex 0.2, and Film
+0.3 snapshots. Historical Film numeric-generic tag `02` can still appear in
+unvalidated physical views, but completed validation and validated writers
+reject it. `GenericArgument::NumberLiteral` and the structural descriptor
+renderer do not establish acceptance of a record. Film's existing physical
+generic-depth accounting is unchanged by this correction.
 `TelexLimits::default()` exposes the published AltoPelago Telex limits. The
 existing parse, encode, canonicalize, and validate functions use those defaults;
 their `*_with_limits` variants accept an already normalized `TelexLimits`

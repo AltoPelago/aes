@@ -31,7 +31,11 @@ test('Telex conformance manifest has resolvable suites and unique vector IDs', (
   } else {
     assert.equal(manifest.meta.status, 'released');
     assert.match(manifest.meta.snapshot_id, /^telex-cts-v1-snapshot-\d+\.\d+$/u);
-    assert.match(manifest.meta.spec_snapshot_id, /^telex-specs-v1-snapshot-\d+\.\d+$/u);
+    if (manifest.meta.spec_snapshot_id !== undefined) {
+      assert.match(manifest.meta.spec_snapshot_id, /^telex-specs-v1-snapshot-\d+\.\d+$/u);
+    } else {
+      assert.match(manifest.meta.specification_revision, /^[0-9a-f]{40}$/u);
+    }
   }
   assert.notEqual(portableContract, undefined);
   assert.equal(manifest.meta.event_contract, portableContract);
@@ -43,7 +47,7 @@ test('Telex conformance manifest has resolvable suites and unique vector IDs', (
     assert.equal(suite.id, suiteRef.id);
     assert.equal(suite.meta.event_contract, manifest.meta.event_contract);
     assert.ok(Array.isArray(suite.tests));
-    for (const vector of suite.tests) {
+    for (const vector of selectedVectors(suiteRef, suite)) {
       assert.equal(typeof vector.id, 'string');
       assert.equal(seenIds.has(vector.id), false, `duplicate vector id: ${vector.id}`);
       seenIds.add(vector.id);
@@ -90,7 +94,7 @@ test('portable AES vocabulary matches the reference validator', () => {
 
 for (const suiteRef of manifest.suites) {
   const suite = readJson(new URL(suiteRef.file, manifestUrl));
-  for (const vector of suite.tests) {
+  for (const vector of selectedVectors(suiteRef, suite)) {
     test(vector.id, () => runVector(vector));
   }
 }
@@ -106,6 +110,11 @@ function runVector(vector) {
     return runValidateVector(vector);
   }
   assert.fail(`unsupported conformance operation: ${vector.operation}`);
+}
+
+function selectedVectors(suiteRef, suite) {
+  const excluded = new Set(suiteRef.exclude_tests ?? []);
+  return suite.tests.filter((vector) => !excluded.has(vector.id));
 }
 
 function runParseVector(vector) {

@@ -264,13 +264,13 @@ canonical AEON datatype-descriptor syntax without the leading `:`:
 datatype=csv["."]
 datatype=list<int>
 datatype=null<string>
-datatype=tuple<tuple<int, 2>[16], string>["x", "x"]
+datatype=tuple<tuple<int, custom[2]>[16], string>["x", "x"]
 ```
 
 A decoder expands each such line into a base-name string and the two ordered
 arrays defined by `aes.events.v1`. A datatype argument becomes a recursive
-descriptor, a numeric generic argument becomes a tagged `NumberLiteral`, and a
-clarifier becomes a tagged `StringLiteral` or `NumberLiteral`. Numeric payloads
+descriptor. Literal generic arguments are invalid, including inside nested
+descriptors. A clarifier becomes a tagged `StringLiteral` or `NumberLiteral`. Numeric payloads
 remain strings. An encoder performs the inverse mapping. `generics` and
 `clarifiers` are therefore logical AES fields, not separate Telex lines; using
 either as a physical field name fails with `TELEX_INVALID_DATATYPE`.

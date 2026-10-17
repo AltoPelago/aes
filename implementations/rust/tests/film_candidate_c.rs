@@ -137,10 +137,20 @@ fn compact_side_tables_preserve_every_record_field() {
         generics: vec![
             GenericArgument::Datatype(DatatypeDescriptor {
                 datatype: "list".to_owned(),
-                generics: vec![GenericArgument::NumberLiteral("4".to_owned())],
-                clarifiers: Vec::new(),
+                generics: Vec::new(),
+                clarifiers: vec![DatatypeClarifier {
+                    kind: ClarifierKind::NumberLiteral,
+                    value: "4".to_owned(),
+                }],
             }),
-            GenericArgument::NumberLiteral("8".to_owned()),
+            GenericArgument::Datatype(DatatypeDescriptor {
+                datatype: "shape".to_owned(),
+                generics: Vec::new(),
+                clarifiers: vec![DatatypeClarifier {
+                    kind: ClarifierKind::NumberLiteral,
+                    value: "8".to_owned(),
+                }],
+            }),
         ],
         clarifiers: vec![DatatypeClarifier {
             kind: ClarifierKind::StringLiteral,

@@ -171,7 +171,7 @@ test('deterministic arbitrary-byte fuzzing produces only accepted streams or Fil
 });
 
 test('deterministic truncation and bit-flip fuzzing covers nested descriptor boundaries', () => {
-  const fixture = fixtures.find(({ id }) => id === 'film-record-005-complete-optional-fields');
+  const fixture = fixtures.find(({ id }) => id === 'film-type-generics-005-complete-optional-fields');
   assert.notEqual(fixture, undefined);
   const canonical = fromHex(fixture.hex);
   const random = xorshift32(0x44_54_59_50);
@@ -195,7 +195,8 @@ function positiveFilmFixtures() {
   const manifest = readJson(manifestUrl);
   for (const suiteRef of manifest.suites) {
     const suite = readJson(new URL(suiteRef.file, manifestUrl));
-    for (const vector of suite.tests) {
+    const excluded = new Set(suiteRef.exclude_tests ?? []);
+    for (const vector of suite.tests.filter((vector) => !excluded.has(vector.id))) {
       const hex = vector.operation === 'decode' && vector.expected.ok === true
         ? vector.input.film_hex
         : vector.expected.film_hex;

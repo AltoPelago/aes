@@ -1,0 +1,999 @@
+{
+  "meta": {
+    "suite_id": "next-film-type-only-generics",
+    "lane": "aes-film",
+    "event_contract": "aes.events.v1",
+    "format_version": "1",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/film.aes.md#7-datatype-descriptors"
+    ]
+  },
+  "id": "next-film-type-only-generics",
+  "title": "Film Type-only Generics",
+  "tests": [
+    {
+      "id": "film-type-generics-001-legacy-number-tag",
+      "description": "Historical numeric generic framing cannot produce an accepted logical AES record",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76316b1e020a242e6974656d735b305d19046c69737402000603696e7400000201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "logical-aes",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-002-nested-clarifiers",
+      "description": "Generic tag 00 and numeric clarifier tag 02 retain their existing values",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010034020203242e612b06637573746f6d01001b06637573746f6d0001021039303037313939323534373430393933010203312e300130"
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010034020203242e612b06637573746f6d01001b06637573746f6d0001021039303037313939323534373430393933010203312e300130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [
+                {
+                  "datatype": "custom",
+                  "generics": [],
+                  "clarifiers": [
+                    {
+                      "kind": "NumberLiteral",
+                      "value": "9007199254740993"
+                    }
+                  ]
+                }
+              ],
+              "clarifiers": [
+                {
+                  "kind": "NumberLiteral",
+                  "value": "1.0"
+                }
+              ],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "clarifiers",
+        "accept"
+      ]
+    },
+    {
+      "id": "film-type-generics-003-encode-clarifiers",
+      "description": "A type-only descriptor encodes without changing numeric clarifier tags",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [
+                {
+                  "datatype": "custom",
+                  "generics": [],
+                  "clarifiers": [
+                    {
+                      "kind": "NumberLiteral",
+                      "value": "9007199254740993"
+                    }
+                  ]
+                }
+              ],
+              "clarifiers": [
+                {
+                  "kind": "NumberLiteral",
+                  "value": "1.0"
+                }
+              ],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff010034020203242e612b06637573746f6d01001b06637573746f6d0001021039303037313939323534373430393933010203312e300130"
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "clarifiers",
+        "accept"
+      ]
+    },
+    {
+      "id": "film-type-generics-004-transcode-clarifiers",
+      "description": "Telex and Film retain exactly the same nested numeric clarifier strings",
+      "operation": "transcode",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<custom[9007199254740993]>[1.0]\nvalue=0\n"
+      },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff010034020203242e612b06637573746f6d01001b06637573746f6d0001021039303037313939323534373430393933010203312e300130",
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=custom<custom[9007199254740993]>[1.0]\nvalue=0\n"
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "clarifiers",
+        "transcode"
+      ]
+    },
+    {
+      "id": "film-type-generics-encode-1-reject",
+      "description": "A Film encoder must reject invalid logical generic components before producing bytes",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [
+                {
+                  "kind": "NumberLiteral",
+                  "value": "1"
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-encode-2-reject",
+      "description": "A Film encoder must reject invalid logical generic components before producing bytes",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [
+                {
+                  "kind": "NumberLiteral",
+                  "value": "1.0"
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-encode-3-reject",
+      "description": "A Film encoder must reject invalid logical generic components before producing bytes",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [
+                {
+                  "kind": "NumberLiteral",
+                  "value": "-1"
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-encode-4-reject",
+      "description": "A Film encoder must reject invalid logical generic components before producing bytes",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [
+                {
+                  "kind": "NumberLiteral",
+                  "value": ".5"
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-encode-5-reject",
+      "description": "A Film encoder must reject invalid logical generic components before producing bytes",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [
+                {
+                  "kind": "NumberLiteral",
+                  "value": "1e3"
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-encode-6-reject",
+      "description": "A Film encoder must reject invalid logical generic components before producing bytes",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [
+                {
+                  "kind": "NumberLiteral",
+                  "value": "9007199254740993"
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-encode-7-reject",
+      "description": "A Film encoder must reject invalid logical generic components before producing bytes",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [
+                {
+                  "datatype": "custom",
+                  "generics": [
+                    {
+                      "kind": "NumberLiteral",
+                      "value": "2"
+                    }
+                  ],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-encode-8-reject",
+      "description": "A Film encoder must reject invalid logical generic components before producing bytes",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [
+                {
+                  "datatype": "int",
+                  "generics": [],
+                  "clarifiers": []
+                },
+                {
+                  "kind": "NumberLiteral",
+                  "value": "2"
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-005-complete-optional-fields",
+      "description": "Every optional record field survives with recursive type-only generics and exact numeric clarifiers",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "stream": {
+          "profile": "aes.partial.v1",
+          "profile_explicit": true,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.items[0]",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "int",
+                  "generics": [],
+                  "clarifiers": []
+                },
+                {
+                  "datatype": "custom",
+                  "generics": [],
+                  "clarifiers": [
+                    {
+                      "kind": "NumberLiteral",
+                      "value": "3"
+                    }
+                  ]
+                }
+              ],
+              "clarifiers": [
+                {
+                  "kind": "StringLiteral",
+                  "value": "."
+                },
+                {
+                  "kind": "NumberLiteral",
+                  "value": "10"
+                }
+              ],
+              "identity": "binding-0",
+              "value": "42",
+              "origin": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+              "span": "10:20",
+              "x.example.note": "café"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "record",
+        "datatype",
+        "identity",
+        "origin",
+        "span",
+        "extension",
+        "experimental",
+        "type-only-generics"
+      ]
+    },
+    {
+      "id": "film-type-generics-limit-007-descriptor-bytes-at-limit",
+      "description": "The complete type-only descriptor body may equal max_field_bytes",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_field_bytes": 36,
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9"
+      },
+      "tags": [
+        "limits",
+        "max-field-bytes",
+        "datatype",
+        "boundary",
+        "experimental",
+        "type-only-generics"
+      ]
+    },
+    {
+      "id": "film-type-generics-limit-008-descriptor-bytes-one-over",
+      "description": "The type-only descriptor body one over max_field_bytes fails before descent",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_field_bytes": 35,
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_LIMIT_EXCEEDED"
+        }
+      },
+      "tags": [
+        "limits",
+        "max-field-bytes",
+        "datatype",
+        "failure",
+        "experimental",
+        "type-only-generics"
+      ]
+    },
+    {
+      "id": "film-type-generics-limit-013-generic-depth-at-limit",
+      "description": "One nested datatype generic may equal max_generic_depth one (type-only descriptor)",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_generic_depth": 1,
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9"
+      },
+      "tags": [
+        "limits",
+        "max-generic-depth",
+        "shared-aes",
+        "boundary",
+        "experimental",
+        "type-only-generics"
+      ]
+    },
+    {
+      "id": "film-type-generics-limit-014-generic-depth-one-over",
+      "description": "Shared AES generic-depth exhaustion is not a Film format limit (type-only descriptor)",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_generic_depth": 0,
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "limits",
+        "max-generic-depth",
+        "shared-aes",
+        "failure",
+        "experimental",
+        "type-only-generics"
+      ]
+    },
+    {
+      "id": "film-type-generics-limit-015-generic-arguments-at-limit",
+      "description": "Two datatype generics may equal max_generic_arguments (type-only descriptor)",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9"
+      },
+      "tags": [
+        "limits",
+        "max-generic-arguments",
+        "shared-aes",
+        "boundary",
+        "experimental",
+        "type-only-generics"
+      ]
+    },
+    {
+      "id": "film-type-generics-limit-016-generic-arguments-one-over",
+      "description": "Shared AES generic-argument exhaustion retains the AES diagnostic (type-only descriptor)",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_generic_arguments": 1,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "limits",
+        "max-generic-arguments",
+        "shared-aes",
+        "failure",
+        "experimental",
+        "type-only-generics"
+      ]
+    },
+    {
+      "id": "film-type-generics-limit-017-clarifiers-at-limit",
+      "description": "Two datatype clarifiers may equal max_clarifier_values (type-only descriptor)",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9"
+      },
+      "tags": [
+        "limits",
+        "max-clarifier-values",
+        "shared-aes",
+        "boundary",
+        "experimental",
+        "type-only-generics"
+      ]
+    },
+    {
+      "id": "film-type-generics-limit-018-clarifiers-one-over",
+      "description": "Shared AES clarifier exhaustion retains the AES diagnostic (type-only descriptor)",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 1
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "limits",
+        "max-clarifier-values",
+        "shared-aes",
+        "failure",
+        "experimental",
+        "type-only-generics"
+      ]
+    },
+    {
+      "id": "film-type-generics-decode-1-reject",
+      "description": "Numeric generic payloads fail logical AES validation independently of their spelling",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010015020203242e610c06637573746f6d01020131000130"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "logical-aes",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-decode-2-reject",
+      "description": "Numeric generic payloads fail logical AES validation independently of their spelling",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010017020203242e610e06637573746f6d010203312e30000130"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "logical-aes",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-decode-3-reject",
+      "description": "Numeric generic payloads fail logical AES validation independently of their spelling",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010016020203242e610d06637573746f6d0102022d31000130"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "logical-aes",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-decode-4-reject",
+      "description": "Numeric generic payloads fail logical AES validation independently of their spelling",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010016020203242e610d06637573746f6d0102022e35000130"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "logical-aes",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-decode-5-reject",
+      "description": "Numeric generic payloads fail logical AES validation independently of their spelling",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010017020203242e610e06637573746f6d010203316533000130"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "logical-aes",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-decode-6-reject",
+      "description": "Numeric generic payloads fail logical AES validation independently of their spelling",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010024020203242e611b06637573746f6d01021039303037313939323534373430393933000130"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "logical-aes",
+        "reject"
+      ]
+    },
+    {
+      "id": "film-type-generics-decode-nested-reject",
+      "description": "A valid recursive wrapper does not permit numeric generics inside it",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010022020203242e611906637573746f6d01000e06637573746f6d010203312e3000000130"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "nested",
+        "reject"
+      ]
+    }
+  ]
+}

@@ -12,7 +12,10 @@
   "suites": [
     {
       "id": "syntax-and-canonicalization",
-      "file": "suites/01-syntax-and-canonicalization.json"
+      "file": "suites/01-syntax-and-canonicalization.json",
+      "exclude_tests": [
+        "telex-syntax-024-expanded-datatype"
+      ]
     },
     {
       "id": "event-and-profile-validation",
@@ -20,7 +23,15 @@
     },
     {
       "id": "resource-limits",
-      "file": "suites/03-resource-limits.json"
+      "file": "suites/03-resource-limits.json",
+      "exclude_tests": [
+        "telex-limit-021-datatype-components-at-limit",
+        "telex-limit-022-datatype-components-one-over"
+      ]
+    },
+    {
+      "id": "next-telex-type-only-generics",
+      "file": "suites/03-next-type-only-generics.json"
     }
   ]
 }

@@ -1,0 +1,376 @@
+{
+  "meta": {
+    "suite_id": "next-aes-events-type-only-generics",
+    "lane": "aes-events",
+    "event_contract": "aes.events.v1",
+    "sut_protocol": "cts.protocol.v1",
+    "spec_refs": [
+      "specifications/aes.events.md#4-datatypes-and-values"
+    ]
+  },
+  "id": "next-aes-events-type-only-generics",
+  "title": "Logical AES Type-only Generics",
+  "tests": [
+    {
+      "id": "aes-events-type-generics-001-reject",
+      "description": "Logical AES generic arrays contain only type descriptors",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "kind": "NumberLiteral",
+                "value": "1"
+              }
+            ],
+            "clarifiers": [],
+            "value": "0"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_DATATYPE"
+        ]
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "aes-events-type-generics-002-reject",
+      "description": "Logical AES generic arrays contain only type descriptors",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "kind": "NumberLiteral",
+                "value": "1.0"
+              }
+            ],
+            "clarifiers": [],
+            "value": "0"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_DATATYPE"
+        ]
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "aes-events-type-generics-003-reject",
+      "description": "Logical AES generic arrays contain only type descriptors",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "kind": "NumberLiteral",
+                "value": "-1"
+              }
+            ],
+            "clarifiers": [],
+            "value": "0"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_DATATYPE"
+        ]
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "aes-events-type-generics-004-reject",
+      "description": "Logical AES generic arrays contain only type descriptors",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "kind": "NumberLiteral",
+                "value": ".5"
+              }
+            ],
+            "clarifiers": [],
+            "value": "0"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_DATATYPE"
+        ]
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "aes-events-type-generics-005-reject",
+      "description": "Logical AES generic arrays contain only type descriptors",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "kind": "NumberLiteral",
+                "value": "1e3"
+              }
+            ],
+            "clarifiers": [],
+            "value": "0"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_DATATYPE"
+        ]
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "aes-events-type-generics-006-reject",
+      "description": "Logical AES generic arrays contain only type descriptors",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "kind": "NumberLiteral",
+                "value": "9007199254740993"
+              }
+            ],
+            "clarifiers": [],
+            "value": "0"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_DATATYPE"
+        ]
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "aes-events-type-generics-007-reject",
+      "description": "Logical AES generic arrays contain only type descriptors",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "kind": "StringLiteral",
+                "value": "int"
+              }
+            ],
+            "clarifiers": [],
+            "value": "0"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_DATATYPE"
+        ]
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "aes-events-type-generics-008-reject",
+      "description": "Logical AES generic arrays contain only type descriptors",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "datatype": "custom",
+                "generics": [
+                  {
+                    "kind": "NumberLiteral",
+                    "value": "2"
+                  }
+                ],
+                "clarifiers": []
+              }
+            ],
+            "clarifiers": [],
+            "value": "0"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_DATATYPE"
+        ]
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "aes-events-type-generics-009-reject",
+      "description": "Logical AES generic arrays contain only type descriptors",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "datatype": "int",
+                "generics": [],
+                "clarifiers": []
+              },
+              {
+                "kind": "NumberLiteral",
+                "value": "2"
+              }
+            ],
+            "clarifiers": [],
+            "value": "0"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": [
+          "AES_INVALID_DATATYPE"
+        ]
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "reject"
+      ]
+    },
+    {
+      "id": "aes-events-type-generics-010-clarifiers",
+      "description": "Nested numeric clarifiers remain tagged exact strings",
+      "operation": "validate",
+      "input": {
+        "records": [
+          {
+            "path": "$.a",
+            "kind": "NumberLiteral",
+            "datatype": "custom",
+            "generics": [
+              {
+                "datatype": "custom",
+                "generics": [],
+                "clarifiers": [
+                  {
+                    "kind": "NumberLiteral",
+                    "value": "9007199254740993"
+                  }
+                ]
+              }
+            ],
+            "clarifiers": [
+              {
+                "kind": "NumberLiteral",
+                "value": "1.0"
+              }
+            ],
+            "value": "0"
+          }
+        ]
+      },
+      "expected": {
+        "valid": true,
+        "profile": "aes.complete.v1",
+        "diagnostic_codes": []
+      },
+      "tags": [
+        "experimental",
+        "generics",
+        "clarifiers",
+        "accept"
+      ]
+    }
+  ]
+}

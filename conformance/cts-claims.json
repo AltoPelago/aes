@@ -10,19 +10,19 @@
       "claims": [
         {
           "surface": "aes-events",
-          "snapshot_id": "aes-events-cts-v1-snapshot-0.1",
+          "snapshot_id": "aes-events-cts-v1-snapshot-0.2",
           "status": "claimed",
           "command": "npm run test:conformance:shared"
         },
         {
           "surface": "telex",
-          "snapshot_id": "telex-cts-v1-snapshot-0.1",
+          "snapshot_id": "telex-cts-v1-snapshot-0.2",
           "status": "claimed",
           "command": "npm run test:conformance:shared"
         },
         {
           "surface": "film-reader",
-          "snapshot_id": "film-cts-v1-snapshot-0.2",
+          "snapshot_id": "film-cts-v1-snapshot-0.3",
           "operations": ["decode"],
           "status": "claimed",
           "command": "npm run test:conformance:shared"
@@ -31,23 +31,23 @@
     },
     {
       "implementation": "aes-telex-rust-reference",
-      "implementation_version": "0.2.0",
+      "implementation_version": "0.3.0",
       "claims": [
         {
           "surface": "aes-events",
-          "snapshot_id": "aes-events-cts-v1-snapshot-0.1",
+          "snapshot_id": "aes-events-cts-v1-snapshot-0.2",
           "status": "claimed",
           "command": "npm run test:conformance:rust:shared"
         },
         {
           "surface": "telex",
-          "snapshot_id": "telex-cts-v1-snapshot-0.1",
+          "snapshot_id": "telex-cts-v1-snapshot-0.2",
           "status": "claimed",
           "command": "npm run test:conformance:rust:shared"
         },
         {
           "surface": "film",
-          "snapshot_id": "film-cts-v1-snapshot-0.2",
+          "snapshot_id": "film-cts-v1-snapshot-0.3",
           "operations": ["decode", "encode", "transcode"],
           "status": "claimed",
           "command": "npm run test:conformance:rust:shared"

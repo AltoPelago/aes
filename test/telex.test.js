@@ -213,7 +213,7 @@ test('expands and recombines datatype metadata at the Telex boundary', () => {
         datatype: 'tuple',
         generics: [
           { datatype: 'int', generics: [], clarifiers: [] },
-          { kind: 'NumberLiteral', value: '9007199254740993' },
+          { datatype: 'custom', generics: [], clarifiers: [{ kind: 'NumberLiteral', value: '9007199254740993' }] },
         ],
         clarifiers: [{ kind: 'NumberLiteral', value: '16' }],
       }],
@@ -222,19 +222,19 @@ test('expands and recombines datatype metadata at the Telex boundary', () => {
   ];
   const encoded = encodeTelex(records);
   assert.match(encoded, /datatype=csv\["\."\]/u);
-  assert.match(encoded, /datatype=list<tuple<int, 9007199254740993>\[16\]>/u);
+  assert.ok(encoded.includes('datatype=list<tuple<int, custom[9007199254740993]>[16]>'));
   assert.deepEqual(parseTelex(encoded).records, records);
 });
 
 test('datatype descriptor helpers preserve ordered duplicate clarifiers', () => {
   const limits = { maxClarifierValues: 3 };
-  const descriptor = parseDatatypeDescriptor('grid<tuple<int, 2>>["x", "x", 16]', limits);
+  const descriptor = parseDatatypeDescriptor('grid<tuple<int, custom[2]>>["x", "x", 16]', limits);
   assert.deepEqual(descriptor.clarifiers, [
     { kind: 'StringLiteral', value: 'x' },
     { kind: 'StringLiteral', value: 'x' },
     { kind: 'NumberLiteral', value: '16' },
   ]);
-  assert.equal(formatDatatypeDescriptor(descriptor, limits), 'grid<tuple<int, 2>>["x", "x", 16]');
+  assert.equal(formatDatatypeDescriptor(descriptor, limits), 'grid<tuple<int, custom[2]>>["x", "x", 16]');
 });
 
 test('bounds recursive datatype decoding', () => {

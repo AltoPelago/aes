@@ -16,7 +16,11 @@ test('selected portable AES event vectors are internally consistent', () => {
   assert.equal(manifest.meta.lane, 'aes-events');
   if (released) {
     assert.match(manifest.meta.snapshot_id, /^aes-events-cts-v1-snapshot-\d+\.\d+$/u);
-    assert.match(manifest.meta.spec_snapshot_id, /^aes-events-specs-v1-snapshot-\d+\.\d+$/u);
+    if (manifest.meta.spec_snapshot_id !== undefined) {
+      assert.match(manifest.meta.spec_snapshot_id, /^aes-events-specs-v1-snapshot-\d+\.\d+$/u);
+    } else {
+      assert.match(manifest.meta.specification_revision, /^[0-9a-f]{40}$/u);
+    }
   } else {
     assert.equal(manifest.meta.status, 'draft');
     assert.match(manifest.meta.version, /-dev$/u);
@@ -42,7 +46,7 @@ for (const suiteRef of manifest.suites) {
 }
 
 test('selected portable AES event set has the expected vector count', () => {
-  assert.equal(vectorCount, released ? 38 : 39);
+  assert.equal(vectorCount, released ? (manifest.meta.version === '0.2.0' ? 48 : 38) : 49);
 });
 
 function runVector(vector) {

@@ -6,6 +6,30 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
 
 ## Unreleased
 
+### Breaking
+
+- Prepare `altopelago-aes-telex` 0.3.0 for type-only generic arguments. AES
+  validators, Telex parsers and writers, and validated Film readers/writers
+  reject literal generics, including nested occurrences. Put numeric
+  parameters in clarifiers, for example `custom[2]` instead of a bare `2`.
+  Exact numeric clarifier strings are unchanged.
+- Adopt `aes-events-cts-v1-snapshot-0.2`, `telex-cts-v1-snapshot-0.2`, and
+  `film-cts-v1-snapshot-0.3`. Historical CTS snapshots retain their old
+  expectations; these sources no longer claim the superseded Telex/Film
+  targets. The wire versions, Film tags, and assigned kind codes are unchanged.
+
+### Compatibility
+
+- Historical Film generic tag `02` remains recognizable during provisional
+  physical decoding, but never represents a valid completed AES record.
+  Rust retains `GenericArgument::NumberLiteral` for that unvalidated data;
+  validated encoders reject it before emitting bytes. The structural Rust
+  descriptor renderer is not an acceptance or validation API.
+- This preparation does not publish a crate or enable durable Film writers.
+  Downstream Rust users must adopt the 0.3 dependency before building against
+  this source checkout. The existing Film physical/logical generic-depth
+  discrepancy is unchanged and requires a separate review.
+
 ## 0.2.0 - 2026-10-02
 
 ### Added

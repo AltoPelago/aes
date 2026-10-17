@@ -19,15 +19,15 @@ if (!['javascript', 'rust'].includes(mode)) {
 
 const telexManifest = resolve(
   ctsRoot,
-  'telex/v1/telex-cts.v1.snapshot-0.1.json',
+  'telex/v1/telex-cts.v1.snapshot-0.2.json',
 );
 const aesEventsManifest = resolve(
   ctsRoot,
-  'aes/v1/aes-events-cts.v1.snapshot-0.1.json',
+  'aes/v1/aes-events-cts.v1.snapshot-0.2.json',
 );
 const filmManifest = resolve(
   ctsRoot,
-  'film/v1/film-cts.v1.snapshot-0.2.json',
+  'film/v1/film-cts.v1.snapshot-0.3.json',
 );
 
 for (const manifest of [telexManifest, aesEventsManifest, filmManifest]) {
