@@ -161,6 +161,18 @@ the number of nested generic arguments that themselves contain generics:
 as processing policy. Exceeding it rejects the record; it never truncates the
 generic tree.
 
+More precisely, assign nesting level `0` to the outer descriptor and add `1`
+when entering a datatype argument. A descriptor contributes its level to the
+generic-depth observation only when its own `generics` array is nonempty. The
+observation is the maximum contribution over the tree, or `0` when there are
+none. A leaf descriptor does not contribute an extra level merely because it
+is an argument. Sibling arguments take the maximum, not a sum. Clarifier arrays
+do not add generic depth, including clarifiers on a leaf argument such as
+`list<custom[2]>`. Their own count and datatype-component limits still apply.
+
+This measurement is shared by logical record validation, Telex and Film;
+it is not an encoding-specific recursion or byte-length counter.
+
 Generic depth is an event-local resource counter, not a completeness rule or a
 semantic-profile setting. This contract defines how it is measured but does
 not prescribe a numeric consumer limit. A profile mentioned by a limits file

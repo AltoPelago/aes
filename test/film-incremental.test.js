@@ -73,6 +73,48 @@ test('incremental decoding accepts every positive fixture one byte at a time', (
   }
 });
 
+test('logical-depth regressions fail closed at every incremental split', () => {
+  const suite = readJson(new URL('../conformance/film/v1/suites/06-next-logical-generic-depth.json', import.meta.url));
+  let divisions = 0;
+  for (const vector of suite.tests.filter(({ operation, expected }) => operation === 'decode' && !expected.ok)) {
+    const bytes = fromHex(vector.input.film_hex);
+    const options = vectorOptions(vector);
+    for (let split = 0; split <= bytes.byteLength; split += 1) {
+      assert.throws(() => {
+        const decoder = new IncrementalFilmDecoder(options);
+        decoder.push(bytes.subarray(0, split));
+        decoder.push(bytes.subarray(split), { final: true });
+      }, (error) => error instanceof FilmDecodeError
+        && error.code === vector.expected.error.code
+        && (vector.expected.error.diagnostic_codes === undefined
+          || JSON.stringify(error.diagnostics.map(({ code }) => code))
+            === JSON.stringify(vector.expected.error.diagnostic_codes)), `${vector.id}, split=${split}`);
+      divisions += 1;
+    }
+  }
+  assert.ok(divisions > 300);
+});
+
+test('logical-depth errors report the first generic-bearing level, not a leaf frame', () => {
+  const suite = readJson(new URL('../conformance/film/v1/suites/06-next-logical-generic-depth.json', import.meta.url));
+  for (const [id, counter, observed, limit] of [
+    ['film-depth-007-nested-over-zero', 'max_generic_depth', 1, 0],
+    ['film-depth-009-deep-over-one', 'max_generic_depth', 2, 1],
+    ['film-depth-013-deeper-over-two', 'max_generic_depth', 3, 2],
+    ['film-depth-015-components-over-limit', 'max_datatype_components', 2, 1],
+    ['film-depth-017-clarifier-over-limit', 'max_clarifier_values', 1, 0],
+  ]) {
+    const vector = suite.tests.find((entry) => entry.id === id);
+    assert.ok(vector, id);
+    assert.throws(() => decodeFilm(fromHex(vector.input.film_hex), vectorOptions(vector)), (error) => {
+      assert.ok(error instanceof FilmDecodeError, id);
+      assert.deepEqual(error.diagnostics.map(({ counter, observed, limit }) => ({ counter, observed, limit })),
+        [{ counter, observed, limit }], id);
+      return true;
+    });
+  }
+});
+
 test('reports provisional records but withholds completed-stream acceptance', () => {
   const bytes = fromHex('4f5f5fff01000f00010a6e6f742d612d706174680178');
   const decoder = new IncrementalFilmDecoder();

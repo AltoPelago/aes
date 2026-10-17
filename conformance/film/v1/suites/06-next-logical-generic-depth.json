@@ -1,0 +1,1428 @@
+{
+  "meta": {
+    "suite_id": "next-film-logical-generic-depth",
+    "lane": "aes-film",
+    "event_contract": "aes.events.v1",
+    "format_version": "1",
+    "sut_protocol": "cts.protocol.v1",
+    "specification_revision": "242daa4214237cdc70d512b593c126615ab0556b",
+    "spec_refs": [
+      "specifications/film.aes.md#7-datatype-descriptors",
+      "specifications/film.aes.md#13-resource-limits"
+    ]
+  },
+  "id": "next-film-logical-generic-depth",
+  "title": "Film Logical Generic Depth",
+  "tests": [
+    {
+      "id": "film-depth-001-scalar-zero",
+      "description": "A scalar descriptor has logical depth zero",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01000f020203242e610603696e7400000130",
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01000f020203242e610603696e7400000130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "int",
+              "generics": [],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-002-leaf-generic-zero",
+      "description": "A leaf generic argument does not consume a logical depth level",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010018020203242e610f046c69737401000603696e740000000130",
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010018020203242e610f046c69737401000603696e740000000130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "int",
+                  "generics": [],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-003-leaf-clarifier-zero",
+      "description": "Exact numeric clarifiers on a leaf do not consume generic depth",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01002d020203242e6124046c69737401001b06637573746f6d0001021039303037313939323534373430393933000130",
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01002d020203242e6124046c69737401001b06637573746f6d0001021039303037313939323534373430393933000130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "custom",
+                  "generics": [],
+                  "clarifiers": [
+                    {
+                      "kind": "NumberLiteral",
+                      "value": "9007199254740993"
+                    }
+                  ]
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-004-root-clarifier-zero",
+      "description": "Root clarifiers do not consume generic depth",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010017020203242e610e06637573746f6d00010203312e300130",
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010017020203242e610e06637573746f6d00010203312e300130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "custom",
+              "generics": [],
+              "clarifiers": [
+                {
+                  "kind": "NumberLiteral",
+                  "value": "1.0"
+                }
+              ],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-005-sibling-leaves-zero",
+      "description": "Sibling leaf descriptors do not sum to a generic depth",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010027020203242e611e057475706c6502000603696e740000000c06637573746f6d0001010178000130",
+        "limits": {
+          "max_generic_depth": 0,
+          "max_generic_arguments": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010027020203242e611e057475706c6502000603696e740000000c06637573746f6d0001010178000130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "tuple",
+              "generics": [
+                {
+                  "datatype": "int",
+                  "generics": [],
+                  "clarifiers": []
+                },
+                {
+                  "datatype": "custom",
+                  "generics": [],
+                  "clarifiers": [
+                    {
+                      "kind": "StringLiteral",
+                      "value": "x"
+                    }
+                  ]
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-006-nested-at-one",
+      "description": "A generic-bearing child fits logical depth one",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010021020203242e6118046c69737401000f046c69737401000603696e74000000000130",
+        "limits": {
+          "max_generic_depth": 1
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010021020203242e6118046c69737401000f046c69737401000603696e74000000000130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "list",
+                  "generics": [
+                    {
+                      "datatype": "int",
+                      "generics": [],
+                      "clarifiers": []
+                    }
+                  ],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-007-nested-over-zero",
+      "description": "A generic-bearing child exceeds logical depth zero",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010021020203242e6118046c69737401000f046c69737401000603696e74000000000130",
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-008-deep-at-two",
+      "description": "Two nested generic-bearing levels fit logical depth two",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01002a020203242e6121046c697374010018046c69737401000f046c69737401000603696e7400000000000130",
+        "limits": {
+          "max_generic_depth": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01002a020203242e6121046c697374010018046c69737401000f046c69737401000603696e7400000000000130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "list",
+                  "generics": [
+                    {
+                      "datatype": "list",
+                      "generics": [
+                        {
+                          "datatype": "int",
+                          "generics": [],
+                          "clarifiers": []
+                        }
+                      ],
+                      "clarifiers": []
+                    }
+                  ],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-009-deep-over-one",
+      "description": "Logical depth two exceeds maximum one",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01002a020203242e6121046c697374010018046c69737401000f046c69737401000603696e7400000000000130",
+        "limits": {
+          "max_generic_depth": 1
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-010-branch-max-one",
+      "description": "Branch depth is the maximum rather than the sum",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010039020203242e6130057475706c6502000f046c69737401000603696e740000000015046c69737401000c06637573746f6d000102013300000130",
+        "limits": {
+          "max_generic_depth": 1,
+          "max_generic_arguments": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010039020203242e6130057475706c6502000f046c69737401000603696e740000000015046c69737401000c06637573746f6d000102013300000130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "tuple",
+              "generics": [
+                {
+                  "datatype": "list",
+                  "generics": [
+                    {
+                      "datatype": "int",
+                      "generics": [],
+                      "clarifiers": []
+                    }
+                  ],
+                  "clarifiers": []
+                },
+                {
+                  "datatype": "list",
+                  "generics": [
+                    {
+                      "datatype": "custom",
+                      "generics": [],
+                      "clarifiers": [
+                        {
+                          "kind": "NumberLiteral",
+                          "value": "3"
+                        }
+                      ]
+                    }
+                  ],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-011-branch-over-zero",
+      "description": "An over-limit branch cannot hide behind a shallower sibling",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010039020203242e6130057475706c6502000f046c69737401000603696e740000000015046c69737401000c06637573746f6d000102013300000130",
+        "limits": {
+          "max_generic_depth": 0,
+          "max_generic_arguments": 2
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-012-deeper-at-three",
+      "description": "Explicit depth three accepts four physical generic frames",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010033020203242e612a046c697374010021046c697374010018046c69737401000f046c69737401000603696e740000000000000130",
+        "limits": {
+          "max_generic_depth": 3
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010033020203242e612a046c697374010021046c697374010018046c69737401000f046c69737401000603696e740000000000000130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "list",
+                  "generics": [
+                    {
+                      "datatype": "list",
+                      "generics": [
+                        {
+                          "datatype": "list",
+                          "generics": [
+                            {
+                              "datatype": "int",
+                              "generics": [],
+                              "clarifiers": []
+                            }
+                          ],
+                          "clarifiers": []
+                        }
+                      ],
+                      "clarifiers": []
+                    }
+                  ],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-013-deeper-over-two",
+      "description": "A higher selected maximum remains inclusive",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010033020203242e612a046c697374010021046c697374010018046c69737401000f046c69737401000603696e740000000000000130",
+        "limits": {
+          "max_generic_depth": 2
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-014-components-at-limit",
+      "description": "Leaf descriptors still count toward datatype components",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010018020203242e610f046c69737401000603696e740000000130",
+        "limits": {
+          "max_generic_depth": 0,
+          "max_datatype_components": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff010018020203242e610f046c69737401000603696e740000000130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "int",
+                  "generics": [],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-015-components-over-limit",
+      "description": "Depth-zero acceptance does not bypass datatype components",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010018020203242e610f046c69737401000603696e740000000130",
+        "limits": {
+          "max_generic_depth": 0,
+          "max_datatype_components": 1
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-016-clarifier-at-limit",
+      "description": "A leaf numeric clarifier fits its independent inclusive limit",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01002d020203242e6124046c69737401001b06637573746f6d0001021039303037313939323534373430393933000130",
+        "limits": {
+          "max_generic_depth": 0,
+          "max_clarifier_values": 1,
+          "max_datatype_components": 3
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01002d020203242e6124046c69737401001b06637573746f6d0001021039303037313939323534373430393933000130",
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "custom",
+                  "generics": [],
+                  "clarifiers": [
+                    {
+                      "kind": "NumberLiteral",
+                      "value": "9007199254740993"
+                    }
+                  ]
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-017-clarifier-over-limit",
+      "description": "Depth-zero leaf clarifiers still obey the clarifier limit",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01002d020203242e6124046c69737401001b06637573746f6d0001021039303037313939323534373430393933000130",
+        "limits": {
+          "max_generic_depth": 0,
+          "max_clarifier_values": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-018-clarifier-components-over",
+      "description": "Leaf clarifiers also count toward datatype components",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01002d020203242e6124046c69737401001b06637573746f6d0001021039303037313939323534373430393933000130",
+        "limits": {
+          "max_generic_depth": 0,
+          "max_datatype_components": 2
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-019-arguments-over-limit",
+      "description": "Sibling leaf acceptance does not bypass generic argument limits",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010027020203242e611e057475706c6502000603696e740000000c06637573746f6d0001010178000130",
+        "limits": {
+          "max_generic_depth": 0,
+          "max_generic_arguments": 1
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-020-field-bytes-over-limit",
+      "description": "Logical depth zero does not bypass Film field byte limits",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010018020203242e610f046c69737401000603696e740000000130",
+        "limits": {
+          "max_generic_depth": 0,
+          "max_field_bytes": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_LIMIT_EXCEEDED"
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-021-trailing-leaf",
+      "description": "A depth-zero leaf must consume its descriptor exactly",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010010020203242e610703696e740000000130",
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_NONCANONICAL"
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "malformed",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-022-truncated-leaf",
+      "description": "A depth-zero leaf must still contain its clarifier count",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01000e020203242e610503696e74000130",
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_TRUNCATED"
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "malformed",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-023-literal-generic-invalid",
+      "description": "Depth accounting does not admit historical numeric generic tags",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010015020203242e610c06637573746f6d01020131000130",
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_INVALID_DATATYPE"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "malformed",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-024-reject-before-descent",
+      "description": "Reject a known over-limit level before reading its absent generic entry",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010018020203242e610f046c697374010006046c69737401000130",
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_LIMIT_EXCEEDED"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "malformed",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-025-under-limit-truncated",
+      "description": "The same malformed frame remains a syntax error when its level fits",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff010018020203242e610f046c697374010006046c69737401000130",
+        "limits": {
+          "max_generic_depth": 1
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_TRUNCATED"
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "malformed",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-026-superseded-optional-record",
+      "description": "The superseded full optional-field record fits logical depth zero without discarding metadata or clarifiers",
+      "operation": "decode",
+      "input": {
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9",
+        "registered_fields": [
+          "x.example.note"
+        ],
+        "limits": {
+          "max_generic_depth": 0,
+          "max_generic_arguments": 2,
+          "max_clarifier_values": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e7631761e020a242e6974656d735b305d24046c69737402000603696e740000000c06637573746f6d00010201330201012e020231300962696e64696e672d300234320123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0a140e782e6578616d706c652e6e6f746505636166c3a9"
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "replacement",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-encode-001-leaf-zero",
+      "description": "Encoding agrees with logical AES on a depth-zero leaf argument",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "int",
+                  "generics": [],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        },
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff010018020203242e610f046c69737401000603696e740000000130"
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "encoder",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-encode-002-clarifier-zero",
+      "description": "Encoding preserves exact leaf clarifiers at depth zero",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "custom",
+                  "generics": [],
+                  "clarifiers": [
+                    {
+                      "kind": "NumberLiteral",
+                      "value": "9007199254740993"
+                    }
+                  ]
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        },
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff01002d020203242e6124046c69737401001b06637573746f6d0001021039303037313939323534373430393933000130"
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "encoder",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-encode-003-siblings-zero",
+      "description": "Encoding does not sum sibling depths",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "tuple",
+              "generics": [
+                {
+                  "datatype": "int",
+                  "generics": [],
+                  "clarifiers": []
+                },
+                {
+                  "datatype": "custom",
+                  "generics": [],
+                  "clarifiers": [
+                    {
+                      "kind": "StringLiteral",
+                      "value": "x"
+                    }
+                  ]
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        },
+        "limits": {
+          "max_generic_depth": 0,
+          "max_generic_arguments": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff010027020203242e611e057475706c6502000603696e740000000c06637573746f6d0001010178000130"
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "encoder",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-encode-004-nested-one",
+      "description": "Encoding accepts nested generic-bearing depth at one",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "list",
+                  "generics": [
+                    {
+                      "datatype": "int",
+                      "generics": [],
+                      "clarifiers": []
+                    }
+                  ],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        },
+        "limits": {
+          "max_generic_depth": 1
+        }
+      },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff010021020203242e6118046c69737401000f046c69737401000603696e74000000000130"
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "encoder",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-encode-005-deep-two",
+      "description": "Encoding accepts nested generic-bearing depth at two",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "list",
+                  "generics": [
+                    {
+                      "datatype": "list",
+                      "generics": [
+                        {
+                          "datatype": "int",
+                          "generics": [],
+                          "clarifiers": []
+                        }
+                      ],
+                      "clarifiers": []
+                    }
+                  ],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        },
+        "limits": {
+          "max_generic_depth": 2
+        }
+      },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff01002a020203242e6121046c697374010018046c69737401000f046c69737401000603696e7400000000000130"
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "encoder",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-encode-006-scalar-zero",
+      "description": "A scalar remains encodable at logical depth zero",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "int",
+              "generics": [],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        },
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff01000f020203242e610603696e7400000130"
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "encoder",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-encode-007-over-zero",
+      "description": "Encoding rejects a generic-bearing level over maximum zero",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "list",
+                  "generics": [
+                    {
+                      "datatype": "int",
+                      "generics": [],
+                      "clarifiers": []
+                    }
+                  ],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        },
+        "limits": {
+          "max_generic_depth": 0
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_DATATYPE_DEPTH"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "encoder",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-encode-008-over-two",
+      "description": "Encoding rejects a generic-bearing level over maximum two",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "list",
+                  "generics": [
+                    {
+                      "datatype": "list",
+                      "generics": [
+                        {
+                          "datatype": "list",
+                          "generics": [
+                            {
+                              "datatype": "int",
+                              "generics": [],
+                              "clarifiers": []
+                            }
+                          ],
+                          "clarifiers": []
+                        }
+                      ],
+                      "clarifiers": []
+                    }
+                  ],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        },
+        "limits": {
+          "max_generic_depth": 2
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_DATATYPE_DEPTH"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "encoder",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-encode-009-components-over",
+      "description": "Encoding enforces components independently of generic depth",
+      "operation": "encode",
+      "input": {
+        "stream": {
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
+          "projection": null,
+          "projection_explicit": false,
+          "records": [
+            {
+              "path": "$.a",
+              "kind": "NumberLiteral",
+              "datatype": "list",
+              "generics": [
+                {
+                  "datatype": "int",
+                  "generics": [],
+                  "clarifiers": []
+                }
+              ],
+              "clarifiers": [],
+              "value": "0"
+            }
+          ]
+        },
+        "limits": {
+          "max_generic_depth": 0,
+          "max_datatype_components": 1
+        }
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_AES_INVALID",
+          "stage": "aes",
+          "diagnostic_codes": [
+            "AES_DATATYPE_LIMIT"
+          ]
+        }
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "encoder",
+        "failure"
+      ]
+    },
+    {
+      "id": "film-depth-transcode-001-nested",
+      "description": "Default logical depth one survives Telex/Film conversion without a physical-frame off-by-one",
+      "operation": "transcode",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=list<list<int>>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff010021020203242e6118046c69737401000f046c69737401000603696e74000000000130",
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=list<list<int>>\nvalue=0\n"
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "transcode",
+        "boundary"
+      ]
+    },
+    {
+      "id": "film-depth-transcode-002-nested-clarifier",
+      "description": "Default logical depth one survives Telex/Film conversion without a physical-frame off-by-one",
+      "operation": "transcode",
+      "input": {
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=list<list<custom[9007199254740993]>>\nvalue=0\n"
+      },
+      "expected": {
+        "ok": true,
+        "film_hex": "4f5f5fff010036020203242e612d046c697374010024046c69737401001b06637573746f6d000102103930303731393932353437343039393300000130",
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NumberLiteral\ndatatype=list<list<custom[9007199254740993]>>\nvalue=0\n"
+      },
+      "tags": [
+        "experimental",
+        "logical-generic-depth",
+        "transcode",
+        "boundary"
+      ]
+    }
+  ]
+}

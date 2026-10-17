@@ -38,7 +38,12 @@
     },
     {
       "id": "next-film-type-only-generics",
-      "file": "suites/05-next-type-only-generics.json"
+      "file": "suites/05-next-type-only-generics.json",
+      "exclude_tests": ["film-type-generics-limit-014-generic-depth-one-over"]
+    },
+    {
+      "id": "next-film-logical-generic-depth",
+      "file": "suites/06-next-logical-generic-depth.json"
     }
   ]
 }

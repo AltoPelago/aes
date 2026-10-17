@@ -25,10 +25,23 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
   Rust retains `GenericArgument::NumberLiteral` for that unvalidated data;
   validated encoders reject it before emitting bytes. The structural Rust
   descriptor renderer is not an acceptance or validation API.
-- This preparation does not publish a crate or enable durable Film writers.
-  Downstream Rust users must adopt the 0.3 dependency before building against
-  this source checkout. The existing Film physical/logical generic-depth
-  discrepancy is unchanged and requires a separate review.
+- These source changes do not publish a crate or enable durable Film writers.
+  The Film depth correction requires a separately versioned provider release
+  before downstream registry consumers adopt it; existing published artifacts
+  remain unchanged.
+
+### Fixed
+
+- Align Film reader and writer generic-depth accounting with AES and Telex:
+  only generic-bearing descriptor levels contribute, so `list<int>` fits a
+  maximum of zero. Readers reject over-limit non-leaf descriptors after their
+  bounded name/count inspection and before generic allocation or descent.
+  Independent byte, argument, clarifier, component and malformed-input guards
+  remain in force.
+- Advance the current Film claim from snapshot 0.3 to immutable
+  `film-cts-v1-snapshot-0.4` (128 operations), preserving historical snapshots.
+  Cover logical depth boundaries, siblings, clarified leaves, early rejection,
+  incremental split failures and borrowed/owned Rust diagnostic parity.
 
 ## 0.2.0 - 2026-10-02
 

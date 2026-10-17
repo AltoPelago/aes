@@ -27,7 +27,7 @@ const aesEventsManifest = resolve(
 );
 const filmManifest = resolve(
   ctsRoot,
-  'film/v1/film-cts.v1.snapshot-0.3.json',
+  'film/v1/film-cts.v1.snapshot-0.4.json',
 );
 
 for (const manifest of [telexManifest, aesEventsManifest, filmManifest]) {

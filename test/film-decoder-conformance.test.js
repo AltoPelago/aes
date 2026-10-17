@@ -32,11 +32,14 @@ for (const suiteRef of manifest.suites) {
 }
 
 test('independent JavaScript decoder coverage has an explicit decoder-only boundary', () => {
-  assert.deepEqual({ directDecodeVectors, producerFixtures, encoderOnlyVectors }, {
-    directDecodeVectors: 78,
-    producerFixtures: 5,
-    encoderOnlyVectors: 9,
-  });
+  const expectedCoverage = {
+    '0.1.0-dev': { directDecodeVectors: 103, producerFixtures: 13, encoderOnlyVectors: 12 },
+    '0.2.0': { directDecodeVectors: 69, producerFixtures: 3, encoderOnlyVectors: 1 },
+    '0.3.0': { directDecodeVectors: 78, producerFixtures: 5, encoderOnlyVectors: 9 },
+    '0.4.0': { directDecodeVectors: 103, producerFixtures: 13, encoderOnlyVectors: 12 },
+  }[manifest.meta.version];
+  assert.notEqual(expectedCoverage, undefined, 'unreviewed Film coverage target');
+  assert.deepEqual({ directDecodeVectors, producerFixtures, encoderOnlyVectors }, expectedCoverage);
 });
 
 function runDecodeVector(vector) {

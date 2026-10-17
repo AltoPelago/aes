@@ -842,7 +842,7 @@ fn encoded_descriptor_body_size(
     aes_limits: &TelexLimits,
     record_index: usize,
 ) -> Result<usize, FilmError> {
-    if depth > aes_limits.max_generic_depth {
+    if !descriptor.generics.is_empty() && depth > aes_limits.max_generic_depth {
         return Err(film_error(
             "FILM_ENCODE_ERROR",
             0,
@@ -2046,16 +2046,6 @@ impl<'a> Reader<'a> {
             self.record,
             "datatype",
         )?;
-        if depth > aes_limits.max_generic_depth {
-            return Err(aes_limit_error(
-                "max_generic_depth",
-                depth,
-                aes_limits.max_generic_depth,
-                self.absolute_position(),
-                self.record,
-                "datatype",
-            ));
-        }
         let length = self.read_limited_length(
             "max_field_bytes",
             film_limits.max_field_bytes,
@@ -2081,6 +2071,18 @@ impl<'a> Reader<'a> {
             aes_limits.max_generic_arguments,
             "generic-count",
         )?;
+        // Inspect the bounded name/count to distinguish a leaf, then reject
+        // over-limit generic-bearing levels before allocation or descent.
+        if generic_count > 0 && depth > aes_limits.max_generic_depth {
+            return Err(aes_limit_error(
+                "max_generic_depth",
+                depth,
+                aes_limits.max_generic_depth,
+                descriptor.absolute_position(),
+                self.record,
+                "datatype",
+            ));
+        }
         ensure_datatype_component_capacity(
             *components,
             generic_count,

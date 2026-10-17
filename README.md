@@ -59,9 +59,10 @@ canonical sources.
 - [Film v1](specifications/film.aes.md) is the normative binary-encoding draft.
   Its table-free wire layout was resolved and fixed by the historical
   `film-specs-v1-snapshot-0.2` and the 73-vector
-  `film-cts-v1-snapshot-0.2`. The prepared 0.3 CTS target tightens logical
-  generic acceptance without changing that layout. Reader conformance is available; durable writers
-  remain behind the reader-before-writer deployment gate.
+  `film-cts-v1-snapshot-0.2`. The current `film-cts-v1-snapshot-0.4` target
+  requires type-only generic arguments and shared AES logical generic-depth
+  accounting without changing that layout. Reader conformance is available;
+  durable writers remain behind the reader-before-writer deployment gate.
 - [AltoPelago Aeonic Limits v1](notes/altopelago-aeonic-limits-v1.md) defines
   the informative, consumer-owned configuration shape used to align structural
   and processing limits across AltoPelago implementations. Format byte limits
@@ -103,9 +104,9 @@ canonical sources.
 - [`conformance/`](conformance/README.md) contains language-neutral v1
   vectors for syntax, canonicalization, AES profile validation, exact-source
   provenance, resource-limit boundaries, the optional AEON document
-  projection, and the mutable 92-vector Film candidate. The prepared external
+  projection, and the mutable 128-vector Film candidate. The current external
   targets are `aes-events-cts-v1-snapshot-0.2` (48 vectors),
-  `telex-cts-v1-snapshot-0.2` (61), and `film-cts-v1-snapshot-0.3` (92) in the shared
+  `telex-cts-v1-snapshot-0.2` (61), and `film-cts-v1-snapshot-0.4` (128) in the shared
   `aeonite-cts` repository.
   These require type-only generic arguments while retaining exact numeric
   clarifiers. Earlier snapshots retain their historical expectations.
@@ -192,8 +193,10 @@ maintained in the separate AEON family roadmap. Material is promoted into this
 repository when it becomes an AES-owned specification, policy, conformance
 asset, release procedure, or implementation reference.
 
-The selected Rust Film reference passes the complete immutable 73-operation
-snapshot; the independent JavaScript reader claims its 69 decode operations.
+The selected Rust Film reference passes all 128 operations in immutable CTS
+snapshot 0.4; the independent JavaScript reader claims its 103 decode operations
+and additionally checks the bytes of 13 positive producer fixtures. The 12
+encoder-only negatives remain outside that decoder-only claim.
 Incremental chunk-state coverage, deterministic mutation testing, a
 coverage-guided Rust target, and a scheduled fuzz workflow are also in place.
 The next Film stage is reader deployment and ecosystem compatibility review;

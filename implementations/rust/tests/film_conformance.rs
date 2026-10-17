@@ -3,8 +3,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use aes_telex::film::{
-    FilmError, FilmLimits, FilmStream, decode_film_with_limits, encode_film_with_limits,
-    film_to_telex, telex_to_film,
+    FilmError, FilmLimits, FilmStream, decode_film_view_with_limits, decode_film_with_limits,
+    decode_film_with_limits_path_arena, encode_film_with_limits, film_to_telex, telex_to_film,
 };
 use aes_telex::{
     ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument, TelexLimits, TelexRecord,
@@ -22,11 +22,15 @@ fn passes_selected_film_v1_vectors() {
     if released {
         assert!(matches!(
             manifest["meta"]["version"].as_str(),
-            Some("0.2.0" | "0.3.0")
+            Some("0.2.0" | "0.3.0" | "0.4.0")
         ));
         assert!(matches!(
             manifest["meta"]["snapshot_id"].as_str(),
-            Some("film-cts-v1-snapshot-0.2" | "film-cts-v1-snapshot-0.3")
+            Some(
+                "film-cts-v1-snapshot-0.2"
+                    | "film-cts-v1-snapshot-0.3"
+                    | "film-cts-v1-snapshot-0.4"
+            )
         ));
         if manifest["meta"]["spec_snapshot_id"].is_null() {
             assert_eq!(
@@ -98,13 +102,15 @@ fn passes_selected_film_v1_vectors() {
     assert_eq!(
         count,
         if released {
-            if manifest["meta"]["version"] == "0.3.0" {
+            if manifest["meta"]["version"] == "0.4.0" {
+                128
+            } else if manifest["meta"]["version"] == "0.3.0" {
                 92
             } else {
                 73
             }
         } else {
-            92
+            128
         },
         "unexpected selected Film vector count"
     );
@@ -116,6 +122,40 @@ fn run_vector(id: &str, vector: &Value) {
         Some("encode") => run_encode_vector(id, vector),
         Some("transcode") => run_transcode_vector(id, vector),
         operation => panic!("{id}: unsupported Film operation {operation:?}"),
+    }
+}
+
+#[test]
+fn logical_depth_cases_agree_across_borrowed_owned_and_arena_validation() {
+    let suite = read_json(
+        &Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../conformance/film/v1/suites/06-next-logical-generic-depth.json"),
+    );
+    for vector in suite["tests"].as_array().expect("cases") {
+        if vector["operation"] != "decode" {
+            continue;
+        }
+        let id = vector["id"].as_str().expect("id");
+        let bytes = decode_hex(required_string(&vector["input"], "film_hex")).expect("hex");
+        let registered = registered_fields(&vector["input"]);
+        let (film_limits, aes_limits) = vector_limits(&vector["input"]);
+        let ordinary = decode_film_with_limits(&bytes, &registered, &film_limits, &aes_limits);
+        let arena =
+            decode_film_with_limits_path_arena(&bytes, &registered, &film_limits, &aes_limits);
+        let borrowed = decode_film_view_with_limits(&bytes, &film_limits, &aes_limits)
+            .and_then(|view| view.to_validated_owned(&registered, &aes_limits));
+        for other in [arena, borrowed] {
+            match (&ordinary, other) {
+                (Ok(expected), Ok(actual)) => assert_eq!(expected, &actual, "{id}"),
+                (Err(expected), Err(actual)) => {
+                    assert_eq!(expected.code, actual.code, "{id}");
+                    assert_eq!(expected.diagnostics, actual.diagnostics, "{id}");
+                }
+                (expected, actual) => {
+                    panic!("{id}: validation disagreement {expected:?} vs {actual:?}")
+                }
+            }
+        }
     }
 }
 

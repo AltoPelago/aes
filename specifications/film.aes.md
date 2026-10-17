@@ -363,10 +363,30 @@ bit means logical `datatype`, `generics`, and `clarifiers` are absent. A present
 descriptor always yields a base datatype and both arrays, even when their
 counts are zero.
 
-The consumer checks descriptor byte length and the selected shared generic
-depth, generic argument, clarifier value, and datatype component limits before
-descending or allocating. Limit exhaustion rejects the descriptor; it never
-truncates the logical arrays.
+Film MUST use the logical generic-depth measurement defined by `aes.events.v1`,
+not the number of encoded descriptor frames. Assign level `0` to the outer
+descriptor and add `1` for each nested datatype argument. Compare that level
+with `max_generic_depth` only when the descriptor's own `generic-count` is
+nonzero. A leaf descriptor, including a leaf with clarifiers, does not add an
+observed generic level. The maximum over sibling branches is used, not their
+sum. Consequently `list<int>` fits a maximum of `0`, and `list<list<int>>` fits
+a maximum of `1`.
+
+The reader may inspect a nested descriptor's bounded name and generic count to
+distinguish a leaf from another generic-bearing level. Once a nonzero generic
+count reveals an over-limit level, it MUST reject before allocating that
+descriptor's generic array or descending into its arguments. Moving this check
+after recursive traversal is not conformant. Writers enforce the same logical
+measurement before encoding the affected record; this does not require
+buffering the entire stream.
+
+Descriptor byte length, generic argument count, clarifier value count and
+datatype component count retain their independent checks before allocation or
+descent. A zero generic count does not bypass descriptor-length, trailing-byte
+or malformed-field checks. Limit exhaustion rejects the descriptor; it never
+truncates logical arrays. This rule does not accept historical literal-generic
+tags as valid logical AES records or change Film framing, tag assignments or
+the durable-writer deployment gate.
 
 ## 8. Extensions
 

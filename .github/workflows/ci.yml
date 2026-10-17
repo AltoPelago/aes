@@ -70,7 +70,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: aeonite-org/aeonite-cts
-          ref: 87feccb49f69cd62af67777c9212bcd3d222f390
+          ref: 1782c7d79a8c73524ad1e284844b9c823342e1eb
           path: aeonite-cts
 
       - name: Setup Node

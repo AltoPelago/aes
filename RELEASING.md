@@ -11,20 +11,23 @@ Film wire-format, and CTS snapshot versions. See [VERSIONING.md](./VERSIONING.md
 
 ## Rust compatibility declaration
 
-The prepared `altopelago-aes-telex` 0.3 line supports:
+The current `altopelago-aes-telex` source checkout supports:
 
 - `aes.events.v1`, including the complete and partial v1 profiles;
 - `telex.aes=1` parsing, canonicalization, encoding, and validation;
 - the immutable `aes-events-cts-v1-snapshot-0.2` and
   `telex-cts-v1-snapshot-0.2` targets; and
 - the Film v1 reader, writer, and transcoder surfaces claimed in
-  `film-cts-v1-snapshot-0.3`.
+  `film-cts-v1-snapshot-0.4`.
 
-This preparation is not publication. The 0.2 release and its historical CTS
-claims remain unchanged. The 0.3 line rejects literal generic arguments and
-retains numeric values only in clarifiers. Publish the new crate before
-updating downstream registry dependencies; local path consumers must also
-update their version requirement when adopting this checkout.
+These source claims are not publication: existing registry artifacts and their
+historical CTS claims remain unchanged. Type-only generic arguments retain
+numeric values only in clarifiers. Film uses the same logical generic-depth
+measurement as AES and Telex, including permitting `list<int>` at a maximum of
+zero. Select a new provider version in the release-preparation PR; the unchanged
+manifest version must not be republished. Publish that crate before updating
+downstream registry dependencies, and update local path consumers' version
+requirements when adopting the release checkout.
 
 Film's durable-writer gate remains in force. Publishing the crate does not make
 the Film writer suitable for durable interchange. Candidate B and Candidate C
