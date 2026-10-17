@@ -63,13 +63,14 @@ independent SemVer line. Version `0.2.x` implements the historical `aes.events.v
 AES event-contract, Telex wire-format, Film wire-format, or CTS snapshot
 version.
 
-The prepared 0.3.0 package adopts the type-only generic correction and new
-snapshot claims. It must not be published under the existing 0.2.0 version.
+Published 0.3.0 adopts the type-only generic correction and AES/Telex 0.2 and
+Film 0.3 snapshot claims. Its artifacts and historical acceptance remain fixed.
 
-The subsequent Film logical-depth correction is staged in source without a
-package-version bump. Its provider release version must be selected in a
-separate release-preparation PR; source CTS claims do not change previously
-published artifacts or permit republishing their version.
+The prepared 0.3.1 package corrects Film logical-depth accounting and adopts
+Film CTS 0.4, retaining AES/Telex 0.2. This is a patch-only correctness fix:
+it adds no public API or wire feature and does not tighten logical AES
+acceptance. Preparation is not publication, and source CTS claims do not
+change previously published artifacts or permit republishing their version.
 
 Breaking Rust API changes advance the crate's package version according to
 SemVer. Incompatible contract or encoding changes independently require the

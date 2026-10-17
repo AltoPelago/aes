@@ -4,11 +4,38 @@ Notable changes to the public AES reference repository are documented here.
 Contract versions, CTS snapshots, and implementation/package versions remain
 independent as described in [VERSIONING.md](./VERSIONING.md).
 
-## Unreleased
+## 0.3.1 - 2026-10-17
+
+### Fixed
+
+- Align Film reader and writer generic-depth accounting with AES and Telex:
+  only generic-bearing descriptor levels contribute, so `list<int>` fits a
+  maximum of zero. Readers reject over-limit non-leaf descriptors after their
+  bounded name/count inspection and before generic allocation or descent.
+  Independent byte, argument, clarifier, component and malformed-input guards
+  remain in force.
+- Advance the Film claim from snapshot 0.3 to immutable
+  `film-cts-v1-snapshot-0.4` (128 operations), preserving historical snapshots.
+  Cover logical depth boundaries, siblings, clarified leaves, early rejection,
+  incremental split failures and borrowed/owned Rust diagnostic parity.
+- Extend the clean published-consumer smoke test to exercise depth-zero Film
+  round trips, clarified leaves and over-limit rejection from the exact
+  registry package.
+
+### Compatibility
+
+- Prepare `altopelago-aes-telex` 0.3.1 as a patch-only correctness release over
+  published 0.3.0. There is no new public API, wire/tag change, consumer-limit
+  change, or durable-writer enablement. AES and Telex CTS claims remain 0.2.
+- Preparation is not publication. Publish the reviewed signed
+  `aes-telex/v0.3.1` release before downstream registry consumers adopt it;
+  existing 0.3.0 artifacts and their historical CTS claims remain unchanged.
+
+## 0.3.0 - 2026-10-17
 
 ### Breaking
 
-- Prepare `altopelago-aes-telex` 0.3.0 for type-only generic arguments. AES
+- Release `altopelago-aes-telex` 0.3.0 for type-only generic arguments. AES
   validators, Telex parsers and writers, and validated Film readers/writers
   reject literal generics, including nested occurrences. Put numeric
   parameters in clarifiers, for example `custom[2]` instead of a bare `2`.
@@ -25,23 +52,9 @@ independent as described in [VERSIONING.md](./VERSIONING.md).
   Rust retains `GenericArgument::NumberLiteral` for that unvalidated data;
   validated encoders reject it before emitting bytes. The structural Rust
   descriptor renderer is not an acceptance or validation API.
-- These source changes do not publish a crate or enable durable Film writers.
-  The Film depth correction requires a separately versioned provider release
-  before downstream registry consumers adopt it; existing published artifacts
-  remain unchanged.
-
-### Fixed
-
-- Align Film reader and writer generic-depth accounting with AES and Telex:
-  only generic-bearing descriptor levels contribute, so `list<int>` fits a
-  maximum of zero. Readers reject over-limit non-leaf descriptors after their
-  bounded name/count inspection and before generic allocation or descent.
-  Independent byte, argument, clarifier, component and malformed-input guards
-  remain in force.
-- Advance the current Film claim from snapshot 0.3 to immutable
-  `film-cts-v1-snapshot-0.4` (128 operations), preserving historical snapshots.
-  Cover logical depth boundaries, siblings, clarified leaves, early rejection,
-  incremental split failures and borrowed/owned Rust diagnostic parity.
+- Published 0.3.0 retains the historical physical descriptor-depth accounting
+  in Film. The logical-depth correction belongs to 0.3.1, not this release.
+  Film writers remain behind the separate durable-interchange gate.
 
 ## 0.2.0 - 2026-10-02
 
