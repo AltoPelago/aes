@@ -241,3 +241,27 @@ fn cached_path_fingerprints_preserve_parent_and_duplicate_semantics() {
             .all(|diagnostic| diagnostic.code != "AES_MISSING_PARENT")
     );
 }
+
+#[test]
+fn empty_member_and_attribute_builders_match_parsed_paths() {
+    let root = AesCanonicalPath::root();
+    let mut member = root.clone();
+    member.push_member("").expect("empty property key");
+    assert_ne!(member, root);
+    assert_eq!(member.as_str(), "$.[\"\"]");
+    let mut attribute = member.clone();
+    attribute.push_attribute("").expect("empty attribute key");
+    assert_eq!(attribute.as_str(), "$.[\"\"].@.[\"\"]");
+    assert_eq!(
+        attribute,
+        AesCanonicalPath::parse(attribute.as_str().to_owned()).expect("canonical path")
+    );
+}
+
+#[test]
+fn empty_keys_survive_telex_film_transcoding() {
+    let source = "telex.aes=1\nprofile=aes.complete.v1\n\npath=$.[\"\"]\nkind=StringLiteral\nvalue=\n\npath=$.[\"\"].@.[\"\"]\nkind=StringLiteral\nvalue=\n";
+    let film = aes_telex::film::telex_to_film(source, &[]).expect("empty key Film encode");
+    let replay = aes_telex::film::film_to_telex(&film, &[]).expect("empty key Film decode");
+    assert_eq!(replay, source);
+}

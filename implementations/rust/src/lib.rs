@@ -228,9 +228,6 @@ impl AesCanonicalPath {
     }
 
     fn push_named_segment(&mut self, segment: Segment, member: &str) -> Result<(), String> {
-        if member.is_empty() {
-            return Err("Canonical path members must not be empty".to_owned());
-        }
         let suffix_start = self.rendered.len();
         match segment {
             Segment::Member => self.rendered.push('.'),
@@ -4936,10 +4933,7 @@ fn read_member(path: &str, cursor: usize) -> Result<(usize, usize), String> {
             ));
         }
         let encoded = &path[cursor + 1..=quote_end];
-        if decoded.is_empty()
-            || valid_bare_member(&decoded)
-            || canonical_json_string(&decoded) != encoded
-        {
+        if valid_bare_member(&decoded) || canonical_json_string(&decoded) != encoded {
             return Err(format!("Non-canonical quoted member in path: {path}"));
         }
         return Ok((quote_end + 2, decoded.chars().count()));

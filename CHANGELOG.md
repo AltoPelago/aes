@@ -4,6 +4,15 @@ Notable changes to the public AES reference repository are documented here.
 Contract versions, CTS snapshots, and implementation/package versions remain
 independent as described in [VERSIONING.md](./VERSIONING.md).
 
+## Unreleased
+
+### Changed
+
+- Portable AES paths accept empty quoted member and attribute names, including
+  `$.[""]` and `$.[""].@.[""]`, in JavaScript and Rust. Empty members remain
+  distinct from root and retain ordinary duplicate-address checks. Authority
+  specification/CTS transition and release qualification remain pending.
+
 ## 0.3.1 - 2026-10-17
 
 ### Fixed
