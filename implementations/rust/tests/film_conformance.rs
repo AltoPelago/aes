@@ -46,6 +46,12 @@ fn passes_selected_film_v1_vectors() {
                 "film-specs-v1-snapshot-0.2"
             );
         }
+    } else if manifest["meta"]["status"] == "experimental" {
+        assert!(manifest_path.to_string_lossy().ends_with(".next.json"));
+        assert_eq!(
+            manifest["meta"]["snapshot_id"],
+            "film-next-cts-v1-snapshot-0.1"
+        );
     } else {
         assert_eq!(manifest["meta"]["version"], "0.1.0-dev");
         assert_eq!(manifest["meta"]["status"], "draft");
@@ -109,6 +115,10 @@ fn passes_selected_film_v1_vectors() {
             } else {
                 73
             }
+        } else if manifest["meta"]["status"] == "experimental" {
+            manifest["meta"]["expected_test_count"]
+                .as_u64()
+                .expect("next target selected vector count") as usize
         } else {
             128
         },
