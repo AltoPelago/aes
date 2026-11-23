@@ -4,7 +4,26 @@ Notable changes to the public AES reference repository are documented here.
 Contract versions, CTS snapshots, and implementation/package versions remain
 independent as described in [VERSIONING.md](./VERSIONING.md).
 
-## Unreleased
+## 0.3.2-rc.1 - 2026-11-23
+
+### Coordinated provider preparation
+
+- Prepare the merged ordinary empty-member/attribute canonical-path fix for
+  registry consumers. Published0.3.1 rejects empty members even though newer
+  sibling source accepts them; the0.17.0 integration requires actual provider
+  artifacts and updated release-workflow pins.
+- Keep JavaScript/Rust behavior aligned for `$.[""]` and `$.[""].@.[""]`,
+  root distinction, quoted-key rendering, duplicate rejection and Telex/Film
+  transport. No nonempty-path/value/tag/API or limit change is introduced by
+  this preparation; the underlying source fix was already merged.
+- Bump only the Rust provider metadata, local/fuzz lock entries and implementation
+  claim version. Existing claim statuses and immutable CTS snapshots remain.
+  The root npm package stays private; the npm AES implementation ships from AEON.
+- Independent behavior/resource QA and required source/package/main/registry
+  consumer gates remain pending. This RC does not establish stable publication,
+  broad performance qualification or Film durable-interchange support.
+
+## Earlier development checkpoint (historical)
 
 ### Changed
 

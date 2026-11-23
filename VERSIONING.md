@@ -76,3 +76,12 @@ Breaking Rust API changes advance the crate's package version according to
 SemVer. Incompatible contract or encoding changes independently require the
 new contract or wire-format version described above, even when the Rust API
 could represent the change without a SemVer-major release.
+
+## Coordinated0.3.2 provider candidate
+
+The0.3.2-rc.1 Rust preparation carries the merged empty ordinary-member/attribute
+canonical-path fix for AEON0.17.0. Package prerelease metadata and the corresponding
+implementation claim version advance together; wire/event/snapshot versions do
+not. Preserve historical immutable snapshot bytes and require independent QA,
+checked-main signing, actual registry artifacts and consumer acceptance before
+publication/adoption. The root npm package remains private.
