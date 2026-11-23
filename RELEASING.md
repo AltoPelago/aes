@@ -9,6 +9,21 @@ package, `@altopelago/aeon-aes`, is released from the
 Package versions are independent of the AES event-contract, Telex wire-format,
 Film wire-format, and CTS snapshot versions. See [VERSIONING.md](./VERSIONING.md).
 
+## Current0.3.2-rc.1 preparation
+
+This coordinated AEON0.17 provider candidate delivers the already merged empty
+ordinary-member/attribute path fix. Published0.3.1 and old downstream source pins
+still reject those values. Complete independent QA, required source/CTS/package
+checks and actual registry-consumer acceptance before adopting this provider.
+Newline/local-position work is outside this cut. Existing wire versions, limits,
+compatibility/target checks and Film durability restrictions are unchanged.
+
+Use the normal signed`aes-telex/v0.3.2-rc.1` checked-main tag workflow for the RC;
+prerelease registry consumers pin its exact version. After RC acceptance, stable
+uses a new0.3.2 version and its own reviewed metadata/tag/package checks. Never
+republish an existing immutable version. The prior0.3.1 declaration below is
+historical; its snapshot statuses remain unchanged by this preparation.
+
 ## Rust compatibility declaration
 
 The prepared `altopelago-aes-telex` 0.3.1 package supports:
