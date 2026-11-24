@@ -23,7 +23,9 @@
         {
           "surface": "film-reader",
           "snapshot_id": "film-cts-v1-snapshot-0.4",
-          "operations": ["decode"],
+          "operations": [
+            "decode"
+          ],
           "status": "claimed",
           "command": "npm run test:conformance:shared"
         }
@@ -31,7 +33,7 @@
     },
     {
       "implementation": "aes-telex-rust-reference",
-      "implementation_version": "0.3.2-rc.1",
+      "implementation_version": "0.3.2",
       "claims": [
         {
           "surface": "aes-events",
@@ -48,7 +50,11 @@
         {
           "surface": "film",
           "snapshot_id": "film-cts-v1-snapshot-0.4",
-          "operations": ["decode", "encode", "transcode"],
+          "operations": [
+            "decode",
+            "encode",
+            "transcode"
+          ],
           "status": "claimed",
           "command": "npm run test:conformance:rust:shared"
         }

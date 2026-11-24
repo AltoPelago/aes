@@ -3,11 +3,11 @@
 This crate independently implements the published v1 `telex.aes` parsing,
 canonicalization, and AES profile validation.
 
-The prepared package version is0.3.2-rc.1; publication is a separate signed-tag
+The prepared package version is0.3.2; publication is a separate signed-tag
 workflow. After that release is published, add it with:
 
 ```bash
-cargo add altopelago-aes-telex@0.3.2-rc.1
+cargo add altopelago-aes-telex@0.3.2
 ```
 
 The package name is `altopelago-aes-telex`; Rust code imports its library as
@@ -191,15 +191,16 @@ bounded local gate with `npm run fuzz:film`; continuing and corpus-management
 commands are documented in the repository's
 [`fuzz/README.md`](https://github.com/AltoPelago/aes/blob/main/implementations/rust/fuzz/README.md).
 
-## Empty-key provider RC for AEON0.17
+## Stable empty-key provider preparation for AEON 0.17
 
-The0.3.2-rc.1 preparation carries the merged ordinary-empty-member/attribute
+The0.3.2 preparation carries the merged ordinary-empty-member/attribute
 canonical-path fix. Published0.3.1 still rejects those paths; a newer sibling
 checkout is not registry equivalence. Empty members stay distinct from root and
 retain ordinary duplicate checks. Values, nonempty paths, transport tags and
 consumer limits are unchanged. No Film durable-writer enablement is implied.
 
-Independent QA, checked-main/tag gates, actual registry bytes and clean consumers
-are required before this candidate is accepted or used as a release provider.
-See[release instructions](../../RELEASING.md). Stable0.3.2 follows RC acceptance;
-newline/local-position work remains deferred to tentative AEON0.17.1.
+The RC provider is published and accepted in the selected combined release.
+Independent stable-delta QA, checked-main/tag gates, actual stable registry bytes
+and clean consumers are required before stable adoption. See the
+[release instructions](../../RELEASING.md). Newline/local-position work remains
+deferred to tentative AEON 0.17.1.
