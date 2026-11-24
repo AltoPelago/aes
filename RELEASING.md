@@ -9,20 +9,19 @@ package, `@altopelago/aeon-aes`, is released from the
 Package versions are independent of the AES event-contract, Telex wire-format,
 Film wire-format, and CTS snapshot versions. See [VERSIONING.md](./VERSIONING.md).
 
-## Current0.3.2-rc.1 preparation
+## Current 0.3.2 stable preparation
 
-This coordinated AEON0.17 provider candidate delivers the already merged empty
-ordinary-member/attribute path fix. Published0.3.1 and old downstream source pins
-still reject those values. Complete independent QA, required source/CTS/package
-checks and actual registry-consumer acceptance before adopting this provider.
-Newline/local-position work is outside this cut. Existing wire versions, limits,
-compatibility/target checks and Film durability restrictions are unchanged.
+The 0.3.2-rc.1 provider is published, registry verified and accepted in the
+selected AEON 0.17.0 RC3 combination. Stable 0.3.2 changes release metadata only;
+the merged empty ordinary-member/attribute fix, wire versions, API, limits and
+claim statuses are unchanged. Complete independent stable-delta QA, required
+source/CTS/package/main checks and actual stable registry consumers before adoption.
 
-Use the normal signed`aes-telex/v0.3.2-rc.1` checked-main tag workflow for the RC;
-prerelease registry consumers pin its exact version. After RC acceptance, stable
-uses a new0.3.2 version and its own reviewed metadata/tag/package checks. Never
-republish an existing immutable version. The prior0.3.1 declaration below is
-historical; its snapshot statuses remain unchanged by this preparation.
+Use the normal signed `aes-telex/v0.3.2` checked-main tag workflow after review
+and merge. A manual dispatch verifies/packages without publishing. Never retag
+or republish an immutable RC. The prior 0.3.1 declaration below is historical;
+Film durability restrictions remain unchanged. Newline/local-position work stays
+outside this cut.
 
 ## Rust compatibility declaration
 

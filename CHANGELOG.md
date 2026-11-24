@@ -4,6 +4,19 @@ Notable changes to the public AES reference repository are documented here.
 Contract versions, CTS snapshots, and implementation/package versions remain
 independent as described in [VERSIONING.md](./VERSIONING.md).
 
+## 0.3.2 - 2026-11-25
+
+### Stable provider preparation
+
+- Advance the accepted 0.3.2-rc.1 provider to stable metadata for AEON 0.17.0.
+  The ordinary empty-member/attribute fix, duplicate rejection, Telex/Film
+  behavior, APIs, wire versions, limits and CTS claim statuses are unchanged.
+- RC registry/combined consumers are accepted. Independent stable-delta QA,
+  required owning checks/merge, signed checked-main publication and exact stable
+  registry consumers remain required; preparation does not establish publication.
+- The root npm package stays private. Film's durable-writer gate remains in force;
+  no broader interchange or performance qualification is introduced.
+
 ## 0.3.2-rc.1 - 2026-11-23
 
 ### Coordinated provider preparation
