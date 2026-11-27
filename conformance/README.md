@@ -73,9 +73,10 @@ The [`film.aes` v1 specification](../specifications/film.aes.md) is a normative
 draft working copy. Its mutable `0.1.0-dev` CTS contains language-neutral
 vectors for framing and canonicalization, records and Telex transcoding, and
 resource limits. Exact Film bytes use contiguous lowercase hexadecimal inside
-the JSON test envelope. The lane checks kind codes, including the tagged-node
-assignment and retired codes, and separates Film syntax and canonicality
-failures from transport-neutral AES diagnostics.
+the JSON test envelope. The local lane checks the assigned kind codes and
+separates Film syntax and canonicality failures from transport-neutral AES
+diagnostics. The shared tagged-node Film fixtures also check explicit
+rejection of the retired codes `0x14` and `0x15`.
 
 The local Film candidate carries no `snapshot_id` or `spec_snapshot_id` and
 remains a development target alongside the shared tagged-node manifests.
