@@ -28,6 +28,9 @@ test('Telex conformance manifest has resolvable suites and unique vector IDs', (
     assert.match(manifest.meta.version, /-dev$/u);
     assert.equal(Object.hasOwn(manifest.meta, 'snapshot_id'), false);
     assert.equal(Object.hasOwn(manifest.meta, 'spec_snapshot_id'), false);
+  } else if (manifest.meta.status === 'experimental') {
+    assert.match(manifest.meta.specification_revision, /^[0-9a-f]{40}$/u);
+    assert.ok(manifest.meta.expected_test_count > 0);
   } else {
     assert.equal(manifest.meta.status, 'released');
     assert.match(manifest.meta.snapshot_id, /^telex-cts-v1-snapshot-\d+\.\d+$/u);
@@ -52,6 +55,9 @@ test('Telex conformance manifest has resolvable suites and unique vector IDs', (
       assert.equal(seenIds.has(vector.id), false, `duplicate vector id: ${vector.id}`);
       seenIds.add(vector.id);
     }
+  }
+  if (manifest.meta.expected_test_count !== undefined) {
+    assert.equal(seenIds.size, manifest.meta.expected_test_count);
   }
 });
 

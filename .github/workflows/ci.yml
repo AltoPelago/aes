@@ -73,6 +73,21 @@ jobs:
           ref: 1782c7d79a8c73524ad1e284844b9c823342e1eb
           path: aeonite-cts
 
+      - name: Checkout published-contract provider
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: f90ee2dea2d06b99ccadd96df716c2c27b203c21
+          path: historical-provider
+          persist-credentials: false
+
+      - name: Checkout tagged node CTS
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: aeonite-org/aeonite-cts
+          ref: 905db7b6dfecaab05d6d933cfcf3e6eef1f3038f
+          path: tagged-node-cts
+          persist-credentials: false
+
       - name: Setup Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -88,12 +103,25 @@ jobs:
           AEONITE_CTS_ROOT: ${{ github.workspace }}/aeonite-cts/cts
         run: npm run validate:cts-claims
 
-      - name: JavaScript shared CTS
+      - name: Historical JavaScript shared CTS
+        working-directory: historical-provider
         env:
           AEONITE_CTS_ROOT: ${{ github.workspace }}/aeonite-cts/cts
         run: npm run test:conformance:shared
 
-      - name: Rust shared CTS
+      - name: Historical Rust shared CTS
+        working-directory: historical-provider
         env:
           AEONITE_CTS_ROOT: ${{ github.workspace }}/aeonite-cts/cts
         run: npm run test:conformance:rust:shared
+
+
+      - name: JavaScript tagged node CTS
+        env:
+          AEONITE_CTS_ROOT: ${{ github.workspace }}/tagged-node-cts/cts
+        run: npm run test:conformance:tagged-node
+
+      - name: Rust tagged node CTS
+        env:
+          AEONITE_CTS_ROOT: ${{ github.workspace }}/tagged-node-cts/cts
+        run: npm run test:conformance:rust:tagged-node

@@ -137,12 +137,16 @@ Run the vectors through the Rust implementation with:
 npm run test:conformance:rust
 ```
 
-Run the three published shared snapshots in JavaScript and Rust with:
+Run the tagged-node development snapshots in JavaScript and Rust with:
 
 ```bash
-npm run test:conformance:shared
-npm run test:conformance:rust:shared
+npm run test:conformance:tagged-node
+npm run test:conformance:rust:tagged-node
 ```
+
+CI runs the published shared snapshots against provider revision
+`f90ee2dea2d06b99ccadd96df716c2c27b203c21`. That revision retains the historical
+node mapping and is the source baseline for the release claims.
 
 These shared checks require a checkout of
 [`aeonite-cts`](https://github.com/aeonite-org/aeonite-cts). Set

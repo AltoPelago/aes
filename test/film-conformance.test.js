@@ -19,6 +19,9 @@ test('selected Film manifest has resolvable suites and unique language-neutral v
     } else {
       assert.match(manifest.meta.specification_revision, /^[0-9a-f]{40}$/u);
     }
+  } else if (manifest.meta.status === 'experimental') {
+    assert.match(manifest.meta.specification_revision, /^[0-9a-f]{40}$/u);
+    assert.ok(manifest.meta.expected_test_count > 0);
   } else {
     assert.equal(manifest.meta.version, '0.1.0-dev');
     assert.equal(manifest.meta.status, 'draft');
@@ -55,11 +58,11 @@ test('selected Film manifest has resolvable suites and unique language-neutral v
   }
   const expectedCount = manifest.meta.status !== 'released' || manifest.meta.version === '0.4.0'
     ? 128 : manifest.meta.version === '0.3.0' ? 92 : 73;
-  assert.equal(count, expectedCount);
+  assert.equal(count, manifest.meta.expected_test_count ?? expectedCount);
 });
 
 test('selected Film candidate vectors reference existing specification headings', () => {
-  if (manifest.meta.status === 'released') return;
+  if (manifest.meta.status !== 'draft') return;
   const anchors = markdownHeadingAnchors(specification);
   for (const suiteRef of manifest.suites) {
     const suite = readJson(new URL(suiteRef.file, manifestUrl));
@@ -112,6 +115,7 @@ test('selected Film vectors satisfy the complete v1 protocol shape', () => {
       }
     }
   }
+  if (manifest.meta.status === 'experimental') return;
   assert.deepEqual(syntaxCodes, new Set([
     'FILM_INTEGER_OVERFLOW',
     'FILM_INVALID_CONTEXT',
@@ -129,7 +133,7 @@ test('selected Film vectors satisfy the complete v1 protocol shape', () => {
 });
 
 test('Film specification example is fixed by the selected scalar vector', () => {
-  const suite = readJson(new URL('suites/01-framing-and-canonicalization.json', manifestUrl));
+  const suite = readJson(new URL('../conformance/film/v1/suites/01-framing-and-canonicalization.json', import.meta.url));
   const vector = suite.tests.find(({ id }) => id === 'film-framing-005-canonical-scalar');
   assert.notEqual(vector, undefined);
   assert.match(specification, /4F 5F 5F FF 01 00[\s\S]*?12[\s\S]*?00 01/u);

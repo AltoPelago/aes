@@ -44,6 +44,7 @@ fn typed_and_extensible_writers_reject_literal_generic_arguments() {
                     AesCanonicalPath::parse("$.a".to_owned()).expect("path"),
                 ),
                 kind: AesValueKind::NumberLiteral,
+                tag: None,
                 datatype: Some(datatype),
                 identity: None,
                 value: Some("0".to_owned()),

@@ -32,6 +32,16 @@ test('encodes null, strings, lists, and maps with byte lengths and UTF-8 key ord
   );
 });
 
+test('portable integrity includes the intrinsic tag of an indexed node', () => {
+  const records = [
+    { path: '$.items', kind: 'ListNode' },
+    { path: '$.items[0]', kind: 'NodeLiteral', tag: '🌊' },
+  ];
+  const original = encodeAesIntegrity(records, semanticCanonical);
+  const changed = encodeAesIntegrity([records[0], { ...records[1], tag: 'leaf' }], semanticCanonical);
+  assert.notDeepEqual(original.bytes, changed.bytes);
+});
+
 test('canonical-semantic order is independent of supplied unique record order', () => {
   const records = [
     { path: '$.b', kind: 'NumberLiteral', value: '2' },

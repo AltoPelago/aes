@@ -39,23 +39,34 @@
     },
     {
       "id": "film-record-002-node-without-value",
-      "description": "NodeLiteral omits the value field while retaining its distinct kind code",
+      "description": "The revised node kind carries an intrinsic tag and omits the value field",
       "operation": "decode",
-      "input": { "film_hex": "4f5f5fff01010e6165732e7061727469616c2e763109001406242e6e6f6465" },
+      "input": {
+        "film_hex": "4f5f5fff01000c001905242e74616703746167"
+      },
       "expected": {
         "ok": true,
-        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e763109001406242e6e6f6465",
+        "canonical_hex": "4f5f5fff01000c001905242e74616703746167",
         "stream": {
-          "profile": "aes.partial.v1",
-          "profile_explicit": true,
+          "profile": "aes.complete.v1",
+          "profile_explicit": false,
           "projection": null,
           "projection_explicit": false,
           "records": [
-            { "path": "$.node", "kind": "NodeLiteral" }
+            {
+              "path": "$.tag",
+              "kind": "NodeLiteral",
+              "tag": "tag"
+            }
           ]
         }
       },
-      "tags": ["record", "kind", "node", "value-presence"]
+      "tags": [
+        "record",
+        "kind",
+        "node",
+        "value-presence"
+      ]
     },
     {
       "id": "film-record-003-header-plane",
@@ -262,11 +273,22 @@
     },
     {
       "id": "film-record-012a-kind-above-v1-range",
-      "description": "Codes above the 24 assigned v1 kinds are invalid",
+      "description": "Codes above the highest assigned Film v1 code are invalid",
       "operation": "decode",
-      "input": { "film_hex": "4f5f5fff010008001903242e610178" },
-      "expected": { "ok": false, "error": { "code": "FILM_INVALID_KIND" } },
-      "tags": ["kind", "unassigned", "failure"]
+      "input": {
+        "film_hex": "4f5f5fff010008001a03242e610178"
+      },
+      "expected": {
+        "ok": false,
+        "error": {
+          "code": "FILM_INVALID_KIND"
+        }
+      },
+      "tags": [
+        "kind",
+        "unassigned",
+        "failure"
+      ]
     },
     {
       "id": "film-record-013-invalid-utf8",
@@ -395,45 +417,138 @@
       "description": "Every Film v1 kind code maps to its exact portable AES kind and value-presence rule",
       "operation": "decode",
       "input": {
-        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76310f000107242e6974656d3004746578740c000207242e6974656d31013113000307242e6974656d3208496e66696e6974790e000407242e6974656d33034e614e11000507242e6974656d34066e6f745365740f000607242e6974656d3504747275650e000707242e6974656d36037965730f000807242e6974656d3704636166650d000907242e6974656d3802666612000a07242e6974656d39077061796c6f61640d000b08242e6974656d3130012e14000c08242e6974656d313108242e736f7572636516000d08242e6974656d31320a323032352d30312d303111000e08242e6974656d31330530393a33301c000f08242e6974656d313410323032352d30312d30315430393a333022001008242e6974656d313516323032352d30312d30315430393a3330266c6f63616c0b001108242e6974656d31360b001208242e6974656d31370b001308242e6974656d31380b001408242e6974656d31390f001508242e6974656d32300374616714001608242e6974656d323108242e736f7572636514001708242e6974656d323208242e736f7572636514001808242e6974656d323308617070726f766564"
+        "film_hex": "4f5f5fff01010e6165732e7061727469616c2e76310f000107242e6974656d3004746578740c000207242e6974656d31013113000307242e6974656d3208496e66696e6974790e000407242e6974656d33034e614e11000507242e6974656d34066e6f745365740f000607242e6974656d3504747275650e000707242e6974656d36037965730f000807242e6974656d3704636166650d000907242e6974656d3802666612000a07242e6974656d39077061796c6f61640d000b08242e6974656d3130012e14000c08242e6974656d313108242e736f7572636516000d08242e6974656d31320a323032352d30312d303111000e08242e6974656d31330530393a33301c000f08242e6974656d313410323032352d30312d30315430393a333022001008242e6974656d313516323032352d30312d30315430393a3330266c6f63616c0b001108242e6974656d31360b001208242e6974656d31370b001308242e6974656d313814001608242e6974656d323108242e736f7572636514001708242e6974656d323208242e736f7572636514001808242e6974656d323308617070726f7665640c001905242e74616703746167"
       },
       "expected": {
         "ok": true,
-        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e76310f000107242e6974656d3004746578740c000207242e6974656d31013113000307242e6974656d3208496e66696e6974790e000407242e6974656d33034e614e11000507242e6974656d34066e6f745365740f000607242e6974656d3504747275650e000707242e6974656d36037965730f000807242e6974656d3704636166650d000907242e6974656d3802666612000a07242e6974656d39077061796c6f61640d000b08242e6974656d3130012e14000c08242e6974656d313108242e736f7572636516000d08242e6974656d31320a323032352d30312d303111000e08242e6974656d31330530393a33301c000f08242e6974656d313410323032352d30312d30315430393a333022001008242e6974656d313516323032352d30312d30315430393a3330266c6f63616c0b001108242e6974656d31360b001208242e6974656d31370b001308242e6974656d31380b001408242e6974656d31390f001508242e6974656d32300374616714001608242e6974656d323108242e736f7572636514001708242e6974656d323208242e736f7572636514001808242e6974656d323308617070726f766564",
+        "canonical_hex": "4f5f5fff01010e6165732e7061727469616c2e76310f000107242e6974656d3004746578740c000207242e6974656d31013113000307242e6974656d3208496e66696e6974790e000407242e6974656d33034e614e11000507242e6974656d34066e6f745365740f000607242e6974656d3504747275650e000707242e6974656d36037965730f000807242e6974656d3704636166650d000907242e6974656d3802666612000a07242e6974656d39077061796c6f61640d000b08242e6974656d3130012e14000c08242e6974656d313108242e736f7572636516000d08242e6974656d31320a323032352d30312d303111000e08242e6974656d31330530393a33301c000f08242e6974656d313410323032352d30312d30315430393a333022001008242e6974656d313516323032352d30312d30315430393a3330266c6f63616c0b001108242e6974656d31360b001208242e6974656d31370b001308242e6974656d313814001608242e6974656d323108242e736f7572636514001708242e6974656d323208242e736f7572636514001808242e6974656d323308617070726f7665640c001905242e74616703746167",
         "stream": {
           "profile": "aes.partial.v1",
           "profile_explicit": true,
           "projection": null,
           "projection_explicit": false,
           "records": [
-            { "path": "$.item0", "kind": "StringLiteral", "value": "text" },
-            { "path": "$.item1", "kind": "NumberLiteral", "value": "1" },
-            { "path": "$.item2", "kind": "InfinityLiteral", "value": "Infinity" },
-            { "path": "$.item3", "kind": "NaNLiteral", "value": "NaN" },
-            { "path": "$.item4", "kind": "NullLiteral", "value": "notSet" },
-            { "path": "$.item5", "kind": "BooleanLiteral", "value": "true" },
-            { "path": "$.item6", "kind": "ToggleLiteral", "value": "yes" },
-            { "path": "$.item7", "kind": "HexLiteral", "value": "cafe" },
-            { "path": "$.item8", "kind": "RadixLiteral", "value": "ff" },
-            { "path": "$.item9", "kind": "EncodingLiteral", "value": "payload" },
-            { "path": "$.item10", "kind": "SeparatorLiteral", "value": "." },
-            { "path": "$.item11", "kind": "SansaAddressLiteral", "value": "$.source" },
-            { "path": "$.item12", "kind": "DateLiteral", "value": "2025-01-01" },
-            { "path": "$.item13", "kind": "TimeLiteral", "value": "09:30" },
-            { "path": "$.item14", "kind": "DateTimeLiteral", "value": "2025-01-01T09:30" },
-            { "path": "$.item15", "kind": "WTCDateTimeLiteral", "value": "2025-01-01T09:30&local" },
-            { "path": "$.item16", "kind": "ObjectNode" },
-            { "path": "$.item17", "kind": "ListNode" },
-            { "path": "$.item18", "kind": "TupleLiteral" },
-            { "path": "$.item19", "kind": "NodeLiteral" },
-            { "path": "$.item20", "kind": "NodeHead", "value": "tag" },
-            { "path": "$.item21", "kind": "CloneReference", "value": "$.source" },
-            { "path": "$.item22", "kind": "PointerReference", "value": "$.source" },
-            { "path": "$.item23", "kind": "SymbolicLiteral", "value": "approved" }
+            {
+              "path": "$.item0",
+              "kind": "StringLiteral",
+              "value": "text"
+            },
+            {
+              "path": "$.item1",
+              "kind": "NumberLiteral",
+              "value": "1"
+            },
+            {
+              "path": "$.item2",
+              "kind": "InfinityLiteral",
+              "value": "Infinity"
+            },
+            {
+              "path": "$.item3",
+              "kind": "NaNLiteral",
+              "value": "NaN"
+            },
+            {
+              "path": "$.item4",
+              "kind": "NullLiteral",
+              "value": "notSet"
+            },
+            {
+              "path": "$.item5",
+              "kind": "BooleanLiteral",
+              "value": "true"
+            },
+            {
+              "path": "$.item6",
+              "kind": "ToggleLiteral",
+              "value": "yes"
+            },
+            {
+              "path": "$.item7",
+              "kind": "HexLiteral",
+              "value": "cafe"
+            },
+            {
+              "path": "$.item8",
+              "kind": "RadixLiteral",
+              "value": "ff"
+            },
+            {
+              "path": "$.item9",
+              "kind": "EncodingLiteral",
+              "value": "payload"
+            },
+            {
+              "path": "$.item10",
+              "kind": "SeparatorLiteral",
+              "value": "."
+            },
+            {
+              "path": "$.item11",
+              "kind": "SansaAddressLiteral",
+              "value": "$.source"
+            },
+            {
+              "path": "$.item12",
+              "kind": "DateLiteral",
+              "value": "2025-01-01"
+            },
+            {
+              "path": "$.item13",
+              "kind": "TimeLiteral",
+              "value": "09:30"
+            },
+            {
+              "path": "$.item14",
+              "kind": "DateTimeLiteral",
+              "value": "2025-01-01T09:30"
+            },
+            {
+              "path": "$.item15",
+              "kind": "WTCDateTimeLiteral",
+              "value": "2025-01-01T09:30&local"
+            },
+            {
+              "path": "$.item16",
+              "kind": "ObjectNode"
+            },
+            {
+              "path": "$.item17",
+              "kind": "ListNode"
+            },
+            {
+              "path": "$.item18",
+              "kind": "TupleLiteral"
+            },
+            {
+              "path": "$.item21",
+              "kind": "CloneReference",
+              "value": "$.source"
+            },
+            {
+              "path": "$.item22",
+              "kind": "PointerReference",
+              "value": "$.source"
+            },
+            {
+              "path": "$.item23",
+              "kind": "SymbolicLiteral",
+              "value": "approved"
+            },
+            {
+              "path": "$.tag",
+              "kind": "NodeLiteral",
+              "tag": "tag"
+            }
           ]
         }
       },
-      "tags": ["kind", "kind-table", "value-presence", "canonical"]
+      "tags": [
+        "kind",
+        "kind-table",
+        "value-presence",
+        "canonical"
+      ]
     }
   ]
 }

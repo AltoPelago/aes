@@ -175,7 +175,7 @@ were passed by the historical JavaScript and Rust implementations. Later candida
 changes stay here or enter a newer shared snapshot; the published identifiers
 and their suite bytes are not changed.
 
-The current adoption targets are AES events 0.2, Telex 0.2, and Film 0.4. A claim may
+The published provider at `f90ee2dea2d06b99ccadd96df716c2c27b203c21` claims AES events 0.2, Telex 0.2, and Film 0.4. A claim may
 carry an `operations` list to narrow its scope; omitting that field claims the
 entire snapshot. This repository therefore records JavaScript as a Film reader
 for `decode`, while Rust claims `decode`, `encode`, and `transcode`. The shared
@@ -187,12 +187,12 @@ The repository declares its released-snapshot coverage in
 
 ```bash
 AEONITE_CTS_ROOT=/path/to/aeonite-cts/cts npm run validate:cts-claims
-npm run test:conformance:shared
-npm run test:conformance:rust:shared
+npm run test:conformance:tagged-node
+npm run test:conformance:rust:tagged-node
 ```
 
 Without `AEONITE_CTS_ROOT`, these commands look for the standard Aeonite family
-sibling layout. The default `npm test` and `npm run test:rust` commands use only
+sibling layout. CI also runs both published shared targets with the exact historical provider. The default `npm test` and `npm run test:rust` commands use only
 the mutable vectors in this repository, so a standalone clone remains
 independently testable.
 
