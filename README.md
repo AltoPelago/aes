@@ -57,12 +57,11 @@ canonical sources.
 - [Telex v1](specifications/telex.aes.md) owns textual framing, escaping,
   canonical bytes, and syntax diagnostics.
 - [Film v1](specifications/film.aes.md) is the normative binary-encoding draft.
-  Its table-free wire layout was resolved and fixed by the historical
-  `film-specs-v1-snapshot-0.2` and the 73-vector
-  `film-cts-v1-snapshot-0.2`. The current `film-cts-v1-snapshot-0.4` target
-  requires type-only generic arguments and shared AES logical generic-depth
-  accounting without changing that layout. Reader conformance is available;
-  durable writers remain behind the reader-before-writer deployment gate.
+  The historical `film-specs-v1-snapshot-0.2` fixed the original table-free
+  layout. Its latest published conformance target, `film-cts-v1-snapshot-0.4`,
+  covers type-only generic arguments and shared AES logical generic depth.
+  The draft now uses the tagged-node payload. Durable writers require the
+  reader-before-writer deployment gate to close.
 - [AltoPelago Aeonic Limits v1](notes/altopelago-aeonic-limits-v1.md) defines
   the informative, consumer-owned configuration shape used to align structural
   and processing limits across AltoPelago implementations. Format byte limits
@@ -104,12 +103,11 @@ canonical sources.
 - [`conformance/`](conformance/README.md) contains language-neutral v1
   vectors for syntax, canonicalization, AES profile validation, exact-source
   provenance, resource-limit boundaries, the optional AEON document
-  projection, and the mutable 128-vector Film candidate. The current external
-  targets are `aes-events-cts-v1-snapshot-0.2` (48 vectors),
-  `telex-cts-v1-snapshot-0.2` (61), and `film-cts-v1-snapshot-0.4` (128) in the shared
-  `aeonite-cts` repository.
-  These require type-only generic arguments while retaining exact numeric
-  clarifiers. Earlier snapshots retain their historical expectations.
+  projection, and the mutable Film candidate. This checkout exercises the
+  tagged-node development manifests in `aeonite-cts`. The published AES events
+  0.2, Telex 0.2, and Film 0.4 snapshots are exercised against the pinned
+  historical provider. Both revisions retain type-only generic arguments and
+  exact numeric clarifiers.
 - [`implementations/rust/`](implementations/rust/README.md) is an independent
   Rust implementation of the same v1 event, Telex, integrity, provenance, and
   transaction contracts, plus the selected Film draft reference and an
@@ -137,12 +135,16 @@ Run the vectors through the Rust implementation with:
 npm run test:conformance:rust
 ```
 
-Run the three published shared snapshots in JavaScript and Rust with:
+Run the tagged-node development snapshots in JavaScript and Rust with:
 
 ```bash
-npm run test:conformance:shared
-npm run test:conformance:rust:shared
+npm run test:conformance:tagged-node
+npm run test:conformance:rust:tagged-node
 ```
+
+CI runs the published shared snapshots against provider revision
+`f90ee2dea2d06b99ccadd96df716c2c27b203c21`. That revision retains the historical
+node mapping and is the source baseline for the release claims.
 
 These shared checks require a checkout of
 [`aeonite-cts`](https://github.com/aeonite-org/aeonite-cts). Set
@@ -193,10 +195,10 @@ maintained in the separate AEON family roadmap. Material is promoted into this
 repository when it becomes an AES-owned specification, policy, conformance
 asset, release procedure, or implementation reference.
 
-The selected Rust Film reference passes all 128 operations in immutable CTS
-snapshot 0.4; the independent JavaScript reader claims its 103 decode operations
-and additionally checks the bytes of 13 positive producer fixtures. The 12
-encoder-only negatives remain outside that decoder-only claim.
+At the historical provider pin, Rust passed all 128 operations in Film CTS
+snapshot 0.4. Its JavaScript reader passed 103 decode operations and verified
+the bytes of 13 positive producer fixtures. This checkout uses the revised
+tagged-node mapping and checks its separate development fixtures.
 Incremental chunk-state coverage, deterministic mutation testing, a
 coverage-guided Rust target, and a scheduled fuzz workflow are also in place.
 The next Film stage is reader deployment and ecosystem compatibility review;

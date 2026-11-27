@@ -5,11 +5,38 @@ use aes_telex::film::{
     FILM_V1_PREAMBLE, FilmLimits, FilmStream, decode_film, decode_film_with_limits, encode_film,
     encode_film_with_limits, film_to_telex, telex_to_film,
 };
+use aes_telex::film_candidate_b::{decode_film_candidate_b, encode_film_candidate_b};
+use aes_telex::film_candidate_c::{
+    decode_film_candidate_c_validated_compact, encode_film_candidate_c,
+};
 use aes_telex::{
     COMPLETE_AES_PROFILE, ClarifierKind, DatatypeClarifier, DatatypeDescriptor, GenericArgument,
     PARTIAL_AES_PROFILE, TelexLimits, TelexRecord,
 };
 use serde_json::Value;
+
+#[test]
+fn tagged_nodes_survive_full_and_experimental_compact_carriers() {
+    let telex = "telex.aes=1\n\npath=$.node\nkind=NodeLiteral\ntag=node\n\npath=$.node[0]\nkind=NodeLiteral\ntag=🌊\n";
+    let film = telex_to_film(telex, &[]).expect("tagged Telex must encode");
+    assert_eq!(film[8], 0x19);
+    assert_eq!(
+        film_to_telex(&film, &[]).expect("tagged Film must transcode"),
+        telex
+    );
+    let stream = decode_film(&film, &[]).expect("tagged Film must decode");
+    let candidate_b = encode_film_candidate_b(&stream, &[]).expect("Candidate B must retain tags");
+    assert_eq!(
+        decode_film_candidate_b(&candidate_b, &[]).expect("Candidate B tagged read"),
+        stream
+    );
+    let candidate_c = encode_film_candidate_c(&stream, &[]).expect("Candidate C must retain tags");
+    let compact = decode_film_candidate_c_validated_compact(&candidate_c, &[])
+        .expect("Candidate C compact tagged read");
+    assert_eq!(compact.record_tag(&compact.records()[1]), Some("🌊"));
+    assert_eq!(compact.record_value(&compact.records()[1]), None);
+    assert_eq!(compact.to_owned_unvalidated(), stream);
+}
 
 #[test]
 fn film_default_empty_stream_has_exact_bytes() {
@@ -188,7 +215,7 @@ fn all_assigned_kind_codes_round_trip() {
         "ListNode",
         "TupleLiteral",
         "NodeLiteral",
-        "NodeHead",
+        "SymbolicLiteral",
         "CloneReference",
         "PointerReference",
     ];
@@ -213,7 +240,7 @@ fn all_assigned_kind_codes_round_trip() {
         "",
         "",
         "",
-        "tag",
+        "symbol",
         "$.source",
         "$.source",
     ];
@@ -226,9 +253,9 @@ fn all_assigned_kind_codes_round_trip() {
                 ("path".to_owned(), format!("$.item{index}")),
                 ("kind".to_owned(), (*kind).to_owned()),
             ];
-            if !value.is_empty()
-                || !["ObjectNode", "ListNode", "TupleLiteral", "NodeLiteral"].contains(kind)
-            {
+            if *kind == "NodeLiteral" {
+                fields.push(("tag".to_owned(), format!("item{index}")));
+            } else if !["ObjectNode", "ListNode", "TupleLiteral"].contains(kind) {
                 fields.push(("value".to_owned(), value.to_owned()));
             }
             TelexRecord::new(fields)
@@ -328,7 +355,7 @@ fn unknown_extensions_require_registration() {
 }
 
 #[test]
-fn released_telex_semantic_examples_round_trip_through_film() {
+fn development_telex_semantic_examples_round_trip_through_film() {
     let suite_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../conformance/telex/v1/suites/02-event-and-profile-validation.json");
     let suite: Value = serde_json::from_str(
@@ -363,5 +390,5 @@ fn released_telex_semantic_examples_round_trip_through_film() {
         assert_eq!(round_trip, telex, "{id}");
         exercised = exercised.saturating_add(1);
     }
-    assert_eq!(exercised, 11, "unexpected valid Telex CTS example count");
+    assert_eq!(exercised, 12, "unexpected valid Telex CTS example count");
 }

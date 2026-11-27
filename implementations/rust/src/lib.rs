@@ -18,10 +18,11 @@ pub mod film_candidate_c;
 mod telex_incremental;
 
 const VERSION_LINE: &str = "telex.aes=1";
-const CORE_FIELDS: [&str; 10] = [
+const CORE_FIELDS: [&str; 11] = [
     "header",
     "path",
     "kind",
+    "tag",
     "datatype",
     "generics",
     "clarifiers",
@@ -30,7 +31,7 @@ const CORE_FIELDS: [&str; 10] = [
     "origin",
     "span",
 ];
-const VALUE_KINDS: [&str; 24] = [
+const VALUE_KINDS: [&str; 23] = [
     "StringLiteral",
     "NumberLiteral",
     "InfinityLiteral",
@@ -51,7 +52,6 @@ const VALUE_KINDS: [&str; 24] = [
     "ListNode",
     "TupleLiteral",
     "NodeLiteral",
-    "NodeHead",
     "CloneReference",
     "PointerReference",
     "SymbolicLiteral",
@@ -282,7 +282,6 @@ pub enum AesValueKind {
     ListNode,
     TupleLiteral,
     NodeLiteral,
-    NodeHead,
     CloneReference,
     PointerReference,
 }
@@ -312,7 +311,6 @@ impl AesValueKind {
             Self::ListNode => "ListNode",
             Self::TupleLiteral => "TupleLiteral",
             Self::NodeLiteral => "NodeLiteral",
-            Self::NodeHead => "NodeHead",
             Self::CloneReference => "CloneReference",
             Self::PointerReference => "PointerReference",
         }
@@ -328,6 +326,7 @@ impl AesValueKind {
 pub struct AesEventRecord {
     pub address: AesEventAddress,
     pub kind: AesValueKind,
+    pub tag: Option<String>,
     pub datatype: Option<DatatypeDescriptor>,
     pub identity: Option<String>,
     pub value: Option<String>,
@@ -341,6 +340,7 @@ impl AesEventRecord {
         Self {
             address,
             kind,
+            tag: None,
             datatype: None,
             identity: None,
             value: None,
@@ -439,11 +439,12 @@ pub(crate) trait RecordView {
     fn fixed_core_fields<'a>(
         &'a self,
         datatype: Option<&'a str>,
-    ) -> [(&'static str, Option<&'a str>); 8] {
+    ) -> [(&'static str, Option<&'a str>); 9] {
         [
             ("header", self.get("header")),
             ("path", self.get("path")),
             ("kind", self.get("kind")),
+            ("tag", self.get("tag")),
             ("datatype", datatype),
             ("identity", self.get("identity")),
             ("value", self.get("value")),
@@ -514,7 +515,8 @@ impl RecordView for AesEventRecord {
     const FIXED_CORE_FIELDS: bool = true;
 
     fn field_count(&self) -> usize {
-        2 + usize::from(self.datatype.is_some())
+        2 + usize::from(self.tag.is_some())
+            + usize::from(self.datatype.is_some())
             + usize::from(self.identity.is_some())
             + usize::from(self.value.is_some())
             + usize::from(self.origin.is_some())
@@ -532,6 +534,7 @@ impl RecordView for AesEventRecord {
                 AesEventAddress::Header(_) => None,
             },
             "kind" => Some(self.kind.as_str()),
+            "tag" => self.tag.as_deref(),
             "datatype" => self.datatype.as_ref().map(|value| value.datatype.as_str()),
             "identity" => self.identity.as_deref(),
             "value" => self.value.as_deref(),
@@ -557,6 +560,9 @@ impl RecordView for AesEventRecord {
             AesEventAddress::Path(address) => visitor("path", address.as_str()),
         }
         visitor("kind", self.kind.as_str());
+        if let Some(tag) = &self.tag {
+            visitor("tag", tag);
+        }
         if let Some(datatype) = &self.datatype {
             visitor("datatype", datatype.datatype.as_str());
         }
@@ -577,7 +583,7 @@ impl RecordView for AesEventRecord {
     fn fixed_core_fields<'a>(
         &'a self,
         datatype: Option<&'a str>,
-    ) -> [(&'static str, Option<&'a str>); 8] {
+    ) -> [(&'static str, Option<&'a str>); 9] {
         let (header, path) = match &self.address {
             AesEventAddress::Header(address) => (Some(address.as_str()), None),
             AesEventAddress::Path(address) => (None, Some(address.as_str())),
@@ -586,6 +592,7 @@ impl RecordView for AesEventRecord {
             ("header", header),
             ("path", path),
             ("kind", Some(self.kind.as_str())),
+            ("tag", self.tag.as_deref()),
             ("datatype", datatype),
             ("identity", self.identity.as_deref()),
             ("value", self.value.as_deref()),
@@ -3464,7 +3471,20 @@ fn prepare_event_candidates_into<R: RecordView>(
             );
         }
         let reference_target = known_kind
-            .then(|| validate_event_value(event, index, limits, diagnostics))
+            .then(|| {
+                let details = cached_path_details
+                    .then_some(cached_details.as_ref())
+                    .flatten()
+                    .map(|details| details as &dyn PathDetailsView)
+                    .or_else(|| {
+                        path_details
+                            .as_ref()
+                            .map(|details| details as &dyn PathDetailsView)
+                    });
+                let reference = validate_event_value(event, index, limits, diagnostics);
+                validate_node_tag(event, index, details, limits, diagnostics);
+                reference
+            })
             .flatten();
         validate_optional_fields(event, index, diagnostics);
         let path_fingerprint = cached_path_details
@@ -3569,6 +3589,80 @@ fn index_event_paths<'records, 'events, R: RecordView>(
     }
 }
 
+fn validate_node_tag<R: RecordView>(
+    event: &R,
+    index: usize,
+    details: Option<&dyn PathDetailsView>,
+    limits: &TelexLimits,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let path = record_address(event);
+    let kind = event.get("kind").expect("the kind was validated");
+    let tag = event.get("tag");
+    if kind != "NodeLiteral" {
+        if tag.is_some() {
+            diagnostics.push(
+                Diagnostic::new(
+                    "AES_UNEXPECTED_TAG",
+                    format!("Kind '{kind}' must not carry 'tag'"),
+                )
+                .at_record(index, path)
+                .with_field("tag"),
+            );
+        }
+        return;
+    }
+    let Some(tag) = tag.filter(|tag| !tag.is_empty()) else {
+        diagnostics.push(
+            Diagnostic::new(
+                "AES_INVALID_TAG",
+                "Kind 'NodeLiteral' requires a non-empty 'tag'",
+            )
+            .at_record(index, path)
+            .with_field("tag"),
+        );
+        return;
+    };
+    let codepoints = tag.chars().count();
+    if codepoints > limits.max_key_segment_codepoints {
+        diagnostics.push(
+            limit_diagnostic(
+                "max_key_segment_codepoints",
+                codepoints,
+                limits.max_key_segment_codepoints,
+            )
+            .at_record(index, path)
+            .with_field("tag"),
+        );
+    }
+    if let (Some(path), Some(details)) = (path, details)
+        && let Some(last) = details.last()
+        && last.kind != Segment::Index
+    {
+        let terminal = &path[details.parent_prefix_end().unwrap_or(1)..last.prefix_end];
+        let key = terminal.trim_start_matches(if last.kind == Segment::Attribute {
+            ".@."
+        } else {
+            "."
+        });
+        let matches = if key.starts_with('[') {
+            decode_json_string(key, 1).is_ok_and(|(decoded, _)| decoded == tag)
+        } else {
+            key == tag
+        };
+        if !matches {
+            diagnostics.push(
+                Diagnostic::new(
+                    "AES_INVALID_TAG",
+                    "A named node's tag must equal the terminal address key",
+                )
+                .at_record(index, Some(path))
+                .with_field("tag"),
+            );
+        }
+    }
+}
+
 fn validate_event_value<'a, R: RecordView>(
     event: &'a R,
     index: usize,
@@ -3647,29 +3741,11 @@ fn validate_event_value<'a, R: RecordView>(
             .with_field("value"),
         );
     }
-    if kind == "NodeHead" && value.is_empty() {
-        diagnostics.push(
-            Diagnostic::new("AES_INVALID_VALUE", "Node tags must not be empty")
-                .at_record(index, path)
-                .with_field("value"),
-        );
-    }
     if kind == "SymbolicLiteral" && value.is_empty() {
         diagnostics.push(
             Diagnostic::new("AES_INVALID_VALUE", "Symbol payloads must not be empty")
                 .at_record(index, path)
                 .with_field("value"),
-        );
-    }
-    if kind == "NodeHead" && value.chars().count() > limits.max_key_segment_codepoints {
-        diagnostics.push(
-            limit_diagnostic(
-                "max_key_segment_codepoints",
-                value.chars().count(),
-                limits.max_key_segment_codepoints,
-            )
-            .at_record(index, path)
-            .with_field("value"),
         );
     }
     if kind == "WTCDateTimeLiteral"
@@ -4402,7 +4478,6 @@ fn validate_complete_stream<R: RecordView>(
             continue;
         };
         let path = candidate_address(records, candidate);
-        let kind = records[candidate.index].get("kind");
         if details.len() == 1 {
             if details.first().map(|segment| segment.kind) != Some(Segment::Member) {
                 diagnostics.push(
@@ -4413,9 +4488,6 @@ fn validate_complete_stream<R: RecordView>(
                     .at_record(candidate.index, path)
                     .with_required_path("$"),
                 );
-            }
-            if kind == Some("NodeHead") {
-                diagnostics.push(invalid_node_head(records, candidate));
             }
             continue;
         }
@@ -4451,38 +4523,19 @@ fn validate_complete_stream<R: RecordView>(
             Segment::Member if parent_kind != Some("ObjectNode") => diagnostics.push(
                 incompatible_parent(records, candidate, parent_path, parent_kind, "ObjectNode"),
             ),
-            Segment::Index if parent_kind == Some("NodeLiteral") && kind != Some("NodeHead") => {
-                diagnostics.push(incompatible_parent(
-                    records,
-                    candidate,
-                    parent_path,
-                    parent_kind,
-                    "NodeHead child",
-                ));
-            }
             Segment::Index
-                if ![
-                    Some("ListNode"),
-                    Some("TupleLiteral"),
-                    Some("NodeLiteral"),
-                    Some("NodeHead"),
-                ]
-                .contains(&parent_kind) =>
+                if ![Some("ListNode"), Some("TupleLiteral"), Some("NodeLiteral")]
+                    .contains(&parent_kind) =>
             {
                 diagnostics.push(incompatible_parent(
                     records,
                     candidate,
                     parent_path,
                     parent_kind,
-                    "ListNode, TupleLiteral, NodeLiteral, or NodeHead",
+                    "ListNode, TupleLiteral, or NodeLiteral",
                 ));
             }
             Segment::Attribute | Segment::Member | Segment::Index => {}
-        }
-        if kind == Some("NodeHead")
-            && (segment != Segment::Index || parent_kind != Some("NodeLiteral"))
-        {
-            diagnostics.push(invalid_node_head(records, candidate));
         }
     }
 }
@@ -4584,14 +4637,6 @@ fn incompatible_parent<R: RecordView>(
     )
     .at_record(candidate.index, candidate_address(records, candidate))
     .with_required_path(parent_path)
-}
-
-fn invalid_node_head<R: RecordView>(records: &[R], candidate: &EventCandidate) -> Diagnostic {
-    Diagnostic::new(
-        "AES_INVALID_NODE_HEAD",
-        "A 'NodeHead' must be an indexed direct child of a 'NodeLiteral'",
-    )
-    .at_record(candidate.index, candidate_address(records, candidate))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -5592,11 +5637,12 @@ fn core_rank(field: &str) -> Option<usize> {
         "header" => Some(0),
         "path" => Some(1),
         "kind" => Some(2),
-        "datatype" => Some(3),
-        "identity" => Some(4),
-        "value" => Some(5),
-        "origin" => Some(6),
-        "span" => Some(7),
+        "tag" => Some(3),
+        "datatype" => Some(4),
+        "identity" => Some(5),
+        "value" => Some(6),
+        "origin" => Some(7),
+        "span" => Some(8),
         _ => None,
     }
 }

@@ -35,6 +35,19 @@ fn passes_selected_v1_telex_vectors() {
                 "telex-specs-v1-snapshot-0.1"
             );
         }
+    } else if manifest["meta"]["status"] == "experimental" {
+        assert_eq!(
+            manifest["meta"]["specification_revision"]
+                .as_str()
+                .expect("experimental specification revision")
+                .len(),
+            40
+        );
+        assert!(
+            manifest["meta"]["expected_test_count"]
+                .as_u64()
+                .is_some_and(|count| count > 0)
+        );
     } else {
         assert_eq!(manifest["meta"]["status"], "draft");
         assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
@@ -77,7 +90,9 @@ fn passes_selected_v1_telex_vectors() {
 
     assert_eq!(
         count,
-        if released {
+        if let Some(count) = manifest["meta"]["expected_test_count"].as_u64() {
+            usize::try_from(count).expect("manifest case count")
+        } else if released {
             if manifest["meta"]["version"] == "0.2.0" {
                 61
             } else {
@@ -104,6 +119,19 @@ fn passes_selected_portable_aes_event_vectors() {
             manifest["meta"]["snapshot_id"].as_str(),
             Some("aes-events-cts-v1-snapshot-0.1" | "aes-events-cts-v1-snapshot-0.2")
         ));
+    } else if manifest["meta"]["status"] == "experimental" {
+        assert_eq!(
+            manifest["meta"]["specification_revision"]
+                .as_str()
+                .expect("experimental specification revision")
+                .len(),
+            40
+        );
+        assert!(
+            manifest["meta"]["expected_test_count"]
+                .as_u64()
+                .is_some_and(|count| count > 0)
+        );
     } else {
         assert_eq!(manifest["meta"]["status"], "draft");
         assert_eq!(manifest["meta"]["snapshot_id"], Value::Null);
@@ -146,7 +174,9 @@ fn passes_selected_portable_aes_event_vectors() {
     }
     assert_eq!(
         count,
-        if released {
+        if let Some(count) = manifest["meta"]["expected_test_count"].as_u64() {
+            usize::try_from(count).expect("manifest case count")
+        } else if released {
             if manifest["meta"]["version"] == "0.2.0" {
                 48
             } else {
@@ -185,7 +215,7 @@ fn run_aes_event_vector(id: &str, vector: &Value) {
         profile,
         projection,
         &registered,
-        &TelexLimits::default(),
+        &vector_limits(vector),
     );
     let mut actual_codes = result
         .diagnostics

@@ -32,9 +32,11 @@ Film owns only:
 - Film-local resource counters; and
 - Film syntax and canonicality diagnostics.
 
-Film v1 maps statically to `aes.events.v1`. An incompatible binary grammar or
-mapping requires another Film format version. A new AES event contract does not
-silently change the meaning of Film v1.
+Each pinned Film v1 contract revision maps statically to its AES event
+contract. An incompatible change to a released wire mapping normally requires
+a new Film format version. The coordinated tagged-node development cutover
+retains v1 under an explicitly selected contract pin. The preamble is shared.
+Keep old and new producing revisions separate when storing or reading streams.
 
 ## 2. Design invariants
 
@@ -223,7 +225,7 @@ extension := name:string value:string
 ```
 
 Core fields have no individual field tags. Presence comes from record control
-except for value, whose presence derives from kind. The fixed order above is
+except for the tag-or-value slot, whose presence and meaning derive from kind. The fixed order above is
 canonical and cannot be rearranged.
 
 ### 5.1 Record control
@@ -268,9 +270,12 @@ Identity syntax, identity uniqueness, and whether an empty value is valid come
 from `aes.events.v1`. Value bytes encode the canonical AES string payload for
 the selected kind. Film never substitutes a host-native representation.
 
-Value presence is derived from kind. `ObjectNode`, `ListNode`, `TupleLiteral`,
-and `NodeLiteral` omit value. Every other assigned Film v1 kind requires value,
-including `NodeHead`, `CloneReference`, and `PointerReference`.
+Truncated or invalid UTF-8 in a tag string fails Film syntax decoding. A
+well-framed empty tag reaches AES validation and is rejected there.
+
+The kind-dependent string is absent for `ObjectNode`, `ListNode`, and
+`TupleLiteral`. It maps to `tag` for a tagged `NodeLiteral` and to `value`
+for other assigned kinds. A tagged node has no logical `value` field.
 
 ## 6. Kind codes
 
@@ -298,13 +303,14 @@ Film kind codes are local to this wire version. They preserve the corresponding
 | `11` | `ObjectNode` | omitted |
 | `12` | `ListNode` | omitted |
 | `13` | `TupleLiteral` | omitted |
-| `14` | `NodeLiteral` | omitted |
-| `15` | `NodeHead` | required |
+| `14` | retired node container | invalid |
+| `15` | retired node head | invalid |
 | `16` | `CloneReference` | required |
 | `17` | `PointerReference` | required |
 | `18` | `SymbolicLiteral` | required |
+| `19` | `NodeLiteral` | required tag |
 
-Code `00` and codes `19` through `FF` are unassigned and invalid in Film v1. A
+Codes `00`, `14`, `15`, and `1A` through `FF` are invalid in the tagged-node development revision. Historical v1 streams use their original pinned mapping. A
 semantic decoder rejects them because it cannot determine the logical kind or
 value-presence contract. A framing-only relay may copy or skip the complete
 outer record opaquely but cannot expose it as AES or claim canonical record
@@ -446,7 +452,7 @@ span is valid; span without origin is invalid.
 
 Film performs no source retrieval, digest verification, UTF-8 boundary audit,
 or authority inference. Those operations remain with the source-backed AES
-audit contract. `NodeHead` span meaning remains the tag token range defined by
+audit contract. A node span covers its entire declaration as defined by
 `aes.events.v1`.
 
 ## 10. Canonical Film
@@ -757,8 +763,8 @@ before durable writers are enabled.
 
 Repository-local Film vectors remain mutable development material until their
 manifest identifies an immutable shared snapshot. Compatible added coverage
-advances the CTS snapshot; an incompatible wire change advances the Film format
-version.
+advances the CTS snapshot. The tagged-node cutover uses separate pinned
+specification and CTS authorities with the shared v1 preamble.
 
 The immutable `film-cts-v1-snapshot-0.2` supplies the language-neutral evidence
 for item 1. It contains 73 vectors and aligns with

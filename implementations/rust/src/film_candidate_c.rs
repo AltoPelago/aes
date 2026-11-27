@@ -7,7 +7,7 @@
 
 use crate::film::{
     FilmError, FilmLimits, FilmRecordPrefix, FilmRecordView, FilmStream, decode_record_tail_view,
-    kind_name,
+    kind_name, kind_payload_field,
 };
 use crate::film_candidate_b::encode_film_candidate_b_with_limits;
 use crate::{
@@ -78,7 +78,7 @@ pub struct CompactExtension {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CompactFilmRecord {
     address: CompactText,
-    value: CompactText,
+    payload: CompactText,
     metadata_index: u32,
     kind_code: u8,
     is_header: bool,
@@ -129,7 +129,7 @@ impl RecordView for CompactValidationRecord<'_> {
     fn field_count(&self) -> usize {
         let record = self.record();
         let metadata = self.context.stream.record_metadata(record);
-        2 + usize::from(record.value != ABSENT_TEXT)
+        2 + usize::from(record.payload != ABSENT_TEXT)
             + metadata.map_or(0, |metadata| {
                 usize::from(metadata.datatype.is_some())
                     + usize::from(metadata.identity.is_some())
@@ -151,7 +151,8 @@ impl RecordView for CompactValidationRecord<'_> {
             "identity" => metadata
                 .and_then(|value| value.identity)
                 .map(|value| stream.text(value)),
-            "value" => (record.value != ABSENT_TEXT).then(|| stream.text(record.value)),
+            "value" => stream.record_value(record),
+            "tag" => stream.record_tag(record),
             "origin" => self.formatted().and_then(|value| value.origin.as_deref()),
             "span" => self.formatted().and_then(|value| value.span.as_deref()),
             extension_name => stream
@@ -190,14 +191,17 @@ impl RecordView for CompactValidationRecord<'_> {
             "kind",
             kind_name(record.kind_code).expect("compact Film kind was validated"),
         );
+        if let Some(tag) = stream.record_tag(record) {
+            visitor("tag", tag);
+        }
         if let Some(datatype) = self.datatype() {
             visitor("datatype", &datatype.datatype);
         }
         if let Some(identity) = stream.record_identity(record) {
             visitor("identity", identity);
         }
-        if record.value != ABSENT_TEXT {
-            visitor("value", stream.text(record.value));
+        if let Some(value) = stream.record_value(record) {
+            visitor("value", value);
         }
         if let Some(origin) = self.formatted().and_then(|value| value.origin.as_deref()) {
             visitor("origin", origin);
@@ -285,7 +289,14 @@ impl CompactFilmStream {
 
     #[must_use]
     pub fn record_value<'a>(&'a self, record: &CompactFilmRecord) -> Option<&'a str> {
-        (record.value != ABSENT_TEXT).then(|| self.text(record.value))
+        (self.record_kind(record) != "NodeLiteral" && record.payload != ABSENT_TEXT)
+            .then(|| self.text(record.payload))
+    }
+
+    #[must_use]
+    pub fn record_tag<'a>(&'a self, record: &CompactFilmRecord) -> Option<&'a str> {
+        (self.record_kind(record) == "NodeLiteral" && record.payload != ABSENT_TEXT)
+            .then(|| self.text(record.payload))
     }
 
     #[must_use]
@@ -413,6 +424,9 @@ impl CompactFilmStream {
                     .to_owned(),
             ),
         ];
+        if let Some(tag) = self.record_tag(record) {
+            fields.push(("tag".to_owned(), tag.to_owned()));
+        }
         let datatype = metadata
             .and_then(|metadata| metadata.datatype)
             .map(|index| self.datatype_to_owned(index as usize));
@@ -422,8 +436,8 @@ impl CompactFilmStream {
         if let Some(identity) = metadata.and_then(|metadata| metadata.identity) {
             fields.push(("identity".to_owned(), self.text(identity).to_owned()));
         }
-        if record.value != ABSENT_TEXT {
-            fields.push(("value".to_owned(), self.text(record.value).to_owned()));
+        if let Some(value) = self.record_value(record) {
+            fields.push(("value".to_owned(), value.to_owned()));
         }
         if let Some(origin) = metadata.and_then(|metadata| metadata.origin) {
             fields.push(("origin".to_owned(), encode_origin(&origin)));
@@ -1264,11 +1278,10 @@ impl CompactBuilder {
             .identity
             .map(|value| self.push_text(value, Some(record_index), "identity"))
             .transpose()?;
-        let value = view
-            .value
-            .map(|value| self.push_text(value, Some(record_index), "value"))
-            .transpose()?
-            .unwrap_or(ABSENT_TEXT);
+        let payload = match (view.tag.or(view.value), kind_payload_field(view.kind)) {
+            (Some(text), Some(field)) => self.push_text(text, Some(record_index), field)?,
+            _ => ABSENT_TEXT,
+        };
         let extension_start = u32_index(self.extensions.len(), Some(record_index), "extensions")?;
         for extension in &view.extensions {
             let name = self.push_text(extension.name, Some(record_index), "extension-name")?;
@@ -1306,7 +1319,7 @@ impl CompactBuilder {
         };
         self.records.push(CompactFilmRecord {
             address,
-            value,
+            payload,
             metadata_index,
             kind_code,
             is_header: matches!(view.address, crate::film::FilmAddressView::Header(_)),

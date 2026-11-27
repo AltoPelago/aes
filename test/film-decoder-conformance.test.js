@@ -5,7 +5,7 @@ import test from 'node:test';
 import { pathToFileURL } from 'node:url';
 
 import { FilmDecodeError, decodeFilm } from '../src/film.js';
-import { parseTelex } from '../src/telex.js';
+import { encodeTelex, parseTelex } from '../src/telex.js';
 
 const manifestUrl = process.env.FILM_CTS_MANIFEST === undefined
   ? new URL('../conformance/film/v1/film-cts.v1.json', import.meta.url)
@@ -32,6 +32,11 @@ for (const suiteRef of manifest.suites) {
 }
 
 test('independent JavaScript decoder coverage has an explicit decoder-only boundary', () => {
+  if (manifest.meta.status === 'experimental') {
+    assert.ok(directDecodeVectors > 0, 'experimental target must exercise direct decoding');
+    assert.equal(directDecodeVectors + producerFixtures + encoderOnlyVectors, manifest.meta.expected_test_count);
+    return;
+  }
   const expectedCoverage = {
     '0.1.0-dev': { directDecodeVectors: 103, producerFixtures: 13, encoderOnlyVectors: 12 },
     '0.2.0': { directDecodeVectors: 69, producerFixtures: 3, encoderOnlyVectors: 1 },
@@ -52,6 +57,8 @@ function runDecodeVector(vector) {
   } catch (error) {
     assert.equal(vector.expected.ok, false, `unexpected decode error: ${error.message}`);
     assert.ok(error instanceof FilmDecodeError);
+    if (vector.expected.error.offset !== undefined) assert.equal(error.offset, vector.expected.error.offset);
+    if (vector.expected.error.component !== undefined) assert.equal(error.component, vector.expected.error.component);
     if (vector.expected.error.code !== undefined) {
       assert.equal(error.code, vector.expected.error.code);
     } else {
@@ -69,6 +76,11 @@ function runProducerFixture(vector) {
   const stream = decodeFilm(fromHex(vector.expected.film_hex), vectorOptions(vector));
   if (vector.operation === 'transcode') {
     const parsed = parseTelex(vector.input.telex);
+    const telex = encodeTelex(stream.records, {
+      ...(stream.profileExplicit ? { profile: stream.profile } : {}),
+      ...(stream.projectionExplicit ? { projection: stream.projection } : {}),
+    });
+    assert.equal(telex, vector.expected.telex);
     assert.deepEqual(streamForCts(stream), {
       profile: parsed.profile,
       profile_explicit: parsed.profileExplicit,

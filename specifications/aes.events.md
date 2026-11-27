@@ -7,6 +7,9 @@ Contract identifier: `aes.events.v1`
 
 Profiles: `aes.complete.v1`, `aes.partial.v1`
 
+This checkout implements the tagged-node development revision. Historical
+v1 streams and snapshots must be interpreted at their pinned source revision.
+
 This document is transport-neutral. It defines the portable Assignment Event
 Stream model encoded by `telex.aes`, the `film.aes` draft, and other AES
 transports. It does not define a byte encoding.
@@ -21,7 +24,7 @@ in-memory AST or object model.
 This document owns:
 
 - the portable record fields and value-kind vocabulary;
-- flat structure, attributes, node heads, and structural identity;
+- flat structure, attributes, intrinsic node tags, and structural identity;
 - event paths and AEON source-path translation;
 - provenance and spans;
 - event ordering;
@@ -74,6 +77,7 @@ logical fields, scalar strings, arrays, stream context, and record order.
 | `header` | address-dependent | canonical address in an explicitly selected header plane |
 | `path` | address-dependent | canonical SANSA data address of a body event |
 | `kind` | required | portable value-kind token |
+| `tag` | required for `NodeLiteral` | decoded intrinsic node tag |
 | `datatype` | optional | declared base datatype name |
 | `generics` | datatype-dependent | ordered generic-argument array |
 | `clarifiers` | datatype-dependent | ordered tagged-clarifier array |
@@ -100,8 +104,7 @@ exact field and defines its meaning and validation.
 
 A generic relay may preserve unknown fields without understanding them. It
 cannot claim semantic AES conformance for those records or sign a transformed
-record after silently dropping a field. A new required core field requires a
-new event-contract version rather than an extension.
+record after silently dropping a field. A new required core field is defined by its contract revision. The tagged-node development revision retains the v1 identifier and must be selected explicitly.
 
 ## 4. Datatypes and values
 
@@ -208,7 +211,6 @@ concerns.
 | `ListNode` | absent |
 | `TupleLiteral` | absent |
 | `NodeLiteral` | absent |
-| `NodeHead` | node tag |
 | `CloneReference` | canonical target event path |
 | `PointerReference` | canonical target event path |
 
@@ -218,10 +220,9 @@ is a string at the portable boundary even when its kind gives it numeric or
 temporal meaning.
 
 Container records do not carry nested value trees. Every represented member or
-item is a separate descendant record. A node head uses `value` for its tag. A
-reference uses `value` for its target path. A null uses `value` for its
-recognized sentinel or decoded custom reason. No kind introduces a
-kind-specific field name.
+item is a separate descendant record. A tagged node uses the kind-specific
+core field `tag`. A reference uses `value` for its target path. A null uses
+`value` for its recognized sentinel or decoded custom reason.
 
 Source spelling is normalized before the event enters AES. Quoted, backtick,
 and trimtick strings all become `kind=StringLiteral`; trimtick width and
@@ -295,7 +296,7 @@ merely to serialize an event.
 Identity does not alter event paths, path equality, navigation, selection,
 ordering, or parentage. Under `aes.complete.v1`, non-empty identities are unique
 across the complete document, including ordinary bindings, attribute entries,
-anonymous child heads, and node heads.
+anonymous child heads, and node declarations.
 
 ### 5.2 Anonymous values
 
@@ -336,90 +337,39 @@ to SANSA and downstream consumers.
 
 ### 5.4 Nodes
 
-A node is a value-less ordered `NodeLiteral` container. Its heads are indexed
-`NodeHead` descendants that carry their tags and own their ordered content.
-Current AEON produces exactly one head at index zero:
+A node is an ordered `NodeLiteral` container with a required nonempty Unicode
+scalar `tag`. No other kind carries a tag. The node's own datatype, identity,
+attributes, and provenance belong to that record. A named occurrence's tag
+equals the decoded terminal member or attribute key. An indexed occurrence
+retains an independent intrinsic tag. A node can have no children or one or
+more direct indexed children.
 
 ```text
-path=$.a
+path=$.tag
 kind=NodeLiteral
-datatype=node
-generics=[]
-clarifiers=[]
+tag=tag
+identity=binding-tag
 
-path=$.a[0]
-kind=NodeHead
-value=tag
+path=$.tag.@.role
+kind=StringLiteral
+value=button
 
-path=$.a[0][0]
+path=$.tag[0]
 kind=StringLiteral
 value=hello
 ```
 
-Binding-head metadata remains on the outer `NodeLiteral` record. Metadata
-written on the AEON node head belongs to the indexed `NodeHead` record. Their
-attributes are independently representable at `$.a.@.x` and `$.a[0].@.x`.
-
-Portable AES does not require exactly one node head. It can represent zero or
-multiple ordered heads so future source forms do not require a new event shape.
-AEON and other source profiles may impose their own cardinality.
-
-In the portable path domain, head `h` is at `[h]` below its node and child `i`
-of that head is at `[h][i]`. For example, a second head is `$.a[1]` and its
-first child is `$.a[1][0]`.
-
-For `a = <tag(<tag>, <tag>)>`, the inner node containers occur at
-`$.a[0][0]` and `$.a[0][1]`; their heads occur at `$.a[0][0][0]` and
-`$.a[0][1][0]`.
-
 ## 6. Paths and AEON projection
 
 Portable AES paths are canonical SANSA data addresses. The document root `$`
-is not itself an event.
+is not itself an event. Empty quoted member and attribute keys remain valid
+ordinary keys. A named node requires a nonempty tag.
 
-AEON source paths address values in the source-language structure. AES event
-paths address records in the expanded flat structure. Translation is
-structure-aware, not a blind rewrite of index strings.
-
-Let `S` be an AEON source path for a node and `E(S)` its AES event path:
-
-| Source occurrence | AES event path |
-| --- | --- |
-| node container at `S` | `E(S)` |
-| synthetic node head | `E(S)[0]` |
-| node child at `S[i]` | `E(S)[0][i]` |
-| NodeHead attribute | beneath `E(S)[0].@` |
-
-This table is specific to current AEON, whose source paths expose the children
-of one implicit head. It is not a source-neutral meaning for `S[i]`. A future
-multi-head AEON syntax or another source language must version and define its
-own structure-aware mapping into the portable `[head-index][child-index]`
-layout.
-
-Member, attribute, list-index, and tuple-index segments otherwise retain their
-meaning. Translation recurses across every node boundary:
-
-| AEON source path | AES event path |
-| --- | --- |
-| `$.a` | `$.a` |
-| `$.a[0]` | `$.a[0][0]` |
-| `$.a[0][0]` where both indexed occurrences are node children | `$.a[0][0][0][0]` |
-
-Reference payloads use the AES event-path domain. When `a` is a node, AEON
-`~a[0]` becomes `kind=CloneReference,value=$.a[0][0]`; `~>a[0]` produces the
-same target with `kind=PointerReference`. Identity never participates in
-translation or path comparison.
-
-Reverse projection removes a head index only when structural context proves
-that the represented parent is a node and the following index addresses its
-content. A direct AES reference to a synthetic head such as `$.a[0]` has no
-reference form in current AEON. An AEON serializer reports it as
-unrepresentable rather than reinterpreting it as `~a[0]`.
-
-A partial stream without sufficient ancestry needs external profile state for
-translation. A legacy stream in which `$.a[0]` meant the first node child needs
-an explicit versioned compatibility adapter and must not be silently read as
-the revised node head.
+AEON source and emitted portable AES share member, attribute, and indexed
+paths. For `<tag("hello")>`, the node is at `$.tag` and its first child is at
+`$.tag[0]`. AEON `~tag[0]`, `~>tag[0]`, and SANSA `$.tag[0]` select the
+same occurrence in their shared scope. Portable reference payloads use this
+unchanged path. Structural identity is independent of navigation.
 
 ## 7. Provenance and spans
 
@@ -485,22 +435,11 @@ not by itself prove that an event's semantic payload was parsed from its span.
 A consumer making that stronger claim must select a versioned source projection
 and reproduce the event from the verified bytes.
 
-### 7.1 NodeHead span
+### 7.1 Node span
 
-A source-backed NodeHead span begins at the first byte of its tag token and
-ends after its last head component: datatype, attribute block, structural
-identity, or tag in that precedence. It includes quoted tag delimiters,
-identity delimiters, attributes, datatype arguments, and intervening bytes.
-
-It excludes `<`, trivia before the tag, child delimiters and children, `>`, and
-surrounding binding-head syntax. In
-`<tag\HEAD\@{role = "button"}:node("hello")>`, the head range contains
-`tag\HEAD\@{role = "button"}:node`.
-
-Overlapping ranges for the outer node, node head, and attribute descendants are
-valid. An adapter that knows only the complete node-literal span carries
-`origin` without `span` for the head; it does not substitute the whole node
-range.
+A source-backed tagged node span covers its entire declaration, including the
+opening and closing angle brackets. Attribute and child records carry their
+own spans. Their ranges may overlap the containing node's span.
 
 ## 8. Ordering
 
@@ -517,8 +456,7 @@ it emits:
 4. the next sibling binding.
 
 Each parent precedes its descendants and each subtree is contiguous. Object
-members and attributes preserve declaration order. List and tuple items, node
-heads, and NodeHead content preserve ascending index order. Paths, datatype
+members and attributes preserve declaration order. List and tuple items and node children preserve ascending index order. Paths, datatype
 components, values, and identities are never implicit sort keys.
 
 A signature profile states which sequence it covers. `aes.integrity.v1`
@@ -538,8 +476,7 @@ The completeness claim does not select or alter processor resource limits.
 
 Every non-root structural prefix has a material record and each parent kind is
 compatible with its child segment. Parents are never inferred. An attribute
-requires its owner but no synthetic `.@` container. Node content requires both
-its `NodeLiteral` and `NodeHead` ancestry. Addresses and structural identities
+requires its owner but no synthetic `.@` container. Node content requires its `NodeLiteral` ancestry. Addresses and structural identities
 are unique.
 
 Every `CloneReference` and `PointerReference` target identifies a body event in
@@ -547,9 +484,7 @@ the stream. Target existence does not impose target-before-reference ordering.
 
 Only a member record may occur directly beneath the unrepresented `$` root.
 Named children require `ObjectNode` parents. Indexed children require
-`ListNode`, `TupleLiteral`, or `NodeHead` parents. Every direct indexed child of
-a `NodeLiteral` is a `NodeHead`, and a `NodeHead` cannot be an ordinary list or
-tuple item.
+`ListNode`, `TupleLiteral`, or `NodeLiteral` parents.
 
 An AEON canonical document projection satisfies this profile.
 `aeon.gp.profile.v1` declares `aes.complete.v1` explicitly even though omission
@@ -684,15 +619,14 @@ including exact lowercase WTC `local`.
 
 Portable resource counters are evaluated wherever the admitted records carry
 enough evidence. Event-local validation counts event addresses, reference
-addresses, decoded string values, node-head tags, decoded member and attribute
+addresses, decoded string values, intrinsic node tags, decoded member and attribute
 keys, and datatype structure. Stream validation counts admitted events, direct
 children of list and tuple records, attribute transitions, and represented
 container ancestry.
 
 Value nesting counts `ObjectNode`, `ListNode`, `TupleLiteral`, and
 `NodeLiteral` occurrences in a record's represented ancestor chain, including
-the record itself when it has one of those kinds. `NodeHead` is part of its
-owning node and does not add another value-nesting level. Attribute depth is
+the record itself when it has one of those kinds. Attribute depth is
 the longest uninterrupted run of `.@.` transitions in the canonical address;
 an intervening member or index enters a nested value and starts a new attribute
 address space. List and tuple item counts are the number of represented direct
@@ -743,7 +677,8 @@ Portable local diagnostics use these stable codes; prose is not normative:
 | `AES_DUPLICATE_IDENTITY` | complete stream repeats an identity |
 | `AES_MISSING_PARENT` | complete plane omits required ancestry |
 | `AES_INCOMPATIBLE_PARENT` | child segment is incompatible with parent kind |
-| `AES_INVALID_NODE_HEAD` | node head is not a direct indexed child of a node |
+| `AES_INVALID_TAG` | node tag is missing, empty, malformed, or differs from the decoded named key |
+| `AES_UNEXPECTED_TAG` | a recognized non-node kind carries a tag |
 
 ### 12.2 Source-backed audit diagnostics
 

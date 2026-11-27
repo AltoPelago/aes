@@ -30,6 +30,7 @@ fn equivalent_records() -> (Vec<TelexRecord>, Vec<AesEventRecord>) {
             AesCanonicalPath::parse("$.answer".to_owned()).expect("canonical test path"),
         ),
         kind: AesValueKind::NumberLiteral,
+        tag: None,
         datatype: Some(datatype),
         identity: Some("answer-id".to_owned()),
         value: Some("42".to_owned()),
@@ -77,6 +78,7 @@ fn typed_symbolic_literal_matches_extensible_record_encoding() {
     let typed = vec![AesEventRecord {
         address: AesEventAddress::Path(path),
         kind: AesValueKind::SymbolicLiteral,
+        tag: None,
         datatype: None,
         identity: None,
         value: Some("in review".to_owned()),
@@ -107,6 +109,7 @@ fn empty_symbolic_literals_fail_typed_and_extensible_validation() {
     let typed = AesEventRecord {
         address: AesEventAddress::Path(path),
         kind: AesValueKind::SymbolicLiteral,
+        tag: None,
         datatype: None,
         identity: None,
         value: Some(String::new()),
@@ -147,6 +150,7 @@ fn typed_records_retain_semantic_and_resource_validation() {
             AesCanonicalPath::parse("$.bad".to_owned()).expect("canonical test path"),
         ),
         kind: AesValueKind::HexLiteral,
+        tag: None,
         datatype: None,
         identity: None,
         value: Some("ABC".to_owned()),
@@ -205,6 +209,7 @@ fn cached_path_fingerprints_preserve_parent_and_duplicate_semantics() {
         AesEventRecord {
             address: AesEventAddress::Path(built_child_path),
             kind: AesValueKind::NumberLiteral,
+            tag: None,
             datatype: None,
             identity: None,
             value: Some("1".to_owned()),
@@ -214,6 +219,7 @@ fn cached_path_fingerprints_preserve_parent_and_duplicate_semantics() {
         AesEventRecord {
             address: AesEventAddress::Path(parsed_child_path),
             kind: AesValueKind::NumberLiteral,
+            tag: None,
             datatype: None,
             identity: None,
             value: Some("2".to_owned()),

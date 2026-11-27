@@ -39,15 +39,11 @@
           },
           {
             "path": "$.a.items[0]",
-            "kind": "NodeLiteral"
+            "kind": "NodeLiteral",
+            "tag": "tag"
           },
           {
             "path": "$.a.items[0][0]",
-            "kind": "NodeHead",
-            "value": "tag"
-          },
-          {
-            "path": "$.a.items[0][0][0]",
             "kind": "BooleanLiteral",
             "value": "true",
             "origin": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -249,7 +245,7 @@
     },
     {
       "id": "aes-events-008-node-head-placement",
-      "description": "A node-head cannot be used as an ordinary list item",
+      "description": "The removed node-head kind is rejected even at an otherwise valid indexed path",
       "operation": "validate",
       "input": {
         "records": [
@@ -268,7 +264,7 @@
         "valid": false,
         "profile": "aes.complete.v1",
         "diagnostic_codes": [
-          "AES_INVALID_NODE_HEAD"
+          "AES_UNKNOWN_KIND"
         ]
       },
       "tags": [
@@ -280,33 +276,31 @@
     },
     {
       "id": "aes-events-009-node-requires-head-child",
-      "description": "Every direct indexed child of a node is a node-head event",
+      "description": "Ordinary values may be direct indexed children of a tagged node",
       "operation": "validate",
       "input": {
         "records": [
           {
             "path": "$.item",
-            "kind": "NodeLiteral"
+            "kind": "NodeLiteral",
+            "tag": "item"
           },
           {
             "path": "$.item[0]",
             "kind": "StringLiteral",
-            "value": "not-a-head"
+            "value": "content"
           }
         ]
       },
       "expected": {
-        "valid": false,
+        "valid": true,
         "profile": "aes.complete.v1",
-        "diagnostic_codes": [
-          "AES_INCOMPATIBLE_PARENT"
-        ]
+        "diagnostic_codes": []
       },
       "tags": [
         "validation",
         "complete",
-        "node",
-        "failure"
+        "node"
       ]
     },
     {
@@ -899,13 +893,14 @@
     },
     {
       "id": "aes-events-029-node-path-and-reference-domain",
-      "description": "Expanded node heads, independently identified occurrences, and reference payloads share the portable AES event-path domain",
+      "description": "Tagged nodes, attributes, identities, descendants, and references share the portable event-path domain",
       "operation": "validate",
       "input": {
         "records": [
           {
             "path": "$.a",
             "kind": "NodeLiteral",
+            "tag": "a",
             "identity": "binding-a"
           },
           {
@@ -916,29 +911,18 @@
           },
           {
             "path": "$.a[0]",
-            "kind": "NodeHead",
-            "identity": "head-a",
-            "value": "tag"
+            "kind": "NodeLiteral",
+            "tag": "inner",
+            "identity": "child-a"
           },
           {
             "path": "$.a[0].@.x",
             "kind": "StringLiteral",
-            "identity": "head-attribute",
-            "value": "head"
+            "identity": "child-attribute",
+            "value": "metadata"
           },
           {
             "path": "$.a[0][0]",
-            "kind": "NodeLiteral",
-            "identity": "child-a"
-          },
-          {
-            "path": "$.a[0][0][0]",
-            "kind": "NodeHead",
-            "identity": "child-head",
-            "value": "inner"
-          },
-          {
-            "path": "$.a[0][0][0][0]",
             "kind": "StringLiteral",
             "identity": "leaf",
             "value": "value"
@@ -946,12 +930,12 @@
           {
             "path": "$.clone",
             "kind": "CloneReference",
-            "value": "$.a[0][0]"
+            "value": "$.a[0]"
           },
           {
             "path": "$.pointer",
             "kind": "PointerReference",
-            "value": "$.a[0][0][0][0]"
+            "value": "$.a[0][0]"
           }
         ]
       },
@@ -964,7 +948,6 @@
         "validation",
         "complete",
         "node",
-        "node-head",
         "identity",
         "reference",
         "path"
@@ -1274,18 +1257,19 @@
     },
     {
       "id": "aes-events-038-node-value-presence",
-      "description": "A node is value-less while a recognized node-head requires its tag payload",
+      "description": "A node requires a tag and omits the ordinary value payload",
       "operation": "validate",
       "input": {
         "records": [
           {
             "path": "$.legacy",
             "kind": "NodeLiteral",
-            "value": "tag"
+            "value": "tag",
+            "tag": "legacy"
           },
           {
-            "path": "$.head",
-            "kind": "NodeHead"
+            "path": "$.missing",
+            "kind": "NodeLiteral"
           }
         ],
         "profile": "aes.partial.v1"
@@ -1295,14 +1279,13 @@
         "profile": "aes.partial.v1",
         "diagnostic_codes": [
           "AES_UNEXPECTED_VALUE",
-          "AES_MISSING_VALUE"
+          "AES_INVALID_TAG"
         ]
       },
       "tags": [
         "validation",
         "partial",
         "node",
-        "node-head",
         "value",
         "failure"
       ]

@@ -14,7 +14,10 @@ const released = manifest.meta.status === 'released';
 
 test('selected portable AES event vectors are internally consistent', () => {
   assert.equal(manifest.meta.lane, 'aes-events');
-  if (released) {
+  if (manifest.meta.status === 'experimental') {
+    assert.match(manifest.meta.specification_revision, /^[0-9a-f]{40}$/u);
+    assert.ok(manifest.meta.expected_test_count > 0);
+  } else if (released) {
     assert.match(manifest.meta.snapshot_id, /^aes-events-cts-v1-snapshot-\d+\.\d+$/u);
     if (manifest.meta.spec_snapshot_id !== undefined) {
       assert.match(manifest.meta.spec_snapshot_id, /^aes-events-specs-v1-snapshot-\d+\.\d+$/u);
@@ -46,7 +49,7 @@ for (const suiteRef of manifest.suites) {
 }
 
 test('selected portable AES event set has the expected vector count', () => {
-  assert.equal(vectorCount, released ? (manifest.meta.version === '0.2.0' ? 48 : 38) : 49);
+  assert.equal(vectorCount, manifest.meta.expected_test_count ?? (released ? (manifest.meta.version === '0.2.0' ? 48 : 38) : 49));
 });
 
 function runVector(vector) {
@@ -55,6 +58,9 @@ function runVector(vector) {
     ...(vector.input.profile === undefined ? {} : { profile: vector.input.profile }),
     ...(vector.input.projection === undefined ? {} : { projection: vector.input.projection }),
     registeredFields: vector.input.registered_fields ?? [],
+    limits: Object.fromEntries(Object.entries(vector.input.limits ?? {}).map(([name, value]) => [
+      name.replace(/_([a-z])/gu, (_, letter) => letter.toUpperCase()), value,
+    ])),
   });
   assert.deepEqual({
     valid: result.valid,

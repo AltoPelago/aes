@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 const mode = process.argv[2];
+const taggedNode = process.argv.includes('--tagged-node');
 const ctsRoot = resolve(
   readArg('--cts-root')
     ?? process.env.AEONITE_CTS_ROOT
@@ -14,20 +15,20 @@ const ctsRoot = resolve(
 );
 
 if (!['javascript', 'rust'].includes(mode)) {
-  fail('usage: run-shared-conformance.mjs <javascript|rust> [--cts-root PATH]');
+  fail('usage: run-shared-conformance.mjs <javascript|rust> [--tagged-node] [--cts-root PATH]');
 }
 
 const telexManifest = resolve(
   ctsRoot,
-  'telex/v1/telex-cts.v1.snapshot-0.2.json',
+  taggedNode ? 'telex/v1/telex-tagged-node-carrier-cts.v1.next.json' : 'telex/v1/telex-cts.v1.snapshot-0.2.json',
 );
 const aesEventsManifest = resolve(
   ctsRoot,
-  'aes/v1/aes-events-cts.v1.snapshot-0.2.json',
+  taggedNode ? 'aes/v1/aes-events-tagged-node-carrier-cts.v1.next.json' : 'aes/v1/aes-events-cts.v1.snapshot-0.2.json',
 );
 const filmManifest = resolve(
   ctsRoot,
-  'film/v1/film-cts.v1.snapshot-0.4.json',
+  taggedNode ? 'film/v1/film-tagged-node-carrier-cts.v1.next.json' : 'film/v1/film-cts.v1.snapshot-0.4.json',
 );
 
 for (const manifest of [telexManifest, aesEventsManifest, filmManifest]) {

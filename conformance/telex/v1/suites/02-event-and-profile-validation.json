@@ -20,14 +20,19 @@
       "description": "The implicit complete profile accepts flat objects, attributes, lists, nodes, and node content",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=1\n\npath=$.a\nkind=ObjectNode\nidentity=root-a\n\npath=$.a.@.source\nkind=StringLiteral\nvalue=fixture\n\npath=$.a.items\nkind=ListNode\n\npath=$.a.items[0]\nkind=NodeLiteral\n\npath=$.a.items[0][0]\nkind=NodeHead\nvalue=tag\n\npath=$.a.items[0][0][0]\nkind=BooleanLiteral\nvalue=true\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=8:12\n"
+        "telex": "telex.aes=1\n\npath=$.a\nkind=ObjectNode\nidentity=root-a\n\npath=$.a.@.source\nkind=StringLiteral\nvalue=fixture\n\npath=$.a.items\nkind=ListNode\n\npath=$.a.items[0]\nkind=NodeLiteral\ntag=tag\n\npath=$.a.items[0][0]\nkind=BooleanLiteral\nvalue=true\norigin=sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\nspan=8:12\n"
       },
       "expected": {
         "valid": true,
         "profile": "aes.complete.v1",
         "diagnostic_codes": []
       },
-      "tags": ["validation", "complete", "attributes", "node"]
+      "tags": [
+        "validation",
+        "complete",
+        "attributes",
+        "node"
+      ]
     },
     {
       "id": "telex-profile-002-default-missing-parent",
@@ -115,7 +120,7 @@
     },
     {
       "id": "telex-profile-008-node-head-placement",
-      "description": "A node-head cannot be used as an ordinary list item",
+      "description": "The removed node-head kind is rejected even at an otherwise valid indexed path",
       "operation": "validate",
       "input": {
         "telex": "telex.aes=1\n\npath=$.items\nkind=ListNode\n\npath=$.items[0]\nkind=NodeHead\nvalue=tag\n"
@@ -123,23 +128,34 @@
       "expected": {
         "valid": false,
         "profile": "aes.complete.v1",
-        "diagnostic_codes": ["AES_INVALID_NODE_HEAD"]
+        "diagnostic_codes": [
+          "AES_UNKNOWN_KIND"
+        ]
       },
-      "tags": ["validation", "complete", "node-head", "failure"]
+      "tags": [
+        "validation",
+        "complete",
+        "node-head",
+        "failure"
+      ]
     },
     {
       "id": "telex-profile-009-node-requires-head-child",
-      "description": "Every direct indexed child of a node is a node-head event",
+      "description": "Ordinary values may be direct indexed children of a tagged node",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=1\n\npath=$.item\nkind=NodeLiteral\n\npath=$.item[0]\nkind=StringLiteral\nvalue=not-a-head\n"
+        "telex": "telex.aes=1\n\npath=$.item\nkind=NodeLiteral\ntag=item\n\npath=$.item[0]\nkind=StringLiteral\nvalue=content\n"
       },
       "expected": {
-        "valid": false,
+        "valid": true,
         "profile": "aes.complete.v1",
-        "diagnostic_codes": ["AES_INCOMPATIBLE_PARENT"]
+        "diagnostic_codes": []
       },
-      "tags": ["validation", "complete", "node", "failure"]
+      "tags": [
+        "validation",
+        "complete",
+        "node"
+      ]
     },
     {
       "id": "telex-profile-010-root-is-not-owner",
@@ -410,17 +426,24 @@
     },
     {
       "id": "telex-profile-029-node-path-and-reference-domain",
-      "description": "Expanded node heads, independently identified occurrences, and reference payloads share the portable AES event-path domain",
+      "description": "Tagged nodes, attributes, identities, descendants, and references share the portable event-path domain",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=1\n\npath=$.a\nkind=NodeLiteral\nidentity=binding-a\n\npath=$.a.@.x\nkind=StringLiteral\nidentity=binding-attribute\nvalue=outer\n\npath=$.a[0]\nkind=NodeHead\nidentity=head-a\nvalue=tag\n\npath=$.a[0].@.x\nkind=StringLiteral\nidentity=head-attribute\nvalue=head\n\npath=$.a[0][0]\nkind=NodeLiteral\nidentity=child-a\n\npath=$.a[0][0][0]\nkind=NodeHead\nidentity=child-head\nvalue=inner\n\npath=$.a[0][0][0][0]\nkind=StringLiteral\nidentity=leaf\nvalue=value\n\npath=$.clone\nkind=CloneReference\nvalue=$.a[0][0]\n\npath=$.pointer\nkind=PointerReference\nvalue=$.a[0][0][0][0]\n"
+        "telex": "telex.aes=1\n\npath=$.a\nkind=NodeLiteral\ntag=a\nidentity=binding-a\n\npath=$.a.@.x\nkind=StringLiteral\nidentity=binding-attribute\nvalue=outer\n\npath=$.a[0]\nkind=NodeLiteral\ntag=inner\nidentity=child-a\n\npath=$.a[0].@.x\nkind=StringLiteral\nidentity=child-attribute\nvalue=metadata\n\npath=$.a[0][0]\nkind=StringLiteral\nidentity=leaf\nvalue=value\n\npath=$.clone\nkind=CloneReference\nvalue=$.a[0]\n\npath=$.pointer\nkind=PointerReference\nvalue=$.a[0][0]\n"
       },
       "expected": {
         "valid": true,
         "profile": "aes.complete.v1",
         "diagnostic_codes": []
       },
-      "tags": ["validation", "complete", "node", "node-head", "identity", "reference", "path"]
+      "tags": [
+        "validation",
+        "complete",
+        "node",
+        "identity",
+        "reference",
+        "path"
+      ]
     },
     {
       "id": "telex-profile-030-wtc-anchor-reference-matrix",
@@ -536,17 +559,26 @@
     },
     {
       "id": "telex-profile-038-node-value-presence",
-      "description": "A node is value-less while a recognized node-head requires its tag payload",
+      "description": "A node requires a tag and omits the ordinary value payload",
       "operation": "validate",
       "input": {
-        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.legacy\nkind=NodeLiteral\nvalue=tag\n\npath=$.head\nkind=NodeHead\n"
+        "telex": "telex.aes=1\nprofile=aes.partial.v1\n\npath=$.legacy\nkind=NodeLiteral\ntag=legacy\nvalue=tag\n\npath=$.missing\nkind=NodeLiteral\n"
       },
       "expected": {
         "valid": false,
         "profile": "aes.partial.v1",
-        "diagnostic_codes": ["AES_UNEXPECTED_VALUE", "AES_MISSING_VALUE"]
+        "diagnostic_codes": [
+          "AES_UNEXPECTED_VALUE",
+          "AES_INVALID_TAG"
+        ]
       },
-      "tags": ["validation", "partial", "node", "node-head", "value", "failure"]
+      "tags": [
+        "validation",
+        "partial",
+        "node",
+        "value",
+        "failure"
+      ]
     }
   ]
 }

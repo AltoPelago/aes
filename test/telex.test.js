@@ -493,10 +493,9 @@ test('validates a complete flat stream under the default profile', () => {
     { path: '$.a', kind: 'ObjectNode', identity: 'root-a' },
     { path: '$.a.@.source', kind: 'StringLiteral', value: 'fixture' },
     { path: '$.a.items', kind: 'ListNode' },
-    { path: '$.a.items[0]', kind: 'NodeLiteral' },
-    { path: '$.a.items[0][0]', kind: 'NodeHead', value: 'tag' },
+    { path: '$.a.items[0]', kind: 'NodeLiteral', tag: 'tag' },
     {
-      path: '$.a.items[0][0][0]',
+      path: '$.a.items[0][0]',
       kind: 'BooleanLiteral',
       value: 'true',
       origin: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
@@ -561,18 +560,17 @@ test('retains event-local validation in the partial profile', () => {
   ]);
 });
 
-test('checks parent kinds and node-head placement in the complete profile', () => {
+test('checks parent kinds and rejects the removed node-head kind', () => {
   const result = validateTelexRecords([
     { path: '$.scalar', kind: 'NumberLiteral', value: '1' },
     { path: '$.scalar.child', kind: 'StringLiteral', value: 'no' },
     { path: '$.list', kind: 'ListNode' },
     { path: '$.list[0]', kind: 'NodeHead', value: 'misplaced' },
-    { path: '$.node', kind: 'NodeLiteral' },
-    { path: '$.node[0]', kind: 'StringLiteral', value: 'not-a-head' },
+    { path: '$.node', kind: 'NodeLiteral', tag: 'node' },
+    { path: '$.node[0]', kind: 'StringLiteral', value: 'content' },
   ]);
   assert.deepEqual(result.diagnostics.map(({ code }) => code), [
-    'AES_INCOMPATIBLE_PARENT',
-    'AES_INVALID_NODE_HEAD',
+    'AES_UNKNOWN_KIND',
     'AES_INCOMPATIBLE_PARENT',
   ]);
 });

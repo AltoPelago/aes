@@ -48,10 +48,10 @@ fn passes_selected_film_v1_vectors() {
         }
     } else if manifest["meta"]["status"] == "experimental" {
         assert!(manifest_path.to_string_lossy().ends_with(".next.json"));
-        assert_eq!(
-            manifest["meta"]["snapshot_id"],
-            "film-next-cts-v1-snapshot-0.1"
-        );
+        assert!(matches!(
+            manifest["meta"]["snapshot_id"].as_str(),
+            Some("film-next-cts-v1-snapshot-0.1" | "film-tagged-node-carrier-cts-v1-snapshot-0.1")
+        ));
     } else {
         assert_eq!(manifest["meta"]["version"], "0.1.0-dev");
         assert_eq!(manifest["meta"]["status"], "draft");
@@ -229,6 +229,13 @@ fn assert_expected_error(id: &str, expected: &Value, error: &FilmError) {
     }
     if expected["error"]["stage"] == "aes" {
         assert_eq!(error.code, "FILM_AES_INVALID", "{id}: {error}");
+    }
+    if let Some(offset) = expected["error"]["offset"].as_u64() {
+        assert_eq!(
+            u64::try_from(error.offset).expect("Film error offset"),
+            offset,
+            "{id}"
+        );
     }
     if let Some(component) = expected["error"]["component"].as_str() {
         assert_eq!(error.component, component, "{id}");

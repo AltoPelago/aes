@@ -70,27 +70,23 @@ the source-backed preparation contract. It is not a published immutable CTS
 snapshot.
 
 The [`film.aes` v1 specification](../specifications/film.aes.md) is a normative
-draft working copy. Its mutable `0.1.0-dev` CTS contains 128 language-neutral vectors across
-framing and canonicalization, records and Telex transcoding, and resource
-limits. Exact Film bytes use contiguous lowercase hexadecimal inside the JSON
-test envelope. The lane fixes all 24 kind-code mappings and keeps Film syntax
-and canonicality failures separate from transport-neutral AES diagnostics.
+draft working copy. Its mutable `0.1.0-dev` CTS contains language-neutral
+vectors for framing and canonicalization, records and Telex transcoding, and
+resource limits. Exact Film bytes use contiguous lowercase hexadecimal inside
+the JSON test envelope. The local lane checks the assigned kind codes and
+separates Film syntax and canonicality failures from transport-neutral AES
+diagnostics. The shared tagged-node Film fixtures also check explicit
+rejection of the retired codes `0x14` and `0x15`.
 
 The local Film candidate carries no `snapshot_id` or `spec_snapshot_id` and
-remains the mutable development target. The immutable shared
-`film-cts-v1-snapshot-0.4` has 128 vectors. The selected Rust reference claims
-all operations. The JavaScript implementation claims its 103 `decode`
-operations and also reads 13 canonical producer fixtures; the 12
-encoder-only cases remain outside its decoder-only claim. The local candidate
-also has 103 decode cases: it retains its all-24-kind mapping fixture, while the
-shared snapshot carries equivalent coverage in a separate symbolic kind suite.
-AES events 0.2 (48 vectors) and Telex 0.2 (61) accompany Film 0.4.
-Historical snapshots retain numeric-generic expectations unchanged. The new
-targets require datatype descriptors as generics; numeric clarifiers remain
-strings. Film 0.4 uses the shared AES logical generic-depth measurement, not
-descriptor-frame recursion: `list<int>` fits a maximum of zero. It selects 37
-new logical-depth vectors and excludes one superseded physical-depth negative;
-the earlier snapshots and suite bytes remain unchanged.
+remains a development target alongside the shared tagged-node manifests.
+The immutable shared `film-cts-v1-snapshot-0.4` has 128 vectors. At the
+historical provider pin below, Rust qualified for all operations and
+JavaScript qualified for 103 decode operations and verified 13 canonical
+producer fixtures. AES events 0.2 (48 vectors) and Telex 0.2 (61) accompany
+Film 0.4. These published snapshots require datatype descriptors as generics
+and retain exact numeric clarifiers. Film 0.4 uses the shared AES logical
+generic-depth measurement, under which `list<int>` fits a maximum of zero.
 
 The manifest separates:
 
@@ -175,24 +171,21 @@ were passed by the historical JavaScript and Rust implementations. Later candida
 changes stay here or enter a newer shared snapshot; the published identifiers
 and their suite bytes are not changed.
 
-The current adoption targets are AES events 0.2, Telex 0.2, and Film 0.4. A claim may
-carry an `operations` list to narrow its scope; omitting that field claims the
-entire snapshot. This repository therefore records JavaScript as a Film reader
-for `decode`, while Rust claims `decode`, `encode`, and `transcode`. The shared
-commands select all three released AES manifests from the authority repository.
-
-The repository declares its released-snapshot coverage in
-[`cts-claims.json`](cts-claims.json). Validate those claims against an
-`aeonite-cts` checkout with:
+[`cts-claims.json`](cts-claims.json) records the published provider coverage
+at `f90ee2dea2d06b99ccadd96df716c2c27b203c21`. An `operations` list narrows
+the claim to the named operations. CI exercises the shared commands in that
+historical checkout. Use its released manifests to check claim metadata, and
+an `aeonite-cts` checkout with the tagged-node manifests for the development
+commands.
 
 ```bash
 AEONITE_CTS_ROOT=/path/to/aeonite-cts/cts npm run validate:cts-claims
-npm run test:conformance:shared
-npm run test:conformance:rust:shared
+npm run test:conformance:tagged-node
+npm run test:conformance:rust:tagged-node
 ```
 
 Without `AEONITE_CTS_ROOT`, these commands look for the standard Aeonite family
-sibling layout. The default `npm test` and `npm run test:rust` commands use only
+sibling layout. CI also runs both published shared targets with the exact historical provider. The default `npm test` and `npm run test:rust` commands use only
 the mutable vectors in this repository, so a standalone clone remains
 independently testable.
 

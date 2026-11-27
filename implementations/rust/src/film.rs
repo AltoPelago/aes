@@ -148,6 +148,7 @@ pub struct FilmRecordView<'a> {
     pub kind: &'static str,
     pub datatype: Option<FilmDatatypeView<'a>>,
     pub identity: Option<&'a str>,
+    pub tag: Option<&'a str>,
     pub value: Option<&'a str>,
     pub origin: Option<&'a [u8; 32]>,
     pub span: Option<(u64, u64)>,
@@ -164,6 +165,9 @@ impl FilmRecordView<'_> {
             ),
             ("kind".to_owned(), self.kind.to_owned()),
         ];
+        if let Some(tag) = self.tag {
+            fields.push(("tag".to_owned(), tag.to_owned()));
+        }
         if let Some(datatype) = &self.datatype {
             fields.push(("datatype".to_owned(), datatype.datatype.to_owned()));
         }
@@ -993,19 +997,19 @@ fn encoded_record_size(
             "record",
         )?;
     }
-    if kind_has_value(kind) {
-        let value = record.get("value").ok_or_else(|| {
+    if let Some(field) = kind_payload_field(kind) {
+        let payload = record.get(field).ok_or_else(|| {
             film_error(
                 "FILM_ENCODE_ERROR",
                 0,
                 Some(record_index),
-                "value",
-                format!("Kind {kind} requires a value"),
+                field,
+                format!("Kind {kind} requires {field}"),
             )
         })?;
         size = checked_encoded_size(
             size,
-            encoded_string_size(value, film_limits, "value", Some(record_index))?,
+            encoded_string_size(payload, film_limits, field, Some(record_index))?,
             Some(record_index),
             "record",
         )?;
@@ -1124,17 +1128,17 @@ fn encode_record_into(
             Some(record_index),
         )?;
     }
-    if kind_has_value(kind) {
-        let value = record.get("value").ok_or_else(|| {
+    if let Some(field) = kind_payload_field(kind) {
+        let payload = record.get(field).ok_or_else(|| {
             film_error(
                 "FILM_ENCODE_ERROR",
                 0,
                 Some(record_index),
-                "value",
-                format!("Kind {kind} requires a value"),
+                field,
+                format!("Kind {kind} requires {field}"),
             )
         })?;
-        push_string(output, value, film_limits, "value", Some(record_index))?;
+        push_string(output, payload, film_limits, field, Some(record_index))?;
     }
     if let Some(origin) = origin {
         output.extend_from_slice(&decode_origin(origin, record_index)?);
@@ -1316,10 +1320,13 @@ fn decode_record_remainder<'a>(
     } else {
         None
     };
-    let value = if kind_has_value(kind) {
-        Some(reader.read_str(film_limits, "value")?)
+    let payload = kind_payload_field(kind)
+        .map(|field| reader.read_str(film_limits, field))
+        .transpose()?;
+    let (tag, value) = if kind == "NodeLiteral" {
+        (payload, None)
     } else {
-        None
+        (None, payload)
     };
     let origin = if control & RECORD_ORIGIN != 0 {
         let bytes = reader.read_exact(32, "origin")?;
@@ -1385,6 +1392,7 @@ fn decode_record_remainder<'a>(
         kind,
         datatype,
         identity,
+        tag,
         value,
         origin,
         span,
@@ -1525,18 +1533,23 @@ fn push_uleb(output: &mut Vec<u8>, mut value: u64) {
 fn kind_code(kind: &str) -> Option<u8> {
     KIND_NAMES
         .iter()
-        .position(|candidate| *candidate == kind)
-        .and_then(|index| u8::try_from(index.saturating_add(1)).ok())
+        .position(|candidate| *candidate == Some(kind))
+        .and_then(|index| u8::try_from(index + 1).ok())
 }
 
 pub(crate) fn kind_name(code: u8) -> Option<&'static str> {
     code.checked_sub(1)
         .and_then(|index| KIND_NAMES.get(usize::from(index)))
         .copied()
+        .flatten()
 }
 
-fn kind_has_value(kind: &str) -> bool {
-    !["ObjectNode", "ListNode", "TupleLiteral", "NodeLiteral"].contains(&kind)
+pub(crate) fn kind_payload_field(kind: &str) -> Option<&'static str> {
+    match kind {
+        "ObjectNode" | "ListNode" | "TupleLiteral" => None,
+        "NodeLiteral" => Some("tag"),
+        _ => Some("value"),
+    }
 }
 
 fn is_core_field(name: &str) -> bool {
@@ -1544,6 +1557,7 @@ fn is_core_field(name: &str) -> bool {
         "path",
         "header",
         "kind",
+        "tag",
         "datatype",
         "generics",
         "clarifiers",
@@ -2201,29 +2215,30 @@ fn uleb_width(mut value: u64) -> usize {
     width
 }
 
-const KIND_NAMES: [&str; 24] = [
-    "StringLiteral",
-    "NumberLiteral",
-    "InfinityLiteral",
-    "NaNLiteral",
-    "NullLiteral",
-    "BooleanLiteral",
-    "ToggleLiteral",
-    "HexLiteral",
-    "RadixLiteral",
-    "EncodingLiteral",
-    "SeparatorLiteral",
-    "SansaAddressLiteral",
-    "DateLiteral",
-    "TimeLiteral",
-    "DateTimeLiteral",
-    "WTCDateTimeLiteral",
-    "ObjectNode",
-    "ListNode",
-    "TupleLiteral",
-    "NodeLiteral",
-    "NodeHead",
-    "CloneReference",
-    "PointerReference",
-    "SymbolicLiteral",
+const KIND_NAMES: [Option<&str>; 25] = [
+    Some("StringLiteral"),
+    Some("NumberLiteral"),
+    Some("InfinityLiteral"),
+    Some("NaNLiteral"),
+    Some("NullLiteral"),
+    Some("BooleanLiteral"),
+    Some("ToggleLiteral"),
+    Some("HexLiteral"),
+    Some("RadixLiteral"),
+    Some("EncodingLiteral"),
+    Some("SeparatorLiteral"),
+    Some("SansaAddressLiteral"),
+    Some("DateLiteral"),
+    Some("TimeLiteral"),
+    Some("DateTimeLiteral"),
+    Some("WTCDateTimeLiteral"),
+    Some("ObjectNode"),
+    Some("ListNode"),
+    Some("TupleLiteral"),
+    None, // 0x14, former node container
+    None, // 0x15, former node head
+    Some("CloneReference"),
+    Some("PointerReference"),
+    Some("SymbolicLiteral"),
+    Some("NodeLiteral"),
 ];

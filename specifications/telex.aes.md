@@ -249,6 +249,7 @@ The standard physical core field names are:
 header
 path
 kind
+tag
 datatype
 identity
 value
@@ -289,6 +290,8 @@ that later fails those semantic rules.
 Telex syntax preserves supplied record order exactly. It never groups records,
 sorts by address, or infers an order from path structure.
 
+The revised portable node tag uses an ordinary escaped `tag` field immediately after `kind` in canonical output.
+
 ## 6. Canonical Telex
 
 A canonical encoder emits:
@@ -310,6 +313,7 @@ Core field order is:
 header
 path
 kind
+tag
 datatype
 identity
 value
@@ -347,8 +351,8 @@ merely because it can split fields.
 
 The reference `validateTelex` helper implements the event-local rules defined
 by the portable contract. Under `aes.complete.v1`, it additionally checks path
-and identity uniqueness, ancestry, parent compatibility, and node-head
-placement. Under `aes.partial.v1`, it omits body cross-record checks. Under
+and identity uniqueness, ancestry, parent compatibility, and tagged-node
+shape. Under `aes.partial.v1`, it omits body cross-record checks. Under
 `aeon.document.v1`, it independently checks header ordering, ancestry, and
 compatibility.
 
