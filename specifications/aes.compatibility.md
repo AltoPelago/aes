@@ -1,5 +1,12 @@
 # Portable AES Compatibility Contract v1
 
+This document records the historical adapters for the original AES v1 node
+mapping. Verify those adapters and their artifacts with the historical
+provider revision. The
+[revised tagged-node projection](./aes.events.md#6-paths-and-aeon-projection)
+uses one tagged record and direct child paths. A revision-specific adapter
+must select its target mapping explicitly.
+
 Scope: explicit legacy adapters, durable read views, and reader-before-writer
 migration for portable AES.
 

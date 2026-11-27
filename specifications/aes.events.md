@@ -220,10 +220,9 @@ is a string at the portable boundary even when its kind gives it numeric or
 temporal meaning.
 
 Container records do not carry nested value trees. Every represented member or
-item is a separate descendant record. A tagged node uses the separate `tag`
-field. A reference uses `value` for its target path. A null uses `value` for its
-recognized sentinel or decoded custom reason. No kind introduces a
-kind-specific field name.
+item is a separate descendant record. A tagged node uses the kind-specific
+core field `tag`. A reference uses `value` for its target path. A null uses
+`value` for its recognized sentinel or decoded custom reason.
 
 Source spelling is normalized before the event enters AES. Quoted, backtick,
 and trimtick strings all become `kind=StringLiteral`; trimtick width and
